@@ -41,6 +41,7 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
   const [hasMore, setHasMore] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [showToast, setShowToast] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   const fetchLibrary = async () => {
     setIsLoading(true);
@@ -84,10 +85,33 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
   };
 
-  const handleCopyUrl = () => {
-    if (selectedAsset?.url) {
-      navigator.clipboard.writeText(selectedAsset.url);
-      setShowToast(true);
+  const handleImport = async () => {
+    if (!selectedAsset?.url) return;
+    
+    setIsImporting(true);
+    try {
+      const response = await fetch('/api/import-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          imageUrl: selectedAsset.url,
+          filename: `imai-${selectedAsset.id}.jpg`,
+          altText: `Image generated from IMAI Studio - ${selectedAsset.id}`
+        })
+      });
+      
+      const result = await response.json();
+      
+      if (result.ok) {
+        setShowToast(true);
+        setSelectedAsset(null);
+      } else {
+        console.error('Import failed:', result.errors);
+      }
+    } catch (error) {
+      console.error('Error importing image:', error);
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -108,7 +132,11 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
           ))}
         </InlineGrid>
         <InlineStack align="end" blockAlign="center">
-          <Button onClick={handleRefresh} icon={<RefreshIcon />}>
+          <Button 
+            onClick={handleRefresh} 
+            disabled={isLoading}
+            icon={isLoading ? <Spinner size="small" /> : undefined}
+          >
             Refresh
           </Button>
         </InlineStack>
@@ -123,11 +151,15 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
           heading="No assets yet"
           image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
         >
-          <Text>Generate your first image in the Generate tab.</Text>
+          <Text as="p">Generate your first image in the Generate tab.</Text>
         </EmptyState>
         <InlineStack align="end" blockAlign="center">
-          <Button onClick={handleRefresh} disabled={isLoading}>
-            {isLoading ? <Spinner size="small" /> : "Refresh"}
+          <Button 
+            onClick={handleRefresh} 
+            disabled={isLoading}
+            icon={isLoading ? <Spinner size="small" /> : undefined}
+          >
+            Refresh
           </Button>
         </InlineStack>
       </BlockStack>
@@ -177,22 +209,24 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
             onNext={() => setPage((p) => p + 1)}
             label={`Page ${page} · ${assets.length} assets shown`}
           />
-          <Button onClick={handleRefresh} disabled={isLoading}>
-            {isLoading ? <Spinner size="small" /> : "Refresh"}
+          <Button 
+            onClick={handleRefresh} 
+            disabled={isLoading}
+            icon={isLoading ? <Spinner size="small" /> : undefined}
+          >
+            Refresh
           </Button>
         </InlineStack>
 
         <Modal
           open={!!selectedAsset}
           onClose={() => setSelectedAsset(null)}
-          title="Asset Preview"
+          title="Preview"
           primaryAction={{
-            content: "Copy URL",
-            onAction: handleCopyUrl,
+            content: isImporting ? "Importing..." : "Import",
+            onAction: handleImport,
+            loading: isImporting,
           }}
-          secondaryActions={[
-            { content: "Close", onAction: () => setSelectedAsset(null) },
-          ]}
         >
           <Modal.Section>
             <BlockStack gap="400">
@@ -203,20 +237,13 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
                   alt="Preview"
                 />
               )}
-              <InlineStack gap="200">
-                <Badge>{selectedAsset?.type}</Badge>
-                <Text tone="subdued">
-                  {selectedAsset?.metadata?.width}×
-                  {selectedAsset?.metadata?.height}
-                </Text>
-              </InlineStack>
             </BlockStack>
           </Modal.Section>
         </Modal>
 
         {showToast && (
           <Toast
-            content="URL copied to clipboard!"
+            content="Image imported to Shopify Files!"
             onDismiss={() => setShowToast(false)}
           />
         )}
