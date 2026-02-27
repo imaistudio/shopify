@@ -95,7 +95,6 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           imageUrl: selectedAsset.url,
-          filename: `imai-${selectedAsset.id}.jpg`,
           altText: `Image generated from IMAI Studio - ${selectedAsset.id}`
         })
       });

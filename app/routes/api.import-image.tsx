@@ -6,7 +6,7 @@ export async function action({ request }: ActionFunctionArgs) {
 
   try {
     const body = await request.json();
-    const { imageUrl, altText, filename } = body as {
+    const { imageUrl, altText, filename: providedFilename } = body as {
       imageUrl: string;
       altText?: string;
       filename?: string;
@@ -18,6 +18,10 @@ export async function action({ request }: ActionFunctionArgs) {
         { status: 400 }
       );
     }
+
+    // Extract extension from imageUrl or default to jpg
+    const urlExtension = imageUrl.split('.').pop()?.split('?')[0] || 'jpg';
+    const filename = providedFilename ?? `imai-image-${Date.now()}.${urlExtension}`;
 
     // Call Admin GraphQL: fileCreate mutation
     const response = await admin.graphql(
@@ -49,7 +53,7 @@ export async function action({ request }: ActionFunctionArgs) {
               alt: altText ?? "Image from IMAI Studio",
               contentType: "IMAGE",
               originalSource: imageUrl,
-              filename: filename ?? `imai-image-${Date.now()}.jpg`,
+              filename: filename,
             },
           ],
         },
