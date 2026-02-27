@@ -3,7 +3,6 @@ import {
   BlockStack,
   InlineGrid,
   Card,
-  Thumbnail,
   Text,
   Badge,
   Button,
@@ -38,23 +37,15 @@ interface LibraryGridProps {
 export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedTab, setSelectedTab] = useState(0);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [showToast, setShowToast] = useState(false);
 
-  const tabs = [
-    { id: "all", content: "All" },
-    { id: "image", content: "Images" },
-    { id: "video", content: "Videos" },
-    { id: "3d", content: "3D" },
-  ];
-
   const fetchLibrary = async () => {
     setIsLoading(true);
     try {
-      const type = tabs[selectedTab].id === "all" ? "" : tabs[selectedTab].id;
+      const type = "image";
       const offset = (page - 1) * 24;
       
       const resp = await fetch(
@@ -86,7 +77,7 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
 
   useEffect(() => {
     fetchLibrary();
-  }, [selectedTab, page, refreshTrigger]);
+  }, [page, refreshTrigger]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -107,22 +98,20 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
   if (isLoading && assets.length === 0) {
     return (
       <BlockStack gap="400">
-        <InlineStack align="space-between" blockAlign="center">
-          <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab} />
-          <Button onClick={handleRefresh} icon={<RefreshIcon />}>
-            Refresh
-          </Button>
-        </InlineStack>
         <InlineGrid columns={{ xs: 2, sm: 3, md: 4 }} gap="300">
           {[...Array(8)].map((_, i) => (
             <Box
               key={i}
-              background="bg-surface-secondary"
               minHeight="200px"
               borderRadius="200"
             />
           ))}
         </InlineGrid>
+        <InlineStack align="end" blockAlign="center">
+          <Button onClick={handleRefresh} icon={<RefreshIcon />}>
+            Refresh
+          </Button>
+        </InlineStack>
       </BlockStack>
     );
   }
@@ -130,13 +119,17 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
   if (assets.length === 0 && !isLoading) {
     return (
       <BlockStack gap="400">
-        <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab} />
         <EmptyState
           heading="No assets yet"
           image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
         >
           <Text>Generate your first image in the Generate tab.</Text>
         </EmptyState>
+        <InlineStack align="end" blockAlign="center">
+          <Button onClick={handleRefresh} disabled={isLoading}>
+            {isLoading ? <Spinner size="small" /> : "Refresh"}
+          </Button>
+        </InlineStack>
       </BlockStack>
     );
   }
@@ -144,13 +137,6 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
   return (
     <Frame>
       <BlockStack gap="400">
-        <InlineStack align="space-between" blockAlign="center">
-          <Tabs tabs={tabs} selected={selectedTab} onSelect={setSelectedTab} />
-          <Button onClick={handleRefresh} disabled={isLoading}>
-            {isLoading ? <Spinner size="small" /> : "Refresh"}
-          </Button>
-        </InlineStack>
-
         <InlineGrid columns={{ xs: 2, sm: 3, md: 4 }} gap="300">
           {assets.map((asset) => (
             <Card key={asset.id} padding="0">
@@ -168,9 +154,6 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
                 <Box padding="200">
                   <BlockStack gap="100">
                     <Badge>{asset.type}</Badge>
-                    <Text variant="bodySm" tone="subdued">
-                      {formatDate(asset.createdAt)}
-                    </Text>
                     <Button
                       size="slim"
                       onClick={() => setSelectedAsset(asset)}
@@ -184,13 +167,18 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
           ))}
         </InlineGrid>
 
-        <Pagination
-          hasPrevious={page > 1}
-          hasNext={hasMore}
-          onPrevious={() => setPage((p) => p - 1)}
-          onNext={() => setPage((p) => p + 1)}
-          label={`Page ${page} · ${assets.length} assets shown`}
-        />
+        <InlineStack align="space-between" blockAlign="center">
+          <Pagination
+            hasPrevious={page > 1}
+            hasNext={hasMore}
+            onPrevious={() => setPage((p) => p - 1)}
+            onNext={() => setPage((p) => p + 1)}
+            label={`Page ${page} · ${assets.length} assets shown`}
+          />
+          <Button onClick={handleRefresh} disabled={isLoading}>
+            {isLoading ? <Spinner size="small" /> : "Refresh"}
+          </Button>
+        </InlineStack>
 
         <Modal
           open={!!selectedAsset}

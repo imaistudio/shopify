@@ -3,6 +3,8 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useFetcher, useLoaderData } from "react-router";
 import { useAppBridge } from "@shopify/app-bridge-react";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
+import { encrypt, decrypt, maskApiKey } from "../lib/encryption.server";
 import {
   Page,
   Tabs,
@@ -26,7 +28,34 @@ import { useApiKey } from "../hooks/useApiKey";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  return { shop: session.shop };
+  
+  // Check if shop has a stored API key
+  const storedKey = await prisma.apiKey.findUnique({
+    where: { shop: session.shop },
+  });
+  
+  let balance = null;
+  if (storedKey) {
+    try {
+      const apiKey = decrypt(storedKey.encryptedKey);
+      const creditsResp = await fetch("https://www.imai.studio/api/v1/credits", {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      if (creditsResp.ok) {
+        const creditsData = await creditsResp.json();
+        balance = creditsData.balance;
+      }
+    } catch (error) {
+      console.error("Failed to fetch balance:", error);
+    }
+  }
+  
+  return { 
+    shop: session.shop,
+    isConnected: !!storedKey,
+    maskedKey: storedKey?.maskedKey || null,
+    balance,
+  };
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -65,9 +94,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
       const creditsData = await creditsResp.json();
       
-      // Here you would encrypt and store the key in your database
-      // For now, we'll just return success with masked key
-      const maskedKey = `${apiKey.slice(0, 12)}••••${apiKey.slice(-4)}`;
+      // Encrypt and store the key in database
+      const encryptedKey = encrypt(apiKey);
+      const maskedKey = maskApiKey(apiKey);
+      
+      await prisma.apiKey.upsert({
+        where: { shop: session.shop },
+        update: {
+          encryptedKey,
+          maskedKey,
+          balance: creditsData.balance || 0,
+        },
+        create: {
+          shop: session.shop,
+          encryptedKey,
+          maskedKey,
+          balance: creditsData.balance || 0,
+        },
+      });
       
       return { 
         success: true, 
@@ -80,7 +124,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   if (intent === "removeKey") {
-    // Here you would delete the key from your database
+    // Delete the key from database
+    await prisma.apiKey.delete({
+      where: { shop: session.shop },
+    });
     return { success: true, removed: true };
   }
 
@@ -88,32 +135,34 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 };
 
 export default function IMAIStudioIndex() {
-  const { shop } = useLoaderData<typeof loader>();
+  const { shop, isConnected, maskedKey, balance } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<typeof action>();
   const shopify = useAppBridge();
   
   const [selectedTab, setSelectedTab] = useState(0);
   const [libraryRefreshTrigger, setLibraryRefreshTrigger] = useState(0);
 
-  const {
-    isConnected,
-    maskedKey,
-    balance,
-    isLoading,
-    error,
-    saveKey,
-    removeKey,
-    refreshBalance,
-  } = useApiKey(fetcher, shopify);
-
   const handleKeySaved = useCallback(() => {
-    refreshBalance();
-  }, [refreshBalance]);
+    // Key is saved, data will be updated via loader
+  }, []);
 
   const handleGenerationComplete = useCallback(() => {
     setLibraryRefreshTrigger((prev) => prev + 1);
-    refreshBalance();
-  }, [refreshBalance]);
+  }, []);
+
+  const saveKey = useCallback((apiKey: string) => {
+    fetcher.submit(
+      { intent: "saveKey", apiKey },
+      { method: "post" }
+    );
+  }, [fetcher]);
+
+  const removeKey = useCallback(() => {
+    fetcher.submit(
+      { intent: "removeKey" },
+      { method: "post" }
+    );
+  }, [fetcher]);
 
   const tabs = [
     {
@@ -140,8 +189,11 @@ export default function IMAIStudioIndex() {
   const effectiveTab = isConnected ? selectedTab : 2;
 
   const primaryAction = isConnected ? (
-    <CreditsBadge balance={balance} isLoading={isLoading} />
+    <CreditsBadge balance={balance} />
   ) : undefined;
+
+  const isLoading = fetcher.state === "submitting";
+  const error = fetcher.data?.error;
 
   return (
     <Page title="IMAI Studio" primaryAction={primaryAction}>

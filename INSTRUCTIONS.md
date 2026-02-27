@@ -12,8 +12,12 @@ SCOPES=write_products,read_products,write_metaobject_definitions,read_metaobject
 HOST=https://your-ngrok-or-production-url.ngrok-free.app
 
 # IMAI API
+IMAI_API_KEY=your_imai_api_key
 IMAI_WEBHOOK_SECRET=your_imai_webhook_secret
 IMAI_BASE_URL=https://www.imai.studio
+
+# Cloudflare R2 Storage
+R2_BASE_URL=https://your-r2-bucket.your-account.r2.cloudflarestorage.com
 
 # Database (for production)
 DATABASE_URL=postgresql://user:password@localhost:5432/imai_studio
