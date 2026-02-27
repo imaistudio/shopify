@@ -31,7 +31,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   // const apiKey = await getDecryptedKeyForShop(session.shop);
   // const resp = await fetch(
-  //   `https://imai.studio/api/v1/generate/status?jobId=${jobId}`,
+  //   `https://www.imai.studio/api/v1/generate/status?jobId=${jobId}`,
   //   { headers: { Authorization: `Bearer ${apiKey}` } }
   // );
   // return Response.json(await resp.json());

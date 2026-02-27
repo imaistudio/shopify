@@ -20,7 +20,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // 3. Call IMAI API with the key
   
   // const apiKey = await getDecryptedKeyForShop(session.shop);
-  // const imaiUrl = new URL("https://imai.studio/api/v1/library");
+  // const imaiUrl = new URL("https://www.imai.studio/api/v1/library");
   // if (type) imaiUrl.searchParams.set("type", type);
   // imaiUrl.searchParams.set("limit", limit.toString());
   // 

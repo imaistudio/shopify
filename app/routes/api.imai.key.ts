@@ -29,7 +29,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // const apiKey = decrypt(storedKey.encryptedKey);
   // const maskedKey = `${apiKey.slice(0, 12)}••••${apiKey.slice(-4)}`;
   
-  // const creditsResp = await fetch("https://imai.studio/api/v1/credits", {
+  // const creditsResp = await fetch("https://www.imai.studio/api/v1/credits", {
   //   headers: { Authorization: `Bearer ${apiKey}` },
   // });
   // const creditsData = await creditsResp.json();

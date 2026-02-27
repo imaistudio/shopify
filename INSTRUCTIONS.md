@@ -13,7 +13,7 @@ HOST=https://your-ngrok-or-production-url.ngrok-free.app
 
 # IMAI API
 IMAI_WEBHOOK_SECRET=your_imai_webhook_secret
-IMAI_BASE_URL=https://imai.studio
+IMAI_BASE_URL=https://www.imai.studio
 
 # Database (for production)
 DATABASE_URL=postgresql://user:password@localhost:5432/imai_studio
@@ -25,7 +25,7 @@ IMAGE_UPLOAD_CDN_URL=https://your-cdn.com
 ## Testing Locally
 
 1. **Get IMAI API Key**
-   - Sign up at https://imai.studio
+   - Sign up at https://www.imai.studio
    - Go to Settings → API Keys
    - Generate a key with scopes: `credits:read`, `library:read`, `generate:write`
 

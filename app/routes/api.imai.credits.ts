@@ -15,7 +15,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
   
   // For now, return mock data
   // const apiKey = await getDecryptedKeyForShop(session.shop);
-  // const resp = await fetch("https://imai.studio/api/v1/credits", {
+  // const resp = await fetch("https://www.imai.studio/api/v1/credits", {
   //   headers: { Authorization: `Bearer ${apiKey}` },
   // });
   // const data = await resp.json();

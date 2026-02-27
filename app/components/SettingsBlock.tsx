@@ -116,8 +116,8 @@ export function SettingsBlock({
 
       <Text variant="bodyMd">
         Get your API key at{" "}
-        <Link url="https://imai.studio" target="_blank">
-          imai.studio
+        <Link url="https://www.imai.studio" target="_blank">
+          www.imai.studio
         </Link>{" "}
         → Settings
       </Text>

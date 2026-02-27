@@ -40,12 +40,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     
     // Validate key with IMAI API
     try {
-      const healthCheck = await fetch("https://imai.studio/api/v1/health");
+      const healthCheck = await fetch("https://www.imai.studio/api/v1/health");
       if (!healthCheck.ok) {
         return { error: "Could not reach IMAI Studio" };
       }
 
-      const creditsResp = await fetch("https://imai.studio/api/v1/credits", {
+      const creditsResp = await fetch("https://www.imai.studio/api/v1/credits", {
         headers: { Authorization: `Bearer ${apiKey}` },
       });
 
@@ -151,8 +151,8 @@ export default function IMAIStudioIndex() {
             <Text>
               Connect your API key in the Settings tab to start generating images.
               Get your key at{" "}
-              <a href="https://imai.studio" target="_blank" rel="noopener noreferrer">
-                imai.studio
+              <a href="https://www.imai.studio" target="_blank" rel="noopener noreferrer">
+                www.imai.studio
               </a>
             </Text>
           </Banner>
@@ -162,8 +162,8 @@ export default function IMAIStudioIndex() {
           <Banner tone="warning" title="Low credits">
             <Text>
               You have fewer than 100 credits remaining. Top up at{" "}
-              <a href="https://imai.studio" target="_blank" rel="noopener noreferrer">
-                imai.studio
+              <a href="https://www.imai.studio" target="_blank" rel="noopener noreferrer">
+                www.imai.studio
               </a>
             </Text>
           </Banner>

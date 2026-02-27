@@ -23,7 +23,7 @@ export async function action({ request }: ActionFunctionArgs) {
   //   ? '/api/v1/generate/marketing'
   //   : '/api/v1/generate/design';
   
-  // const resp = await fetch(`https://imai.studio${endpoint}`, {
+  // const resp = await fetch(`https://www.imai.studio${endpoint}`, {
   //   method: 'POST',
   //   headers: {
   //     'Authorization': `Bearer ${apiKey}`,
