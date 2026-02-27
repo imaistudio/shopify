@@ -22,11 +22,12 @@ import { useJobPoller } from "../hooks/useJobPoller";
 interface GeneratePanelProps {
   onGenerationComplete: () => void;
   shop: string;
+  defaultMode?: "marketing" | "design";
 }
 
-export function GeneratePanel({ onGenerationComplete, shop }: GeneratePanelProps) {
+export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: GeneratePanelProps) {
   const [prompt, setPrompt] = useState("");
-  const [mode, setMode] = useState<"marketing" | "design">("marketing");
+  const [mode, setMode] = useState<"marketing" | "design">(defaultMode || "marketing");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -224,23 +225,25 @@ export function GeneratePanel({ onGenerationComplete, shop }: GeneratePanelProps
         )}
       </BlockStack>
 
-      <BlockStack gap="200">
-        <Text variant="headingSm">Generation Mode</Text>
-        <RadioButton
-          label="Marketing Images"
-          helpText="Product shots, lifestyle images, and listing photos"
-          checked={mode === "marketing"}
-          onChange={() => setMode("marketing")}
-          disabled={isGenerating}
-        />
-        <RadioButton
-          label="Design Concepts"
-          helpText="Creative concepts and design variations"
-          checked={mode === "design"}
-          onChange={() => setMode("design")}
-          disabled={isGenerating}
-        />
-      </BlockStack>
+      {!defaultMode && (
+        <BlockStack gap="200">
+          <Text variant="headingSm">Generation Mode</Text>
+          <RadioButton
+            label="Marketing Images"
+            helpText="Product shots, lifestyle images, and listing photos"
+            checked={mode === "marketing"}
+            onChange={() => setMode("marketing")}
+            disabled={isGenerating}
+          />
+          <RadioButton
+            label="Design Concepts"
+            helpText="Creative concepts and design variations"
+            checked={mode === "design"}
+            onChange={() => setMode("design")}
+            disabled={isGenerating}
+          />
+        </BlockStack>
+      )}
 
       <InlineStack gap="300" blockAlign="center">
         <Button
