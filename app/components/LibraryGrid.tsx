@@ -136,34 +136,36 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
 
   return (
     <Frame>
-      <BlockStack gap="400">
+      <BlockStack gap="100">
         <InlineGrid columns={{ xs: 2, sm: 3, md: 4 }} gap="300">
           {assets.map((asset) => (
-            <Card key={asset.id} padding="0">
-              <Box>
-                <img
-                  src={asset.thumbnailUrl}
-                  alt={asset.type}
-                  style={{
-                    width: "100%",
-                    height: "150px",
-                    objectFit: "cover",
-                    display: "block",
-                  }}
-                />
-                <Box padding="200">
-                  <BlockStack gap="100">
-                    <Badge>{asset.type}</Badge>
-                    <Button
-                      size="slim"
-                      onClick={() => setSelectedAsset(asset)}
-                    >
-                      Preview
-                    </Button>
-                  </BlockStack>
+            <div 
+              key={asset.id} 
+              onClick={() => setSelectedAsset(asset)}
+              style={{ cursor: "pointer" }}
+            >
+              <Card padding="0">
+                <Box>
+                  <img
+                    src={asset.url}
+                    alt={asset.type}
+                    onError={(e) => {
+                      console.error('Image failed to load:', asset.url);
+                      e.currentTarget.style.display = 'none';
+                    }}
+                    onLoad={() => {
+                      console.log('Image loaded successfully:', asset.url);
+                    }}
+                    style={{
+                      width: "100%",
+                      height: "210px",
+                      objectFit: "cover",
+                      display: "block",
+                    }}
+                  />
                 </Box>
-              </Box>
-            </Card>
+              </Card>
+            </div>
           ))}
         </InlineGrid>
 
