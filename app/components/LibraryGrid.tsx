@@ -61,6 +61,7 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
       
       const params = new URLSearchParams({
         numItems: '24',
+        type: 'image',
         ...(currentCursor && { cursor: currentCursor })
       });
       
@@ -190,23 +191,34 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
 
   return (
     <Frame>
-      <BlockStack gap="400">
-        <Tabs
-          tabs={[
-            {
-              id: 'design',
-              content: 'Design',
-              accessibilityLabel: 'Design assets from chat generations',
-            },
-            {
-              id: 'marketing',
-              content: 'Marketing',
-              accessibilityLabel: 'Marketing assets from product generations',
-            },
-          ]}
-          selected={selectedTab}
-          onSelect={handleTabChange}
-        >
+      <div style={{ backgroundColor: 'white' }}>
+        <style>{`
+          .Polaris-Tabs__TabContainer[aria-selected="true"] {
+            background-color: black;
+            color: white;
+            border-radius: 8px;
+          }
+          .Polaris-Tabs__TabContainer[aria-selected="true"] .Polaris-Tabs__Title {
+            color: white;
+          }
+        `}</style>
+        <BlockStack gap="400">
+          <Tabs
+            tabs={[
+              {
+                id: 'design',
+                content: 'Design',
+                accessibilityLabel: 'Design assets from chat generations',
+              },
+              {
+                id: 'marketing',
+                content: 'Marketing',
+                accessibilityLabel: 'Marketing assets from product generations',
+              },
+            ]}
+            selected={selectedTab}
+            onSelect={handleTabChange}
+          />
           <BlockStack gap="100">
             <InlineGrid columns={{ xs: 2, sm: 3, md: 4 }} gap="300">
               {assets.map((asset) => (
@@ -248,66 +260,61 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
               ))}
             </InlineGrid>
 
-            <InlineStack align="space-between" blockAlign="center">
-              <Box>
-                {assets.length > 0 && (
+            <BlockStack gap="400" align="center">
+              {hasMore && (
+                <Box paddingBlockStart="600">
+                  <InlineStack align="center">
+                    <Button 
+                      onClick={handleLoadMore} 
+                      disabled={isLoading}
+                      icon={isLoading ? <Spinner size="small" /> : undefined}
+                    >
+                      Load More
+                    </Button>
+                  </InlineStack>
+                </Box>
+              )}
+              {assets.length > 0 && (
+                <InlineStack align="center">
                   <Text as="p" variant="bodySm" tone="subdued">
                     {assets.length} assets shown
                   </Text>
-                )}
-              </Box>
-              <InlineStack gap="200">
-                {hasMore && (
-                  <Button 
-                    onClick={handleLoadMore} 
-                    disabled={isLoading}
-                    icon={isLoading ? <Spinner size="small" /> : undefined}
-                  >
-                    Load More
-                  </Button>
-                )}
-                <Button 
-                  onClick={handleRefresh} 
-                  disabled={isLoading}
-                  icon={isLoading ? <Spinner size="small" /> : undefined}
-                >
-                  Refresh
-                </Button>
-              </InlineStack>
-            </InlineStack>
-          </BlockStack>
-        </Tabs>
-
-        <Modal
-          open={!!selectedAsset}
-          onClose={() => setSelectedAsset(null)}
-          title="Preview"
-          primaryAction={{
-            content: isImporting ? "Importing..." : "Import",
-            onAction: handleImport,
-            loading: isImporting,
-          }}
-        >
-          <Modal.Section>
-            <BlockStack gap="400">
-              {selectedAsset && (
-                <img
-                  src={selectedAsset.url}
-                  style={{ width: "100%", borderRadius: "8px" }}
-                  alt="Preview"
-                />
+                </InlineStack>
               )}
             </BlockStack>
-          </Modal.Section>
-        </Modal>
+          </BlockStack>
+        </BlockStack>
+      </div>
 
-        {showToast && (
-          <Toast
-            content="Image imported to Shopify Files!"
-            onDismiss={() => setShowToast(false)}
-          />
-        )}
-      </BlockStack>
+      <Modal
+        open={!!selectedAsset}
+        onClose={() => setSelectedAsset(null)}
+        title="Preview"
+        primaryAction={{
+          content: isImporting ? "Importing..." : "Import",
+          onAction: handleImport,
+          loading: isImporting,
+        }}
+      >
+        <Modal.Section>
+          <BlockStack gap="400">
+            {selectedAsset && (
+              <img
+                src={selectedAsset.url}
+                style={{ width: "100%", borderRadius: "8px" }}
+                alt="Preview"
+              />
+            )}
+          </BlockStack>
+        </Modal.Section>
+      </Modal>
+
+      {showToast && (
+        <Toast
+          content="Image imported to Shopify Files!"
+          onDismiss={() => setShowToast(false)}
+        />
+      )}
     </Frame>
   );
 }

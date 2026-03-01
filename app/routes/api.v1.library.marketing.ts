@@ -37,7 +37,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   });
   
   if (!resp.ok) {
-    throw new Error(`IMAI API error: ${resp.status}`);
+    const errorText = await resp.text();
+    console.error('IMAI API Error Response:', errorText);
+    throw new Error(`IMAI API error: ${resp.status} - ${errorText}`);
   }
   
   const data = await resp.json();
