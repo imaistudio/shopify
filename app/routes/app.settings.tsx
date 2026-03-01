@@ -153,6 +153,14 @@ export default function SettingsPage() {
 
   return (
     <Page title="Settings">
+      <style>{`
+        @media (max-width: 768px) {
+          .settings-grid {
+            grid-template-columns: 1fr !important;
+            gap: 16px !important;
+          }
+        }
+      `}</style>
       <BlockStack gap="400">
         {error && (
           <Banner tone="critical" title="Error">
@@ -160,7 +168,7 @@ export default function SettingsPage() {
           </Banner>
         )}
 
-        <Box>
+        <Box paddingInlineStart="400" paddingInlineEnd="400">
           <div
             style={{
               display: "grid",
@@ -168,10 +176,24 @@ export default function SettingsPage() {
               gap: 24,
               alignItems: "stretch",
             }}
+            className="settings-grid"
           >
-            <div style={{ height: "100%" }}>
-              <Card>
-                <Box padding="400">
+            <div style={{ height: "100%", display: "flex" }}>
+              <div style={{ 
+                flex: 1, 
+                display: "flex", 
+                flexDirection: "column",
+                backgroundColor: "var(--p-color-bg-surface)",
+                borderRadius: "var(--p-border-radius-200)",
+                border: "1px solid var(--p-color-border)"
+              }}>
+                <div style={{ 
+                  padding: "var(--p-space-400)", 
+                  flex: 1, 
+                  display: "flex", 
+                  flexDirection: "column", 
+                  justifyContent: "center" 
+                }}>
                   {isConnected ? (
                     <BlockStack gap="300">
                       <InlineStack gap="200" blockAlign="center">
@@ -214,13 +236,26 @@ export default function SettingsPage() {
                       onKeySaved={handleKeySaved}
                     />
                   )}
-                </Box>
-              </Card>
+                </div>
+              </div>
             </div>
 
-            <div style={{ height: "100%" }}>
-              <Card>
-                <Box padding="400">
+            <div style={{ height: "100%", display: "flex" }}>
+              <div style={{ 
+                flex: 1, 
+                display: "flex", 
+                flexDirection: "column",
+                backgroundColor: "var(--p-color-bg-surface)",
+                borderRadius: "var(--p-border-radius-200)",
+                border: "1px solid var(--p-color-border)"
+              }}>
+                <div style={{ 
+                  padding: "var(--p-space-400)", 
+                  flex: 1, 
+                  display: "flex", 
+                  flexDirection: "column", 
+                  justifyContent: "center" 
+                }}>
                   <BlockStack gap="200">
                     <Text as="h2" variant="headingMd">
                       Credits Remaining
@@ -229,8 +264,8 @@ export default function SettingsPage() {
                       {balance === null ? "0" : balance.toLocaleString()}
                     </Text>
                   </BlockStack>
-                </Box>
-              </Card>
+                </div>
+              </div>
             </div>
           </div>
         </Box>
