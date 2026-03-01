@@ -6,15 +6,18 @@ import prisma from "../db.server";
 import { encrypt, decrypt, maskApiKey } from "../lib/encryption.server";
 import {
   Page,
-  Card,
   Box,
   BlockStack,
   Banner,
+  Text,
+  Button,
+  InlineStack,
+  Card,
+  Badge,
 } from "@shopify/polaris";
 
 // Components
 import { SettingsBlock } from "../components/SettingsBlock";
-import { CreditsBadge } from "../components/CreditsBadge";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -146,14 +149,10 @@ export default function SettingsPage() {
     );
   }, [fetcher]);
 
-  const primaryAction = isConnected ? (
-    <CreditsBadge balance={balance} />
-  ) : undefined;
-
   const error = fetcher.data?.error;
 
   return (
-    <Page title="Settings" primaryAction={primaryAction}>
+    <Page title="Settings">
       <BlockStack gap="400">
         {error && (
           <Banner tone="critical" title="Error">
@@ -161,20 +160,80 @@ export default function SettingsPage() {
           </Banner>
         )}
 
-        <Card>
-          <Box padding="400">
-            <SettingsBlock
-              isConnected={isConnected}
-              maskedKey={maskedKey}
-              balance={balance}
-              onSaveKey={saveKey}
-              onRemoveKey={removeKey}
-              isLoading={fetcher.state === "submitting"}
-              error={fetcher.data?.error}
-              onKeySaved={handleKeySaved}
-            />
-          </Box>
-        </Card>
+        <Box>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "3fr 2fr",
+              gap: 24,
+              alignItems: "stretch",
+            }}
+          >
+            <div style={{ height: "100%" }}>
+              <Card>
+                <Box padding="400">
+                  {isConnected ? (
+                    <BlockStack gap="300">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Badge tone="success">Connected</Badge>
+                      </InlineStack>
+
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="span" variant="bodyMd" tone="subdued">
+                          API Key
+                        </Text>
+                        <Text
+                          as="span"
+                          variant="headingLg"
+                          fontWeight="medium"
+                        >
+                          {maskedKey}
+                        </Text>
+                      </InlineStack>
+
+                      <div>
+                        <Button
+                          onClick={removeKey}
+                          loading={fetcher.state === "submitting"}
+                          variant="primary"
+                          tone="critical"
+                        >
+                          Remove Key
+                        </Button>
+                      </div>
+                    </BlockStack>
+                  ) : (
+                    <SettingsBlock
+                      isConnected={isConnected}
+                      maskedKey={maskedKey}
+                      balance={balance}
+                      onSaveKey={saveKey}
+                      onRemoveKey={removeKey}
+                      isLoading={fetcher.state === "submitting"}
+                      error={fetcher.data?.error}
+                      onKeySaved={handleKeySaved}
+                    />
+                  )}
+                </Box>
+              </Card>
+            </div>
+
+            <div style={{ height: "100%" }}>
+              <Card>
+                <Box padding="400">
+                  <BlockStack gap="200">
+                    <Text as="h2" variant="headingMd">
+                      Credits Remaining
+                    </Text>
+                    <Text as="p" variant="headingLg" fontWeight="medium">
+                      {balance === null ? "0" : balance.toLocaleString()}
+                    </Text>
+                  </BlockStack>
+                </Box>
+              </Card>
+            </div>
+          </div>
+        </Box>
       </BlockStack>
     </Page>
   );
