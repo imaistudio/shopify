@@ -52,6 +52,7 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
   const fetchLibrary = async (resetCursor = false) => {
     setIsLoading(true);
@@ -90,12 +91,22 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
 
   useEffect(() => {
     setCursor(null);
+    setFailedImages(new Set());
     fetchLibrary(true);
   }, [selectedTab, refreshTrigger]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
     return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
+
+  const handleImageError = (assetId: string, imageUrl: string) => {
+    console.error('Image failed to load:', imageUrl);
+    setFailedImages(prev => new Set(prev).add(assetId));
+  };
+
+  const handleImageLoad = (imageUrl: string) => {
+    console.log('Image loaded successfully:', imageUrl);
   };
 
   const handleImport = async () => {
@@ -145,24 +156,11 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
   if (isLoading && assets.length === 0) {
     return (
       <BlockStack gap="400">
-        <InlineGrid columns={{ xs: 2, sm: 3, md: 4 }} gap="300">
-          {[...Array(8)].map((_, i) => (
-            <Box
-              key={i}
-              minHeight="200px"
-              borderRadius="200"
-            />
-          ))}
-        </InlineGrid>
-        <InlineStack align="end" blockAlign="center">
-          <Button 
-            onClick={handleRefresh} 
-            disabled={isLoading}
-            icon={isLoading ? <Spinner size="small" /> : undefined}
-          >
-            Refresh
-          </Button>
-        </InlineStack>
+        <Box padding="800">
+          <InlineStack align="center" blockAlign="center">
+            <Spinner size="large" />
+          </InlineStack>
+        </Box>
       </BlockStack>
     );
   }
@@ -180,7 +178,6 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
           <Button 
             onClick={handleRefresh} 
             disabled={isLoading}
-            icon={isLoading ? <Spinner size="small" /> : undefined}
           >
             Refresh
           </Button>
@@ -221,7 +218,7 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
           />
           <BlockStack gap="100">
             <InlineGrid columns={{ xs: 2, sm: 3, md: 4 }} gap="300">
-              {assets.map((asset) => (
+              {assets.filter(asset => !failedImages.has(asset.id)).map((asset) => (
                 <div 
                   key={asset.id} 
                   onClick={() => setSelectedAsset(asset)}
@@ -232,13 +229,8 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
                       <img
                         src={asset.thumbnailUrl || asset.url}
                         alt={asset.type}
-                        onError={(e) => {
-                          console.error('Image failed to load:', asset.url);
-                          e.currentTarget.style.display = 'none';
-                        }}
-                        onLoad={() => {
-                          console.log('Image loaded successfully:', asset.url);
-                        }}
+                        onError={() => handleImageError(asset.id, asset.thumbnailUrl || asset.url)}
+                        onLoad={() => handleImageLoad(asset.thumbnailUrl || asset.url)}
                         style={{
                           width: "100%",
                           height: "210px",
@@ -246,14 +238,6 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
                           display: "block",
                         }}
                       />
-                    </Box>
-                    <Box padding="200">
-                      <Text as="p" variant="bodySm" truncate>
-                        {selectedTab === 1 && asset.productName ? `${asset.productName}` : asset.type}
-                      </Text>
-                      <Text as="p" variant="bodyXs" tone="subdued">
-                        {formatDate(asset.createdAt)}
-                      </Text>
                     </Box>
                   </Card>
                 </div>
@@ -263,11 +247,11 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
             <BlockStack gap="400" align="center">
               {hasMore && (
                 <Box paddingBlockStart="600">
-                  <InlineStack align="center">
+                  <InlineStack align="center" gap="400">
+                    {isLoading && <Spinner size="small" />}
                     <Button 
                       onClick={handleLoadMore} 
                       disabled={isLoading}
-                      icon={isLoading ? <Spinner size="small" /> : undefined}
                     >
                       Load More
                     </Button>
