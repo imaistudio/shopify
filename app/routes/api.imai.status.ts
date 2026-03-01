@@ -1,14 +1,21 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
+import prisma from "../db.server";
+import { decrypt } from "../lib/encryption.server";
 
 /**
  * GET /api/imai/status?jobId=<jobId>
- * Checks job status from local DB first, falls back to IMAI API
+ * Checks job status from database first, falls back to IMAI API
+ * Returns status in format matching IMAI API documentation
+ * 
+ * Note: This endpoint handles both authenticated and unauthenticated requests
+ * Unauthenticated requests can only access jobs that exist in the database
  */
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
   const jobId = url.searchParams.get("jobId");
+
+  console.log("Status API called for jobId:", jobId);
 
   if (!jobId) {
     return Response.json(
@@ -17,51 +24,120 @@ export async function loader({ request }: LoaderFunctionArgs) {
     );
   }
 
-  // In production:
-  // 1. Check local DB first - webhook may have already stored the result
-  // 2. If not found, poll IMAI API directly
+  // First check local database - this works for both authenticated and unauthenticated requests
+  const localJob = await prisma.imaiJob.findUnique({
+    where: { jobId }
+  });
 
-  // const localJob = await db.imaiJob.findUnique({ where: { jobId } });
-  // if (localJob) {
-  //   return Response.json({
-  //     status: localJob.status,
-  //     result: JSON.parse(localJob.result),
-  //   });
-  // }
+  console.log("Local job found:", !!localJob, localJob?.status);
 
-  // const apiKey = await getDecryptedKeyForShop(session.shop);
-  // const resp = await fetch(
-  //   `https://www.imai.studio/api/v1/generate/status?jobId=${jobId}`,
-  //   { headers: { Authorization: `Bearer ${apiKey}` } }
-  // );
-  // return Response.json(await resp.json());
+  if (localJob) {
+    const response: any = {
+      success: true,
+      jobId: localJob.jobId,
+      endpoint: localJob.endpoint,
+      status: localJob.status,
+    };
 
-  // Mock response - simulate job completion after a few seconds
-  const now = Date.now();
-  const jobCreated = parseInt(jobId.split("_")[1], 10);
-  const elapsed = now - jobCreated;
+    if (localJob.result) {
+      response.result = JSON.parse(localJob.result);
+    }
 
-  if (elapsed > 5000) {
-    // Job completed after 5 seconds
-    return Response.json({
-      status: "completed",
-      result: {
-        versionId: `v_${jobId}`,
-        urls: [
-          `https://via.placeholder.com/1024x1024/4A90E2/ffffff?text=Generated+1+${jobId.slice(-6)}`,
-          `https://via.placeholder.com/1024x1024/50C878/ffffff?text=Generated+2+${jobId.slice(-6)}`,
-          `https://via.placeholder.com/1024x1024/E74C3C/ffffff?text=Generated+3+${jobId.slice(-6)}`,
-        ],
-        assetIds: ["asset_1", "asset_2", "asset_3"],
-        failedIds: [],
-        pendingIds: [],
-        linkIds: [],
-      },
-    });
+    if (localJob.error) {
+      response.error = localJob.error;
+    }
+
+    console.log("Returning local job status:", response.status);
+    return Response.json(response);
   }
 
-  return Response.json({
-    status: "running",
-    progress: Math.min(Math.floor((elapsed / 5000) * 100), 90),
+  console.log("Job not found locally, attempting authentication...");
+
+  // If not found in database, try to authenticate for API polling
+  let session;
+  try {
+    const authResult = await authenticate.admin(request);
+    session = authResult.session;
+    console.log("Authentication successful for shop:", session.shop);
+  } catch (error) {
+    console.log("Authentication failed:", (error as Error).message);
+    // If authentication fails and we don't have the job in DB, return error
+    return Response.json(
+      { error: "Job not found and authentication required" },
+      { status: 404 }
+    );
+  }
+
+  // Get API key and poll IMAI API directly
+  const apiKeyRecord = await prisma.apiKey.findUnique({
+    where: { shop: session.shop }
   });
+
+  if (!apiKeyRecord) {
+    console.log("No API key found for shop:", session.shop);
+    return Response.json(
+      { error: "API key not configured" },
+      { status: 401 }
+    );
+  }
+
+  // In production, you would decrypt the key here
+  // const apiKey = await decryptApiKey(apiKeyRecord.encryptedKey);
+  const apiKey = decrypt(apiKeyRecord.encryptedKey); // Decrypt the key
+
+  try {
+    console.log("Polling IMAI API for jobId:", jobId);
+    const resp = await fetch(
+      `https://www.imai.studio/api/v1/generate/status?jobId=${jobId}`,
+      { 
+        headers: { 
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+        } 
+      }
+    );
+    
+    console.log("IMAI status API response:", resp.status);
+    
+    if (!resp.ok) {
+      return Response.json(
+        { error: "Failed to check job status" },
+        { status: resp.status }
+      );
+    }
+    
+    const data = await resp.json();
+    console.log("IMAI status response:", data);
+    
+    // Update database with latest status
+    await prisma.imaiJob.upsert({
+      where: { jobId },
+      create: {
+        jobId: data.jobId,
+        shop: session.shop,
+        status: data.status,
+        endpoint: data.endpoint || 'unknown',
+        result: data.result ? JSON.stringify(data.result) : null,
+        error: data.error || null,
+        prompt: '', // Unknown at this point
+        imageUrl: null, // Unknown at this point
+        webhookDelivered: data.status === 'completed',
+      },
+      update: {
+        status: data.status,
+        result: data.result ? JSON.stringify(data.result) : null,
+        error: data.error || null,
+        updatedAt: new Date(),
+        webhookDelivered: data.status === 'completed',
+      }
+    });
+    
+    return Response.json(data);
+  } catch (error) {
+    console.error('Status check error:', error);
+    return Response.json(
+      { error: "Network error while checking status" },
+      { status: 500 }
+    );
+  }
 }

@@ -42,3 +42,21 @@ model ApiKey {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model ImaiJob {
+  id          String   @id @default(cuid())
+  jobId       String   @unique
+  shop        String
+  status      String   @default("queued") // queued, running, completed, failed
+  endpoint    String   // "design" or "marketing"
+  prompt      String
+  imageUrl    String?
+  result      String?  // JSON string of the result
+  error       String?
+  webhookDelivered Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([jobId])
+  @@index([shop, status])
+}

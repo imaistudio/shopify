@@ -174,7 +174,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
     <BlockStack gap="400">
       {error && (
         <Banner tone="critical" title="Generation failed">
-          <Text>{error}</Text>
+          <Text as="p">{error}</Text>
           <Button onClick={handleGenerate} tone="critical" variant="plain">
             Retry
           </Button>
@@ -211,7 +211,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
         ) : (
           <InlineStack gap="200" blockAlign="center">
             <Thumbnail source={previewUrl || ""} size="small" alt="Reference" />
-            <Text>{uploadedFile.name}</Text>
+            <Text as="p">{uploadedFile.name}</Text>
             <Button
               variant="plain"
               tone="critical"
@@ -227,7 +227,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
 
       {!defaultMode && (
         <BlockStack gap="200">
-          <Text variant="headingSm">Generation Mode</Text>
+          <Text as="p" variant="headingSm">Generation Mode</Text>
           <RadioButton
             label="Marketing Images"
             helpText="Product shots, lifestyle images, and listing photos"
@@ -255,14 +255,13 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
         >
           Generate
         </Button>
-        <Text tone="subdued">~15 credits per generation</Text>
       </InlineStack>
 
       {isGenerating && progress < 100 && (
         <BlockStack gap="200">
           <ProgressBar progress={progress} size="small" tone="primary" />
-          <Text tone="subdued" alignment="center">
-            Generating your images... this usually takes 30–60 seconds
+          <Text as="p" tone="subdued" alignment="center">
+            Generating your images...
           </Text>
         </BlockStack>
       )}
@@ -270,10 +269,10 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
       {results.length > 0 && (
         <BlockStack gap="400">
           <Divider />
-          <Text variant="headingSm">Results</Text>
+          <Text as="p" variant="headingSm">Results</Text>
           <InlineGrid columns={{ xs: 2, sm: 3 }} gap="300">
             {results.map((url, index) => (
-              <Box key={index} borderRadius="200" overflow="hidden">
+              <Box key={index} borderRadius="200" overflowX="hidden">
                 <img
                   src={url}
                   style={{ width: "100%", display: "block" }}
@@ -282,7 +281,6 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
               </Box>
             ))}
           </InlineGrid>
-          <Button onClick={() => {}}>View in Library →</Button>
         </BlockStack>
       )}
     </BlockStack>
