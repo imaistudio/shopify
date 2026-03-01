@@ -247,15 +247,22 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
             <BlockStack gap="400" align="center">
               {hasMore && (
                 <Box paddingBlockStart="600">
-                  <InlineStack align="center" gap="400">
-                    {isLoading && <Spinner size="small" />}
-                    <Button 
-                      onClick={handleLoadMore} 
-                      disabled={isLoading}
-                    >
-                      Load More
-                    </Button>
-                  </InlineStack>
+                  <BlockStack gap="200" align="center">
+                    {isLoading && (
+                      <InlineStack align="center">
+                        <Spinner size="small" />
+                      </InlineStack>
+                    )}
+                    <InlineStack align="center">
+                      <Button 
+                        onClick={handleLoadMore} 
+                        disabled={isLoading}
+                        fullWidth={false}
+                      >
+                        Load More
+                      </Button>
+                    </InlineStack>
+                  </BlockStack>
                 </Box>
               )}
               {assets.length > 0 && (
