@@ -23,10 +23,19 @@ interface Asset {
   thumbnailUrl: string;
   url: string;
   createdAt: string;
+  prompt?: string;
+  productName?: string;
+  versionName?: string;
   metadata?: {
     width?: number;
     height?: number;
+    mimeType?: string;
   };
+}
+
+interface PaginationInfo {
+  hasMore: boolean;
+  nextCursor?: string;
 }
 
 interface LibraryGridProps {
@@ -37,21 +46,25 @@ interface LibraryGridProps {
 export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [selectedTab, setSelectedTab] = useState(0);
+  const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
-  const fetchLibrary = async () => {
+  const fetchLibrary = async (resetCursor = false) => {
     setIsLoading(true);
     try {
-      const type = "image";
-      const offset = (page - 1) * 24;
+      const currentCursor = resetCursor ? null : cursor;
+      const endpoint = selectedTab === 0 ? '/api/v1/library/design' : '/api/v1/library/marketing';
       
-      const resp = await fetch(
-        `/api/imai/library?type=${type}&limit=24&offset=${offset}&shop=${shop}`
-      );
+      const params = new URLSearchParams({
+        numItems: '24',
+        ...(currentCursor && { cursor: currentCursor })
+      });
+      
+      const resp = await fetch(`${endpoint}?${params}`);
       
       if (!resp.ok) {
         throw new Error("Failed to fetch library");
@@ -59,16 +72,14 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
 
       const data = await resp.json();
       
-      // Merge chatGenerations and marketingGenerations, sort by createdAt
-      const allAssets = [
-        ...(data.chatGenerations || []),
-        ...(data.marketingGenerations || []),
-      ].sort((a: Asset, b: Asset) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-
-      setAssets(allAssets);
-      setHasMore(data.hasMore || false);
+      if (resetCursor) {
+        setAssets(data.generations || []);
+      } else {
+        setAssets(prev => [...prev, ...(data.generations || [])]);
+      }
+      
+      setHasMore(data.pagination?.hasMore || false);
+      setCursor(data.pagination?.nextCursor || null);
     } catch (err) {
       console.error("Error fetching library:", err);
     } finally {
@@ -77,8 +88,9 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
   };
 
   useEffect(() => {
-    fetchLibrary();
-  }, [page, refreshTrigger]);
+    setCursor(null);
+    fetchLibrary(true);
+  }, [selectedTab, refreshTrigger]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -114,8 +126,19 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
     }
   };
 
+  const handleTabChange = (selectedTabIndex: number) => {
+    setSelectedTab(selectedTabIndex);
+  };
+
+  const handleLoadMore = () => {
+    if (hasMore && !isLoading) {
+      fetchLibrary(false);
+    }
+  };
+
   const handleRefresh = () => {
-    fetchLibrary();
+    setCursor(null);
+    fetchLibrary(true);
   };
 
   if (isLoading && assets.length === 0) {
@@ -167,55 +190,93 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
 
   return (
     <Frame>
-      <BlockStack gap="100">
-        <InlineGrid columns={{ xs: 2, sm: 3, md: 4 }} gap="300">
-          {assets.map((asset) => (
-            <div 
-              key={asset.id} 
-              onClick={() => setSelectedAsset(asset)}
-              style={{ cursor: "pointer" }}
-            >
-              <Card padding="0">
-                <Box>
-                  <img
-                    src={asset.url}
-                    alt={asset.type}
-                    onError={(e) => {
-                      console.error('Image failed to load:', asset.url);
-                      e.currentTarget.style.display = 'none';
-                    }}
-                    onLoad={() => {
-                      console.log('Image loaded successfully:', asset.url);
-                    }}
-                    style={{
-                      width: "100%",
-                      height: "210px",
-                      objectFit: "cover",
-                      display: "block",
-                    }}
-                  />
-                </Box>
-              </Card>
-            </div>
-          ))}
-        </InlineGrid>
+      <BlockStack gap="400">
+        <Tabs
+          tabs={[
+            {
+              id: 'design',
+              content: 'Design',
+              accessibilityLabel: 'Design assets from chat generations',
+            },
+            {
+              id: 'marketing',
+              content: 'Marketing',
+              accessibilityLabel: 'Marketing assets from product generations',
+            },
+          ]}
+          selected={selectedTab}
+          onSelect={handleTabChange}
+        >
+          <BlockStack gap="100">
+            <InlineGrid columns={{ xs: 2, sm: 3, md: 4 }} gap="300">
+              {assets.map((asset) => (
+                <div 
+                  key={asset.id} 
+                  onClick={() => setSelectedAsset(asset)}
+                  style={{ cursor: "pointer" }}
+                >
+                  <Card padding="0">
+                    <Box>
+                      <img
+                        src={asset.thumbnailUrl || asset.url}
+                        alt={asset.type}
+                        onError={(e) => {
+                          console.error('Image failed to load:', asset.url);
+                          e.currentTarget.style.display = 'none';
+                        }}
+                        onLoad={() => {
+                          console.log('Image loaded successfully:', asset.url);
+                        }}
+                        style={{
+                          width: "100%",
+                          height: "210px",
+                          objectFit: "cover",
+                          display: "block",
+                        }}
+                      />
+                    </Box>
+                    <Box padding="200">
+                      <Text as="p" variant="bodySm" truncate>
+                        {selectedTab === 1 && asset.productName ? `${asset.productName}` : asset.type}
+                      </Text>
+                      <Text as="p" variant="bodyXs" tone="subdued">
+                        {formatDate(asset.createdAt)}
+                      </Text>
+                    </Box>
+                  </Card>
+                </div>
+              ))}
+            </InlineGrid>
 
-        <InlineStack align="space-between" blockAlign="center">
-          <Pagination
-            hasPrevious={page > 1}
-            hasNext={hasMore}
-            onPrevious={() => setPage((p) => p - 1)}
-            onNext={() => setPage((p) => p + 1)}
-            label={`Page ${page} · ${assets.length} assets shown`}
-          />
-          <Button 
-            onClick={handleRefresh} 
-            disabled={isLoading}
-            icon={isLoading ? <Spinner size="small" /> : undefined}
-          >
-            Refresh
-          </Button>
-        </InlineStack>
+            <InlineStack align="space-between" blockAlign="center">
+              <Box>
+                {assets.length > 0 && (
+                  <Text as="p" variant="bodySm" tone="subdued">
+                    {assets.length} assets shown
+                  </Text>
+                )}
+              </Box>
+              <InlineStack gap="200">
+                {hasMore && (
+                  <Button 
+                    onClick={handleLoadMore} 
+                    disabled={isLoading}
+                    icon={isLoading ? <Spinner size="small" /> : undefined}
+                  >
+                    Load More
+                  </Button>
+                )}
+                <Button 
+                  onClick={handleRefresh} 
+                  disabled={isLoading}
+                  icon={isLoading ? <Spinner size="small" /> : undefined}
+                >
+                  Refresh
+                </Button>
+              </InlineStack>
+            </InlineStack>
+          </BlockStack>
+        </Tabs>
 
         <Modal
           open={!!selectedAsset}
