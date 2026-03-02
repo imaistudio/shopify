@@ -36,16 +36,40 @@ export async function action({ request }: ActionFunctionArgs) {
     );
   }
 
-  // In production:
-  // 1. Upload to your CDN (e.g., Cloudflare R2, AWS S3, etc.)
-  // 2. Store the reference in your database
-  // 3. Return the public URL
+  // Upload to TempFile.org with 24h expiry
+  const tempfileFormData = new FormData();
+  tempfileFormData.append("files", image);
+  tempfileFormData.append("expiryHours", "24");
 
-  // For now, return a mock URL
-  // In production, you'd actually upload the file
-  
-  return Response.json({
-    publicUrl: `https://cdn.example.com/uploads/${shop}/${Date.now()}_${image.name}`,
-    success: true,
-  });
+  try {
+    const tempfileResp = await fetch("https://tempfile.org/api/upload/local", {
+      method: "POST",
+      body: tempfileFormData,
+    });
+
+    if (!tempfileResp.ok) {
+      throw new Error(`TempFile upload failed: ${tempfileResp.status}`);
+    }
+
+    const tempfileData = await tempfileResp.json();
+
+    if (!tempfileData.success || !tempfileData.files?.[0]?.url) {
+      throw new Error("Invalid response from TempFile API");
+    }
+
+    // Append /preview to make the URL directly accessible
+    const baseUrl = tempfileData.files[0].url;
+    const publicUrl = baseUrl.endsWith('/') ? `${baseUrl}preview` : `${baseUrl}/preview`;
+
+    return Response.json({
+      publicUrl,
+      success: true,
+    });
+  } catch (error) {
+    console.error("TempFile upload error:", error);
+    return Response.json(
+      { error: "Failed to upload image to temporary storage" },
+      { status: 500 }
+    );
+  }
 }

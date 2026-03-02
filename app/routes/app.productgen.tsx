@@ -13,6 +13,10 @@ import {
   Banner,
   TextField,
   Button,
+  DropZone,
+  Thumbnail,
+  InlineStack,
+  Spinner,
 } from "@shopify/polaris";
 
 // Components
@@ -78,8 +82,10 @@ export default function ProductGenPage() {
   const { shop, isConnected, balance } = useLoaderData<typeof loader>();
   
   // Form state
-  const [url, setUrl] = useState("");
   const [prompt, setPrompt] = useState("");
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false);
@@ -89,9 +95,88 @@ export default function ProductGenPage() {
   const [response, setResponse] = useState<EcommerceResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const uploadUrlToTempFile = async (imageUrl: string): Promise<string> => {
+    try {
+      const resp = await fetch("https://tempfile.org/api/upload/url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: imageUrl,
+          expiryHours: 24,
+        }),
+      });
+
+      if (!resp.ok) {
+        throw new Error("Failed to upload URL to temporary storage");
+      }
+
+      const data = await resp.json();
+      if (!data.success || !data.file?.url) {
+        throw new Error("Invalid response from TempFile API");
+      }
+
+      // Append /preview to make the URL directly accessible
+      const baseUrl = data.file.url;
+      return baseUrl.endsWith('/') ? `${baseUrl}preview` : `${baseUrl}/preview`;
+    } catch (error) {
+      console.error("TempFile URL upload error:", error);
+      throw error;
+    }
+  };
+
+  const handleDrop = async (files: File[]) => {
+    if (files.length > 0) {
+      const file = files[0];
+      if (file.size > 10 * 1024 * 1024) {
+        setError("File too large. Maximum size is 10MB.");
+        return;
+      }
+      
+      setUploadedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+      setError(null);
+    }
+  };
+
+  const clearImage = () => {
+    setUploadedFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+  };
+
+  const uploadImage = async (): Promise<string | null> => {
+    if (!uploadedFile) return null;
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", uploadedFile);
+      formData.append("shop", shop);
+
+      const resp = await fetch("/api/imai/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!resp.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const data = await resp.json();
+      return data.publicUrl;
+    } catch (err) {
+      setError("Image upload failed. Try a JPG or PNG under 10MB.");
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const handleGenerate = async () => {
-    if (!url.trim()) {
-      setError("Please provide an image URL");
+    if (!uploadedFile) {
+      setError("Please upload an image first");
       return;
     }
 
@@ -101,12 +186,19 @@ export default function ProductGenPage() {
     setJobId(null);
 
     try {
+      // Upload the image
+      const processedImageUrl = await uploadImage();
+      if (!processedImageUrl) {
+        setIsGenerating(false);
+        return;
+      }
+
       const resp = await fetch("/api/imai/generate/ecommerce", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: prompt.trim(),
-          url: url.trim(),
+          url: processedImageUrl,
           shop,
         }),
       });
@@ -179,15 +271,40 @@ export default function ProductGenPage() {
                 Generate E-commerce Content
               </Text>
               
-              <TextField
-                label="Product Image URL"
-                value={url}
-                onChange={setUrl}
-                placeholder="https://example.com/product-image.jpg"
-                type="url"
-                autoComplete="off"
-                error={error && !url.trim() ? "URL is required" : undefined}
-              />
+              <BlockStack gap="200">
+                <Text variant="bodyMd" as="p">
+                  Reference Image
+                </Text>
+                
+                {!uploadedFile ? (
+                  <DropZone
+                    accept="image/*"
+                    type="image"
+                    onDrop={handleDrop}
+                    allowMultiple={false}
+                  >
+                    <Box padding="400">
+                      <Text as="p" alignment="center" tone="subdued">
+                        Drop an image here to get started
+                      </Text>
+                    </Box>
+                  </DropZone>
+                ) : (
+                  <InlineStack gap="200" blockAlign="center">
+                    <Thumbnail source={previewUrl || ""} size="small" alt="Reference" />
+                    <Text as="p">{uploadedFile.name}</Text>
+                    <Button
+                      variant="plain"
+                      tone="critical"
+                      onClick={clearImage}
+                      disabled={isGenerating}
+                    >
+                      Remove
+                    </Button>
+                    {isUploading && <Spinner size="small" />}
+                  </InlineStack>
+                )}
+              </BlockStack>
 
               <TextField
                 label="Custom Prompt (Optional)"
@@ -202,7 +319,7 @@ export default function ProductGenPage() {
                 variant="primary"
                 onClick={handleGenerate}
                 loading={isGenerating}
-                disabled={!isConnected || !url.trim() || isGenerating}
+                disabled={!isConnected || !uploadedFile || isGenerating || isUploading}
                 size="large"
               >
                 Generate Content
@@ -238,27 +355,28 @@ export default function ProductGenPage() {
                   </Box>
                 )}
 
-                {response.images && (
+                {response.images && response.images.urls && response.images.urls.length > 0 ? (
                   <Box>
                     <Text variant="headingSm" as="h3">Generated Images</Text>
-                    {response.images.urls.length > 0 ? (
-                      <BlockStack gap="200">
-                        {response.images.urls.map((imageUrl, index) => (
-                          <Box key={index}>
-                            <img 
-                              src={imageUrl} 
-                              alt={`Generated product image ${index + 1}`}
-                              style={{ maxWidth: "200px", height: "auto" }}
-                            />
-                            <Text as="p" tone="subdued">{imageUrl}</Text>
-                          </Box>
-                        ))}
-                      </BlockStack>
-                    ) : (
-                      <Text as="p" tone="subdued">No images generated</Text>
-                    )}
+                    <BlockStack gap="200">
+                      {response.images.urls.map((imageUrl, index) => (
+                        <Box key={index}>
+                          <img 
+                            src={imageUrl} 
+                            alt={`Generated product image ${index + 1}`}
+                            style={{ maxWidth: "200px", height: "auto" }}
+                          />
+                          <Text as="p" tone="subdued">{imageUrl}</Text>
+                        </Box>
+                      ))}
+                    </BlockStack>
                   </Box>
-                )}
+                ) : response.images ? (
+                  <Box>
+                    <Text variant="headingSm" as="h3">Generated Images</Text>
+                    <Text as="p" tone="subdued">No images generated</Text>
+                  </Box>
+                ) : null}
 
                 {response.details && (
                   <Box>
@@ -274,7 +392,7 @@ export default function ProductGenPage() {
                         <Text as="p">{response.details.description}</Text>
                       </Box>
 
-                      {response.details.features && response.details.features.length > 0 && (
+                      {response.details.features && Array.isArray(response.details.features) && response.details.features.length > 0 && (
                         <Box>
                           <Text as="p" fontWeight="bold">Features:</Text>
                           <ul>
@@ -285,7 +403,7 @@ export default function ProductGenPage() {
                         </Box>
                       )}
 
-                      {response.details.specifications && Object.keys(response.details.specifications).length > 0 && (
+                      {response.details.specifications && typeof response.details.specifications === 'object' && Object.keys(response.details.specifications).length > 0 && (
                         <Box>
                           <Text as="p" fontWeight="bold">Specifications:</Text>
                           <ul>
@@ -296,7 +414,7 @@ export default function ProductGenPage() {
                         </Box>
                       )}
 
-                      {response.details.platforms && Object.keys(response.details.platforms).length > 0 && (
+                      {response.details.platforms && typeof response.details.platforms === 'object' && Object.keys(response.details.platforms).length > 0 && (
                         <Box>
                           <Text as="p" fontWeight="bold">Platform-Specific Content:</Text>
                           {Object.entries(response.details.platforms).map(([platform, content]) => (

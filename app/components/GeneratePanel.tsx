@@ -38,9 +38,9 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
   const [isUploading, setIsUploading] = useState(false);
 
   const handleGenerationComplete = useCallback(
-    (result: { urls: string[] }) => {
+    (result: any) => {
       setProgress(100);
-      setResults(result.urls);
+      setResults(result.urls || []);
       setIsGenerating(false);
       onGenerationComplete();
     },
@@ -105,13 +105,45 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
     }
   };
 
+  const uploadUrlToTempFile = async (url: string): Promise<string> => {
+    try {
+      const resp = await fetch("https://tempfile.org/api/upload/url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: url,
+          expiryHours: 24,
+        }),
+      });
+
+      if (!resp.ok) {
+        throw new Error("Failed to upload URL to temporary storage");
+      }
+
+      const data = await resp.json();
+      if (!data.success || !data.file?.url) {
+        throw new Error("Invalid response from TempFile API");
+      }
+
+      // Append /preview to make the URL directly accessible
+      const baseUrl = data.file.url;
+      return baseUrl.endsWith('/') ? `${baseUrl}preview` : `${baseUrl}/preview`;
+    } catch (error) {
+      console.error("TempFile URL upload error:", error);
+      throw error;
+    }
+  };
+
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
+    if (!uploadedFile) {
+      setError("Please upload an image first");
+      return;
+    }
 
     setIsGenerating(true);
     setError(null);
     setResults([]);
-    setProgress(0);
 
     // Animate progress bar to 80% over ~40 seconds
     const progressInterval = setInterval(() => {
@@ -122,16 +154,13 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
     }, 1000);
 
     try {
-      // Upload image if attached
-      let imageUrl: string | null = null;
-      if (uploadedFile) {
-        imageUrl = await uploadImage();
-        if (!imageUrl) {
-          clearInterval(progressInterval);
-          setIsGenerating(false);
-          setProgress(0);
-          return;
-        }
+      // Upload the image
+      const processedImageUrl = await uploadImage();
+      if (!processedImageUrl) {
+        clearInterval(progressInterval);
+        setIsGenerating(false);
+        setProgress(0);
+        return;
       }
 
       // Call generate API
@@ -140,7 +169,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           prompt: prompt.trim(),
-          url: imageUrl,
+          url: processedImageUrl,
           mode,
           shop,
         }),
@@ -158,7 +187,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
         // Synchronous response
         clearInterval(progressInterval);
         setProgress(100);
-        setResults(data.result.urls);
+        setResults(data.result.urls || []);
         setIsGenerating(false);
         onGenerationComplete();
       }
@@ -203,10 +232,11 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
             onDrop={handleDrop}
             allowMultiple={false}
           >
-            <DropZone.FileUpload
-              actionTitle="Add image"
-              actionHint="or drop a JPG/PNG here (max 10MB)"
-            />
+            <Box padding="400">
+              <Text as="p" alignment="center" tone="subdued">
+                Drop an image here to get started
+              </Text>
+            </Box>
           </DropZone>
         ) : (
           <InlineStack gap="200" blockAlign="center">
@@ -250,7 +280,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
           variant="primary"
           size="large"
           loading={isGenerating}
-          disabled={!prompt.trim() || isGenerating || isUploading}
+          disabled={!prompt.trim() || !uploadedFile || isGenerating || isUploading}
           onClick={handleGenerate}
         >
           Generate
