@@ -58,7 +58,7 @@ export function useJobPoller(
           return;
         }
 
-        if (data.status === "completed") {
+        if (data.status === "completed" || (data.success && !data.accepted)) {
           clearPoller();
           // Handle both direct result format and nested result format
           const result = data.result || data;
