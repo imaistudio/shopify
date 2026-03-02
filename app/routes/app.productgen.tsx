@@ -239,7 +239,8 @@ export default function ProductGenPage() {
   ) : undefined;
 
   return (
-    <Page title="ProductGen" primaryAction={primaryAction}>
+    <>
+      <Page title="ProductGen" primaryAction={primaryAction}>
       <BlockStack gap="400">
         {!isConnected && (
           <Banner tone="info" title="Connect your IMAI Studio API key">
@@ -285,7 +286,7 @@ export default function ProductGenPage() {
                   >
                     <Box padding="400">
                       <Text as="p" alignment="center" tone="subdued">
-                        Drop an image here to get started
+                        Drop an image here or click to upload
                       </Text>
                     </Box>
                   </DropZone>
@@ -436,5 +437,6 @@ export default function ProductGenPage() {
         )}
       </BlockStack>
     </Page>
+    </>
   );
 }

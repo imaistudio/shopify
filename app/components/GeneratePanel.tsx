@@ -200,7 +200,8 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
   };
 
   return (
-    <BlockStack gap="400">
+    <>
+      <BlockStack gap="400">
       {error && (
         <Banner tone="critical" title="Generation failed">
           <Text as="p">{error}</Text>
@@ -222,7 +223,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
 
       <BlockStack gap="200">
         <Text variant="bodyMd" as="p">
-          Reference Image (optional)
+          Reference Image
         </Text>
         
         {!uploadedFile ? (
@@ -234,7 +235,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
           >
             <Box padding="400">
               <Text as="p" alignment="center" tone="subdued">
-                Drop an image here to get started
+                Drop an image here or click to upload
               </Text>
             </Box>
           </DropZone>
@@ -314,5 +315,6 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
         </BlockStack>
       )}
     </BlockStack>
+    </>
   );
 }
