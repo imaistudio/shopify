@@ -55,8 +55,8 @@ export function useJobPoller(
       const poll = async () => {
         attemptsRef.current[jobId]++;
 
-        // Max 8 minutes of polling (16 attempts * 30 seconds)
-        if (attemptsRef.current[jobId] > 16) {
+        // Max 7 minutes of polling (14 attempts * 30 seconds)
+        if (attemptsRef.current[jobId] > 14) {
           clearPoller(jobId);
           onError("Generation timed out. Check your Library in a few minutes.");
           return;

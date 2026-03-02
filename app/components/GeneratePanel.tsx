@@ -16,7 +16,9 @@ import {
   Divider,
   InlineGrid,
   RadioButton,
+  Icon,
 } from "@shopify/polaris";
+import { ImageIcon } from "@shopify/polaris-icons";
 import { useJobPoller } from "../hooks/useJobPoller";
 
 interface Generation {
@@ -317,8 +319,9 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
         </Banner>
       )}
 
-      <Card>
-        <Box padding="400">
+      <Box padding="400">
+        <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+          {/* Left Side */}
           <BlockStack gap="400">
             <TextField
               label="What do you want to generate?"
@@ -342,11 +345,22 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
                   onDrop={handleDrop}
                   allowMultiple={false}
                 >
-                  <Box padding="400">
-                    <Text as="p" alignment="center" tone="subdued">
-                      Drop an image here or click to upload
-                    </Text>
-                  </Box>
+                  <div 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      minHeight: '200px',
+                      width: '100%'
+                    }}
+                  >
+                    <BlockStack gap="200" align="center">
+                      <Icon source={ImageIcon} tone="subdued" />
+                      <Text as="p" alignment="center" tone="subdued">
+                        Drop an image here or click to upload
+                      </Text>
+                    </BlockStack>
+                  </div>
                 </DropZone>
               ) : (
                 <InlineStack gap="200" blockAlign="center">
@@ -407,13 +421,100 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
               <BlockStack gap="200">
                 <ProgressBar progress={progress} size="small" tone="primary" />
                 <Text as="p" tone="subdued" alignment="center">
-                  Generating your images... (This may take up to 8 minutes)
+                  Generating your images... (This may take up to 7 minutes)
                 </Text>
               </BlockStack>
             )}
+
+            {error && (
+              <Banner tone="critical" title="Error">
+                <Text as="p">{error}</Text>
+              </Banner>
+            )}
           </BlockStack>
-        </Box>
-      </Card>
+
+          {/* Right Side */}
+          <BlockStack gap="400">
+            {generations.length === 0 ? (
+              <Box 
+                background="bg-fill-secondary" 
+                padding="800" 
+                borderRadius="200"
+                minHeight="500px"
+                borderColor="border"
+              >
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    minHeight: '400px',
+                    width: '100%'
+                  }}
+                >
+                  <BlockStack gap="200" align="center">
+                    <Icon source={ImageIcon} tone="subdued" />
+                    <Text as="p" alignment="center" tone="subdued">
+                      Generated images will appear here
+                    </Text>
+                  </BlockStack>
+                </div>
+              </Box>
+            ) : (
+              generations.map((gen) => (
+                <Card key={gen.id}>
+                  <Box padding="400">
+                    <BlockStack gap="400">
+                      {gen.prompt && (
+                        <Box>
+                          <Text variant="headingSm" as="h3">Prompt</Text>
+                          <Text as="p">{gen.prompt}</Text>
+                        </Box>
+                      )}
+                      {gen.isGenerating ? (
+                        <BlockStack gap="200" align="center">
+                          <Text as="p" tone="subdued">Generating...</Text>
+                        </BlockStack>
+                      ) : gen.error ? (
+                        <Text as="p" tone="critical">{gen.error}</Text>
+                      ) : gen.results && gen.results.length > 0 ? (
+                        <Box>
+                          <Text variant="headingSm" as="h3">Generated Images</Text>
+                          <div 
+                            style={{ 
+                              display: 'flex', 
+                              flexDirection: 'row', 
+                              flexWrap: 'wrap', 
+                              gap: '16px',
+                              justifyContent: 'center',
+                              alignItems: 'center'
+                            }}
+                          >
+                            {gen.results.map((imageUrl: string, index: number) => (
+                              <div key={index} style={{ textAlign: 'center' }}>
+                                <img 
+                                  src={imageUrl} 
+                                  alt={`Generated image ${index + 1}`}
+                                  style={{ 
+                                    maxWidth: "200px", 
+                                    height: "auto", 
+                                    borderRadius: "8px",
+                                    display: 'block'
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </Box>
+                      ) : null}
+                    </BlockStack>
+                  </Box>
+                </Card>
+              ))
+            )}
+          </BlockStack>
+        </InlineGrid>
+      </Box>
     </BlockStack>
   );
 }

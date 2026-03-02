@@ -19,7 +19,9 @@ import {
   Spinner,
   InlineGrid,
   ProgressBar,
+  Icon,
 } from "@shopify/polaris";
+import { ImageIcon } from "@shopify/polaris-icons";
 
 // Components
 import { CreditsBadge } from "../components/CreditsBadge";
@@ -351,11 +353,22 @@ export default function ProductGenPage() {
                       onDrop={handleDrop}
                       allowMultiple={false}
                     >
-                      <Box padding="400">
+                      <div 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        minHeight: '200px',
+                        width: '100%'
+                      }}
+                    >
+                      <BlockStack gap="200" align="center">
+                        <Icon source={ImageIcon} tone="subdued" />
                         <Text as="p" alignment="center" tone="subdued">
                           Drop an image here or click to upload
                         </Text>
-                      </Box>
+                      </BlockStack>
+                    </div>
                     </DropZone>
                   ) : (
                     <InlineStack gap="200" blockAlign="center">
@@ -417,7 +430,30 @@ export default function ProductGenPage() {
               {/* Right Side */}
               <BlockStack gap="400">
                 {generations.length === 0 ? (
-                  <Box background="bg-fill-secondary" padding="400" borderRadius="200"></Box>
+                  <Box 
+                    background="bg-fill-secondary" 
+                    padding="800" 
+                    borderRadius="200"
+                    minHeight="500px"
+                    borderColor="border"
+                  >
+                    <div 
+                      style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        minHeight: '400px',
+                        width: '100%'
+                      }}
+                    >
+                      <BlockStack gap="200" align="center">
+                        <Icon source={ImageIcon} tone="subdued" />
+                        <Text as="p" alignment="center" tone="subdued">
+                          Generated images will appear here
+                        </Text>
+                      </BlockStack>
+                    </div>
+                  </Box>
                 ) : (
                   generations.map((gen) => (
                     <Card key={gen.id}>
@@ -457,18 +493,31 @@ export default function ProductGenPage() {
                               {gen.response.images && gen.response.images.urls && gen.response.images.urls.length > 0 ? (
                                 <Box>
                                   <Text variant="headingSm" as="h3">Generated Images</Text>
-                                  <BlockStack gap="200">
+                                  <div 
+                                    style={{ 
+                                      display: 'flex', 
+                                      flexDirection: 'row', 
+                                      flexWrap: 'wrap', 
+                                      gap: '16px',
+                                      justifyContent: 'center',
+                                      alignItems: 'center'
+                                    }}
+                                  >
                                     {gen.response.images.urls.map((imageUrl: string, index: number) => (
-                                      <Box key={index}>
+                                      <div key={index} style={{ textAlign: 'center' }}>
                                         <img 
                                           src={imageUrl} 
                                           alt={`Generated product image ${index + 1}`}
-                                          style={{ maxWidth: "200px", height: "auto" }}
+                                          style={{ 
+                                            maxWidth: "200px", 
+                                            height: "auto", 
+                                            borderRadius: "8px",
+                                            display: 'block'
+                                          }}
                                         />
-                                        <Text as="p" tone="subdued">{imageUrl}</Text>
-                                      </Box>
+                                      </div>
                                     ))}
-                                  </BlockStack>
+                                  </div>
                                 </Box>
                               ) : gen.response.images ? (
                                 <Box>
