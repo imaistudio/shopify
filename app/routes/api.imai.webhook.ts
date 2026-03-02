@@ -47,6 +47,13 @@ export async function action({ request }: ActionFunctionArgs) {
   }
 
   try {
+    // First, try to find the existing job to get the shop
+    const existingJob = await prisma.imaiJob.findUnique({
+      where: { jobId: payload.jobId }
+    });
+
+    const shop = existingJob?.shop || 'unknown';
+
     // Update job status in database
     const updateData: any = {
       status: payload.status,
@@ -74,8 +81,9 @@ export async function action({ request }: ActionFunctionArgs) {
         error: payload.error || null,
         webhookDelivered: payload.status === 'completed',
         endpoint: payload.endpoint || 'unknown',
-        shop: 'unknown', // Will be updated if we find the original job
-        prompt: '', // Will be updated if we find the original job
+        shop: shop, // Use the shop from existing job
+        prompt: existingJob?.prompt || '', // Use existing prompt
+        imageUrl: existingJob?.imageUrl || null, // Use existing image URL
         createdAt: new Date(),
         updatedAt: new Date(),
       },
@@ -84,19 +92,21 @@ export async function action({ request }: ActionFunctionArgs) {
 
     console.log("Successfully processed webhook for job:", payload.jobId, {
       status: payload.status,
+      shop: shop,
       endpoint: payload.endpoint,
       completedAt: payload.completedAt,
       hasResult: !!payload.result,
     });
 
-    // Verify the update
+    // Verify update
     const updatedJob = await prisma.imaiJob.findUnique({
       where: { jobId: payload.jobId }
     });
-    console.log("Updated job in database:", updatedJob?.status, updatedJob?.result ? "has result" : "no result");
+    console.log("Updated job in database:", updatedJob?.status, updatedJob?.shop, updatedJob?.result ? "has result" : "no result");
 
     // Send SSE event to connected clients
     if (updatedJob && updatedJob.shop !== 'unknown') {
+      console.log("Sending SSE event to shop:", updatedJob.shop);
       sendEventToShop(updatedJob.shop, {
         type: 'job_update',
         jobId: payload.jobId,
@@ -104,6 +114,8 @@ export async function action({ request }: ActionFunctionArgs) {
         result: payload.result,
         error: payload.error,
       });
+    } else {
+      console.log("Not sending SSE event - shop unknown or job not found");
     }
 
     // TODO: In production, you might want to:

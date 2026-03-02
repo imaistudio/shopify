@@ -57,6 +57,7 @@ export async function action({ request }: ActionFunctionArgs) {
     includeTitles: true,
     includeSpecs: true,
     async: true,
+    webhookUrl: `${process.env.SHOPIFY_APP_URL}/api/imai/webhook`,
   };
 
   if (prompt && prompt.trim()) {
