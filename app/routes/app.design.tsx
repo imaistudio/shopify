@@ -16,6 +16,7 @@ import {
 // Components
 import { GeneratePanel } from "../components/GeneratePanel";
 import { CreditsBadge } from "../components/CreditsBadge";
+import { History } from "../components/History";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -63,7 +64,7 @@ export default function DesignPage() {
       <BlockStack gap="400">
         {!isConnected && (
           <Banner tone="info" title="Connect your IMAI Studio API key">
-            <Text>
+            <Text as="p">
               Connect your API key in the Settings tab to start generating designs.
               Get your key at{" "}
               <a href="https://www.imai.studio" target="_blank" rel="noopener noreferrer">
@@ -84,13 +85,20 @@ export default function DesignPage() {
               />
             ) : (
               <BlockStack gap="400" align="center">
-                <Text tone="subdued" alignment="center">
+                <Text as="p" tone="subdued" alignment="center">
                   Connect your API key to generate designs
                 </Text>
               </BlockStack>
             )}
           </Box>
         </Card>
+
+        {isConnected && (
+          <History 
+            shop={shop} 
+            refreshTrigger={libraryRefreshTrigger}
+          />
+        )}
       </BlockStack>
     </Page>
   );

@@ -18,10 +18,12 @@ import {
   InlineStack,
   Spinner,
   InlineGrid,
+  ProgressBar,
 } from "@shopify/polaris";
 
 // Components
 import { CreditsBadge } from "../components/CreditsBadge";
+import { History } from "../components/History";
 import { useJobPoller } from "../hooks/useJobPoller";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -98,10 +100,14 @@ export default function ProductGenPage() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
   
   // Generation state
   const [generations, setGenerations] = useState<ProductGeneration[]>([]);
   const [error, setError] = useState<string | null>(null);
+  
+  // Track if any generation is currently in progress
+  const hasActiveGeneration = generations.some(gen => gen.isGenerating);
 
   const uploadUrlToTempFile = async (imageUrl: string): Promise<string> => {
     try {
@@ -187,6 +193,12 @@ export default function ProductGenPage() {
       setError("Please upload an image first");
       return;
     }
+    
+    // Prevent multiple concurrent generations
+    if (hasActiveGeneration) {
+      setError("Please wait for the current generation to complete");
+      return;
+    }
 
     const generationId = Date.now().toString();
     const newGeneration: ProductGeneration = {
@@ -202,11 +214,21 @@ export default function ProductGenPage() {
 
     setGenerations(prev => [newGeneration, ...prev]);
     setError(null);
+    
+    // Animate progress bar to 80% over ~40 seconds
+    const progressInterval = setInterval(() => {
+      setProgress((p) => {
+        if (p >= 80) return p;
+        return p + 2;
+      });
+    }, 1000);
 
     try {
       // Upload the image
       const processedImageUrl = await uploadImage();
       if (!processedImageUrl) {
+        clearInterval(progressInterval);
+        setProgress(0);
         setGenerations(prev => prev.map(gen =>
           gen.id === generationId ? { ...gen, isGenerating: false, error: "Upload failed" } : gen
         ));
@@ -235,13 +257,17 @@ export default function ProductGenPage() {
         ));
       } else if (data.success) {
         // Synchronous response
+        clearInterval(progressInterval);
+        setProgress(100);
         setGenerations(prev => prev.map(gen =>
           gen.id === generationId ? { ...gen, isGenerating: false, response: data } : gen
         ));
       }
     } catch (err) {
+      clearInterval(progressInterval);
       const errorMsg = "Generation failed. Please try again.";
       setError(errorMsg);
+      setProgress(0);
       setGenerations(prev => prev.map(gen =>
         gen.id === generationId ? { ...gen, isGenerating: false, error: errorMsg } : gen
       ));
@@ -263,6 +289,8 @@ export default function ProductGenPage() {
           ? { ...gen, isGenerating: false, response: result }
           : gen
       ));
+      setProgress(100);
+      setTimeout(() => setProgress(0), 2000);
     },
     []
   );
@@ -363,11 +391,21 @@ export default function ProductGenPage() {
                 <Button
                   variant="primary"
                   onClick={handleGenerate}
-                  disabled={!isConnected || !uploadedFile || isUploading}
+                  disabled={!isConnected || !uploadedFile || isUploading || hasActiveGeneration}
                   size="large"
+                  loading={hasActiveGeneration}
                 >
                   Generate Content
                 </Button>
+
+                {hasActiveGeneration && (
+                  <BlockStack gap="200">
+                    <ProgressBar progress={progress} size="small" tone="primary" />
+                    <Text as="p" tone="subdued" alignment="center">
+                      Generating your content... (This may take up to 8 minutes)
+                    </Text>
+                  </BlockStack>
+                )}
 
                 {error && (
                   <Banner tone="critical" title="Error">
@@ -502,6 +540,13 @@ export default function ProductGenPage() {
             </InlineGrid>
           </Box>
         </Card>
+
+        {isConnected && (
+          <History 
+            shop={shop} 
+            refreshTrigger={0}
+          />
+        )}
       </BlockStack>
     </Page>
     </>

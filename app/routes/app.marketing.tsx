@@ -16,6 +16,7 @@ import {
 // Components
 import { GeneratePanel } from "../components/GeneratePanel";
 import { CreditsBadge } from "../components/CreditsBadge";
+import { History } from "../components/History";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -91,6 +92,13 @@ export default function MarketingPage() {
             )}
           </Box>
         </Card>
+
+        {isConnected && (
+          <History 
+            shop={shop} 
+            refreshTrigger={libraryRefreshTrigger}
+          />
+        )}
       </BlockStack>
     </Page>
   );

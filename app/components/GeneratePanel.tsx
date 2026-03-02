@@ -47,31 +47,10 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [history, setHistory] = useState<Generation[]>([]);
+  
+  // Track if any generation is currently in progress
+  const hasActiveGeneration = generations.some(gen => gen.isGenerating);
 
-  useEffect(() => {
-    const loadHistory = async () => {
-      try {
-        const resp = await fetch('/api/imai/history');
-        if (resp.ok) {
-          const data = await resp.json();
-          setHistory(data.map((h: any) => ({
-            id: `history-${h.id}`,
-            prompt: h.prompt,
-            uploadedFile: null,
-            previewUrl: null,
-            isGenerating: false,
-            jobId: null,
-            results: h.results,
-            error: null,
-          })));
-        }
-      } catch (error) {
-        console.error('Failed to load history:', error);
-      }
-    };
-    loadHistory();
-  }, []);
 
   // Load active (non-completed) jobs from database on mount
   useEffect(() => {
@@ -231,6 +210,12 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
       setError("Please upload an image first");
       return;
     }
+    
+    // Prevent multiple concurrent generations
+    if (hasActiveGeneration) {
+      setError("Please wait for the current generation to complete");
+      return;
+    }
 
     const generationId = Date.now().toString();
     const newGeneration: Generation = {
@@ -322,8 +307,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
   };
 
   return (
-    <>
-      <BlockStack gap="400">
+    <BlockStack gap="400">
       {error && (
         <Banner tone="critical" title="Generation failed">
           <Text as="p">{error}</Text>
@@ -333,162 +317,103 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
         </Banner>
       )}
 
-      <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
-        {/* Left Side */}
-        <BlockStack gap="400">
-          <TextField
-            label="What do you want to generate?"
-            multiline={4}
-            placeholder="e.g. Generate 3 lifestyle shots on a clean white background..."
-            value={prompt}
-            onChange={setPrompt}
-            autoComplete="off"
-            disabled={isGenerating}
-          />
+      <Card>
+        <Box padding="400">
+          <BlockStack gap="400">
+            <TextField
+              label="What do you want to generate?"
+              multiline={4}
+              placeholder="e.g. Generate 3 lifestyle shots on a clean white background..."
+              value={prompt}
+              onChange={setPrompt}
+              autoComplete="off"
+              disabled={hasActiveGeneration}
+            />
 
-          <BlockStack gap="200">
-            <Text variant="bodyMd" as="p">
-              Reference Image
-            </Text>
-            
-            {!uploadedFile ? (
-              <DropZone
-                accept=".webp,.png,.jpeg,.jpg"
-                type="image"
-                onDrop={handleDrop}
-                allowMultiple={false}
-              >
-                <Box padding="400">
-                  <Text as="p" alignment="center" tone="subdued">
-                    Drop an image here or click to upload
-                  </Text>
-                </Box>
-              </DropZone>
-            ) : (
-              <InlineStack gap="200" blockAlign="center">
-                <Thumbnail source={previewUrl || ""} size="small" alt="Reference" />
-                <Text as="p">{uploadedFile.name}</Text>
-                <Button
-                  variant="plain"
-                  tone="critical"
-                  onClick={clearImage}
-                  disabled={isGenerating}
+            <BlockStack gap="200">
+              <Text variant="bodyMd" as="p">
+                Reference Image
+              </Text>
+              
+              {!uploadedFile ? (
+                <DropZone
+                  accept=".webp,.png,.jpeg,.jpg"
+                  type="image"
+                  onDrop={handleDrop}
+                  allowMultiple={false}
                 >
-                  Remove
-                </Button>
-                {isUploading && <Spinner size="small" />}
-              </InlineStack>
+                  <Box padding="400">
+                    <Text as="p" alignment="center" tone="subdued">
+                      Drop an image here or click to upload
+                    </Text>
+                  </Box>
+                </DropZone>
+              ) : (
+                <InlineStack gap="200" blockAlign="center">
+                  <Thumbnail source={previewUrl || ""} size="small" alt="Reference" />
+                  <Text as="p">{uploadedFile.name}</Text>
+                  <Button
+                    variant="plain"
+                    tone="critical"
+                    onClick={clearImage}
+                    disabled={hasActiveGeneration}
+                  >
+                    Remove
+                  </Button>
+                  {isUploading && <Spinner size="small" />}
+                </InlineStack>
+              )}
+            </BlockStack>
+
+            {!defaultMode && (
+              <BlockStack gap="200">
+                <Text as="p" variant="headingSm">Generation Mode</Text>
+                <RadioButton
+                  label="Marketing Images"
+                  helpText="Product shots, lifestyle images, and listing photos"
+                  checked={mode === "marketing"}
+                  onChange={() => setMode("marketing")}
+                  disabled={hasActiveGeneration}
+                />
+                <RadioButton
+                  label="Design Concepts"
+                  helpText="Creative concepts and design variations"
+                  checked={mode === "design"}
+                  onChange={() => setMode("design")}
+                  disabled={hasActiveGeneration}
+                />
+              </BlockStack>
+            )}
+
+            {balance !== null && (
+              <Text as="p" tone="subdued">
+                Credits: {Math.round(balance)}
+              </Text>
+            )}
+
+            <InlineStack gap="300" blockAlign="center">
+              <Button
+                variant="primary"
+                size="large"
+                loading={hasActiveGeneration}
+                disabled={!prompt.trim() || !uploadedFile || isUploading || hasActiveGeneration}
+                onClick={handleGenerate}
+              >
+                Generate
+              </Button>
+            </InlineStack>
+
+            {hasActiveGeneration && (
+              <BlockStack gap="200">
+                <ProgressBar progress={progress} size="small" tone="primary" />
+                <Text as="p" tone="subdued" alignment="center">
+                  Generating your images... (This may take up to 8 minutes)
+                </Text>
+              </BlockStack>
             )}
           </BlockStack>
-
-          {!defaultMode && (
-            <BlockStack gap="200">
-              <Text as="p" variant="headingSm">Generation Mode</Text>
-              <RadioButton
-                label="Marketing Images"
-                helpText="Product shots, lifestyle images, and listing photos"
-                checked={mode === "marketing"}
-                onChange={() => setMode("marketing")}
-                disabled={isGenerating}
-              />
-              <RadioButton
-                label="Design Concepts"
-                helpText="Creative concepts and design variations"
-                checked={mode === "design"}
-                onChange={() => setMode("design")}
-                disabled={isGenerating}
-              />
-            </BlockStack>
-          )}
-
-          {balance !== null && (
-            <Text as="p" tone="subdued">
-              Credits: {Math.round(balance)}
-            </Text>
-          )}
-
-          <InlineStack gap="300" blockAlign="center">
-            <Button
-              variant="primary"
-              size="large"
-              loading={isGenerating}
-              disabled={!prompt.trim() || !uploadedFile || isGenerating || isUploading}
-              onClick={handleGenerate}
-            >
-              Generate
-            </Button>
-          </InlineStack>
-
-          {isGenerating && progress < 100 && (
-            <BlockStack gap="200">
-              <ProgressBar progress={progress} size="small" tone="primary" />
-              <Text as="p" tone="subdued" alignment="center">
-                Generating your images...
-              </Text>
-            </BlockStack>
-          )}
-        </BlockStack>
-
-        {/* Right Side */}
-        <BlockStack gap="400">
-          {generations.map((gen) => (
-            <Card key={gen.id}>
-              <Box padding="400">
-                <BlockStack gap="200">
-                  <Text as="p" variant="headingSm">{gen.prompt}</Text>
-                  {gen.isGenerating ? (
-                    <BlockStack gap="200" align="center">
-                      <Text as="p" tone="subdued">Generating...</Text>
-                    </BlockStack>
-                  ) : gen.error ? (
-                    <Text as="p" tone="critical">{gen.error}</Text>
-                  ) : gen.results ? (
-                    <InlineGrid columns={{ xs: 2, sm: 3 }} gap="300">
-                      {gen.results.map((url, index) => (
-                        <Box key={index} borderRadius="200" overflowX="hidden">
-                          <img
-                            src={url}
-                            style={{ width: "100%", display: "block" }}
-                            alt={`Generated ${index + 1}`}
-                          />
-                        </Box>
-                      ))}
-                    </InlineGrid>
-                  ) : null}
-                </BlockStack>
-              </Box>
-            </Card>
-          ))}
-
-          {generations.length === 0 && history.map((gen) => (
-            <Card key={gen.id}>
-              <Box padding="400">
-                <BlockStack gap="200">
-                  <Text as="p" variant="headingSm">{gen.prompt}</Text>
-                  {gen.results && gen.results.length > 0 ? (
-                    <InlineGrid columns={{ xs: 2, sm: 3 }} gap="300">
-                      {gen.results.map((url, index) => (
-                        <Box key={index} borderRadius="200" overflowX="hidden">
-                          <img
-                            src={url}
-                            style={{ width: "100%", display: "block" }}
-                            alt={`Generated ${index + 1}`}
-                          />
-                        </Box>
-                      ))}
-                    </InlineGrid>
-                  ) : null}
-                </BlockStack>
-              </Box>
-            </Card>
-          ))}
-
-          {generations.length === 0 && history.length === 0 && (
-            <Box background="bg-fill-secondary" padding="400" borderRadius="200"></Box>
-          )}
-        </BlockStack>
-      </InlineGrid>
+        </Box>
+      </Card>
     </BlockStack>
-    </>
   );
 }
