@@ -175,37 +175,158 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
     };
   }, [generations, onGenerationComplete]);
 
-  // Timeout handling for webhook failures
+  // Timeout handling for webhook failures - persistent across refreshes
   useEffect(() => {
     if (!hasActiveGeneration) {
       setShowCancelButton(false);
       return;
     }
 
-    // Show cancel button after 2 minutes
-    const showCancelTimer = setTimeout(() => {
-      setShowCancelButton(true);
-    }, 120000); // 2 minutes
+    // Find the active generation and check how long ago it was created
+    const activeGeneration = generations.find(gen => gen.isGenerating && gen.jobId);
+    if (!activeGeneration?.jobId) return;
 
-    // Auto-cancel after 10 minutes if no webhook arrives
-    const autoCancelTimer = setTimeout(() => {
-      console.log('Auto-cancelling generation due to timeout');
-      setGenerations(prev => prev.map(gen =>
-        gen.isGenerating
-          ? { ...gen, isGenerating: false }
-          : gen
-      ));
-      setIsGenerating(false);
-      setShowCancelButton(false);
-    }, 600000); // 10 minutes
+    // For restored jobs, we need to check the database for creation time
+    // For new jobs, we can use the current time as reference
+    const isRestoredJob = activeGeneration.id.startsWith('restored-');
 
-    return () => {
-      clearTimeout(showCancelTimer);
-      clearTimeout(autoCancelTimer);
-    };
-  }, [hasActiveGeneration]);
+    let timeoutDelay = 600000; // 10 minutes default
+    let showCancelDelay = 120000; // 2 minutes default
 
-  const handleCancelGeneration = useCallback(() => {
+    if (isRestoredJob) {
+      // For restored jobs, fetch the creation time from database
+      const checkJobAge = async () => {
+        try {
+          const resp = await fetch(`/api/imai/status?jobId=${activeGeneration.jobId}`);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.job && data.job.createdAt) {
+              const createdAt = new Date(data.job.createdAt);
+              const now = new Date();
+              const elapsed = now.getTime() - createdAt.getTime();
+
+              if (elapsed >= 600000) { // Already 10+ minutes old
+                console.log('Job already timed out, cancelling immediately');
+                setGenerations(prev => prev.map(gen =>
+                  gen.isGenerating
+                    ? { ...gen, isGenerating: false }
+                    : gen
+                ));
+                setIsGenerating(false);
+                setShowCancelButton(false);
+                return;
+              } else {
+                // Calculate remaining time
+                timeoutDelay = 600000 - elapsed;
+                showCancelDelay = Math.max(120000 - elapsed, 0);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Failed to check job age:', error);
+        }
+
+        // Set up the timers with calculated delays
+        if (showCancelDelay > 0) {
+          const showCancelTimer = setTimeout(() => {
+            setShowCancelButton(true);
+          }, showCancelDelay);
+
+          const autoCancelTimer = setTimeout(async () => {
+            console.log('Auto-cancelling generation due to timeout');
+
+            if (activeGeneration?.jobId) {
+              try {
+                await fetch('/api/imai/cancel', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    jobId: activeGeneration.jobId,
+                    shop,
+                  }),
+                });
+              } catch (error) {
+                console.error('Failed to auto-cancel job in database:', error);
+              }
+            }
+
+            setGenerations(prev => prev.map(gen =>
+              gen.isGenerating
+                ? { ...gen, isGenerating: false }
+                : gen
+            ));
+            setIsGenerating(false);
+            setShowCancelButton(false);
+          }, timeoutDelay);
+
+          return () => {
+            clearTimeout(showCancelTimer);
+            clearTimeout(autoCancelTimer);
+          };
+        }
+      };
+
+      checkJobAge();
+    } else {
+      // For new jobs, use the normal timer logic
+      const showCancelTimer = setTimeout(() => {
+        setShowCancelButton(true);
+      }, showCancelDelay);
+
+      const autoCancelTimer = setTimeout(async () => {
+        console.log('Auto-cancelling generation due to timeout');
+
+        if (activeGeneration?.jobId) {
+          try {
+            await fetch('/api/imai/cancel', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                jobId: activeGeneration.jobId,
+                shop,
+              }),
+            });
+          } catch (error) {
+            console.error('Failed to auto-cancel job in database:', error);
+          }
+        }
+
+        setGenerations(prev => prev.map(gen =>
+          gen.isGenerating
+            ? { ...gen, isGenerating: false }
+            : gen
+        ));
+        setIsGenerating(false);
+        setShowCancelButton(false);
+      }, timeoutDelay);
+
+      return () => {
+        clearTimeout(showCancelTimer);
+        clearTimeout(autoCancelTimer);
+      };
+    }
+  }, [hasActiveGeneration, generations, shop]);
+
+  const handleCancelGeneration = useCallback(async () => {
+    // Find the active generation jobId
+    const activeGeneration = generations.find(gen => gen.isGenerating && gen.jobId);
+    if (!activeGeneration?.jobId) return;
+
+    try {
+      // Update the database to mark job as cancelled
+      await fetch('/api/imai/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId: activeGeneration.jobId,
+          shop,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to cancel job in database:', error);
+    }
+
+    // Update local state
     setGenerations(prev => prev.map(gen =>
       gen.isGenerating
         ? { ...gen, isGenerating: false }
@@ -213,7 +334,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
     ));
     setIsGenerating(false);
     setShowCancelButton(false);
-  }, []);
+  }, [generations, shop]);
 
   const handleDrop = async (files: File[]) => {
     if (files.length > 0) {

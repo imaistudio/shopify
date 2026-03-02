@@ -106,6 +106,7 @@ export default function ProductGenPage() {
   // Generation state
   const [generations, setGenerations] = useState<ProductGeneration[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [showCancelButton, setShowCancelButton] = useState(false);
   
   // Track if any generation is currently in progress
   const hasActiveGeneration = generations.some(gen => gen.isGenerating);
@@ -215,21 +216,11 @@ export default function ProductGenPage() {
 
     setGenerations(prev => [newGeneration, ...prev]);
     setError(null);
-    
-    // Animate progress bar to 80% over ~40 seconds
-    const progressInterval = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 80) return p;
-        return p + 2;
-      });
-    }, 1000);
 
     try {
       // Upload the image
       const processedImageUrl = await uploadImage();
       if (!processedImageUrl) {
-        clearInterval(progressInterval);
-        setProgress(0);
         setGenerations(prev => prev.map(gen =>
           gen.id === generationId ? { ...gen, isGenerating: false, error: "Upload failed" } : gen
         ));
@@ -258,20 +249,16 @@ export default function ProductGenPage() {
         ));
       } else if (data.success) {
         // Synchronous response
-        clearInterval(progressInterval);
-        setProgress(100);
         setGenerations(prev => prev.map(gen =>
           gen.id === generationId ? { ...gen, isGenerating: false, response: data } : gen
         ));
       }
     } catch (err) {
-      clearInterval(progressInterval);
       const errorMsg = "Failed to generate, please try again later.";
       setError(errorMsg);
-      setProgress(0);
       setGenerations(prev => prev.map(gen =>
-        gen.id === generationId ? { ...gen, isGenerating: false, error: errorMsg } : gen
-      ));
+          gen.id === generationId ? { ...gen, isGenerating: false, error: errorMsg } : gen
+        ));
     }
 
     // Clear inputs after starting generation
@@ -302,6 +289,7 @@ export default function ProductGenPage() {
               ));
               setProgress(100);
               setTimeout(() => setProgress(0), 2000);
+              setShowCancelButton(false);
             } else if (status === 'failed') {
               console.log('Job failed via webhook:', jobId, error);
               setGenerations(prev => prev.map((gen, index) =>
@@ -310,6 +298,7 @@ export default function ProductGenPage() {
                   : gen
               ));
               setProgress(0);
+              setShowCancelButton(false);
             }
           }
         }
@@ -326,6 +315,163 @@ export default function ProductGenPage() {
       eventSource.close();
     };
   }, [isConnected, generations]);
+
+  // Timeout handling for webhook failures - persistent across refreshes
+  useEffect(() => {
+    if (!hasActiveGeneration) {
+      setShowCancelButton(false);
+      return;
+    }
+
+    // Find the active generation and check how long ago it was created
+    const activeGeneration = generations.find(gen => gen.isGenerating && gen.jobId);
+    if (!activeGeneration?.jobId) return;
+
+    // For restored jobs, we need to check the database for creation time
+    // For new jobs, we can use the current time as reference
+    const isRestoredJob = activeGeneration.id.startsWith('restored-');
+
+    let timeoutDelay = 600000; // 10 minutes default
+    let showCancelDelay = 120000; // 2 minutes default
+
+    if (isRestoredJob) {
+      // For restored jobs, fetch the creation time from database
+      const checkJobAge = async () => {
+        try {
+          const resp = await fetch(`/api/imai/status?jobId=${activeGeneration.jobId}`);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.job && data.job.createdAt) {
+              const createdAt = new Date(data.job.createdAt);
+              const now = new Date();
+              const elapsed = now.getTime() - createdAt.getTime();
+
+              if (elapsed >= 600000) { // Already 10+ minutes old
+                console.log('Job already timed out, cancelling immediately');
+                setGenerations(prev => prev.map(gen =>
+                  gen.isGenerating
+                    ? { ...gen, isGenerating: false }
+                    : gen
+                ));
+                setShowCancelButton(false);
+                return;
+              } else {
+                // Calculate remaining time
+                timeoutDelay = 600000 - elapsed;
+                showCancelDelay = Math.max(120000 - elapsed, 0);
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Failed to check job age:', error);
+        }
+
+        // Set up the timers with calculated delays
+        if (showCancelDelay > 0) {
+          const showCancelTimer = setTimeout(() => {
+            setShowCancelButton(true);
+          }, showCancelDelay);
+
+          const autoCancelTimer = setTimeout(async () => {
+            console.log('Auto-cancelling generation due to timeout');
+
+            if (activeGeneration?.jobId) {
+              try {
+                await fetch('/api/imai/cancel', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    jobId: activeGeneration.jobId,
+                    shop,
+                  }),
+                });
+              } catch (error) {
+                console.error('Failed to auto-cancel job in database:', error);
+              }
+            }
+
+            setGenerations(prev => prev.map(gen =>
+              gen.isGenerating
+                ? { ...gen, isGenerating: false }
+                : gen
+            ));
+            setShowCancelButton(false);
+          }, timeoutDelay);
+
+          return () => {
+            clearTimeout(showCancelTimer);
+            clearTimeout(autoCancelTimer);
+          };
+        }
+      };
+
+      checkJobAge();
+    } else {
+      // For new jobs, use the normal timer logic
+      const showCancelTimer = setTimeout(() => {
+        setShowCancelButton(true);
+      }, showCancelDelay);
+
+      const autoCancelTimer = setTimeout(async () => {
+        console.log('Auto-cancelling generation due to timeout');
+
+        if (activeGeneration?.jobId) {
+          try {
+            await fetch('/api/imai/cancel', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                jobId: activeGeneration.jobId,
+                shop,
+              }),
+            });
+          } catch (error) {
+            console.error('Failed to auto-cancel job in database:', error);
+          }
+        }
+
+        setGenerations(prev => prev.map(gen =>
+          gen.isGenerating
+            ? { ...gen, isGenerating: false }
+            : gen
+        ));
+        setShowCancelButton(false);
+      }, timeoutDelay);
+
+      return () => {
+        clearTimeout(showCancelTimer);
+        clearTimeout(autoCancelTimer);
+      };
+    }
+  }, [hasActiveGeneration, generations, shop]);
+
+  const handleCancelGeneration = useCallback(async () => {
+    // Find the active generation jobId
+    const activeGeneration = generations.find(gen => gen.isGenerating && gen.jobId);
+    if (!activeGeneration?.jobId) return;
+
+    try {
+      // Update the database to mark job as cancelled
+      await fetch('/api/imai/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jobId: activeGeneration.jobId,
+          shop,
+        }),
+      });
+    } catch (error) {
+      console.error('Failed to cancel job in database:', error);
+    }
+
+    // Update local state
+    setGenerations(prev => prev.map(gen =>
+      gen.isGenerating
+        ? { ...gen, isGenerating: false }
+        : gen
+    ));
+    setShowCancelButton(false);
+  }, [generations, shop]);
 
   const primaryAction = undefined;
 
@@ -446,6 +592,16 @@ export default function ProductGenPage() {
                             <Text as="p" alignment="center" tone="subdued">
                               Generating your content...
                             </Text>
+                            {showCancelButton && (
+                              <Button
+                                variant="plain"
+                                tone="critical"
+                                size="micro"
+                                onClick={handleCancelGeneration}
+                              >
+                                Cancel Generation
+                              </Button>
+                            )}
                           </BlockStack>
                         </div>
                       </Box>
