@@ -379,11 +379,7 @@ export default function ProductGenPage() {
               {/* Right Side */}
               <BlockStack gap="400">
                 {generations.length === 0 ? (
-                  <Box padding="400">
-                    <Text as="p" alignment="center" tone="subdued">
-                      Generated content will appear here
-                    </Text>
-                  </Box>
+                  <Box background="bg-fill-secondary" padding="400" borderRadius="200"></Box>
                 ) : (
                   generations.map((gen) => (
                     <Card key={gen.id}>
@@ -397,7 +393,6 @@ export default function ProductGenPage() {
                           )}
                           {gen.isGenerating ? (
                             <BlockStack gap="200" align="center">
-                              <Spinner size="large" />
                               <Text as="p" tone="subdued">Generating...</Text>
                             </BlockStack>
                           ) : gen.error ? (

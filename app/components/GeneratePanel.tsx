@@ -47,6 +47,31 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [history, setHistory] = useState<Generation[]>([]);
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      try {
+        const resp = await fetch('/api/imai/history');
+        if (resp.ok) {
+          const data = await resp.json();
+          setHistory(data.map((h: any) => ({
+            id: `history-${h.id}`,
+            prompt: h.prompt,
+            uploadedFile: null,
+            previewUrl: null,
+            isGenerating: false,
+            jobId: null,
+            results: h.results,
+            error: null,
+          })));
+        }
+      } catch (error) {
+        console.error('Failed to load history:', error);
+      }
+    };
+    loadHistory();
+  }, []);
 
   const handleGenerationComplete = useCallback(
     (generationId: string) => (result: any) => {
@@ -366,42 +391,60 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
 
         {/* Right Side */}
         <BlockStack gap="400">
-          {generations.length === 0 ? (
-            <Box padding="400">
-              <Text as="p" alignment="center" tone="subdued">
-                Generated images will appear here
-              </Text>
-            </Box>
-          ) : (
-            generations.map((gen) => (
-              <Card key={gen.id}>
-                <Box padding="400">
-                  <BlockStack gap="200">
-                    <Text as="p" variant="headingSm">{gen.prompt}</Text>
-                    {gen.isGenerating ? (
-                      <BlockStack gap="200" align="center">
-                        <Spinner size="large" />
-                        <Text as="p" tone="subdued">Generating...</Text>
-                      </BlockStack>
-                    ) : gen.error ? (
-                      <Text as="p" tone="critical">{gen.error}</Text>
-                    ) : gen.results ? (
-                      <InlineGrid columns={{ xs: 2, sm: 3 }} gap="300">
-                        {gen.results.map((url, index) => (
-                          <Box key={index} borderRadius="200" overflowX="hidden">
-                            <img
-                              src={url}
-                              style={{ width: "100%", display: "block" }}
-                              alt={`Generated ${index + 1}`}
-                            />
-                          </Box>
-                        ))}
-                      </InlineGrid>
-                    ) : null}
-                  </BlockStack>
-                </Box>
-              </Card>
-            ))
+          {generations.map((gen) => (
+            <Card key={gen.id}>
+              <Box padding="400">
+                <BlockStack gap="200">
+                  <Text as="p" variant="headingSm">{gen.prompt}</Text>
+                  {gen.isGenerating ? (
+                    <BlockStack gap="200" align="center">
+                      <Text as="p" tone="subdued">Generating...</Text>
+                    </BlockStack>
+                  ) : gen.error ? (
+                    <Text as="p" tone="critical">{gen.error}</Text>
+                  ) : gen.results ? (
+                    <InlineGrid columns={{ xs: 2, sm: 3 }} gap="300">
+                      {gen.results.map((url, index) => (
+                        <Box key={index} borderRadius="200" overflowX="hidden">
+                          <img
+                            src={url}
+                            style={{ width: "100%", display: "block" }}
+                            alt={`Generated ${index + 1}`}
+                          />
+                        </Box>
+                      ))}
+                    </InlineGrid>
+                  ) : null}
+                </BlockStack>
+              </Box>
+            </Card>
+          ))}
+
+          {generations.length === 0 && history.map((gen) => (
+            <Card key={gen.id}>
+              <Box padding="400">
+                <BlockStack gap="200">
+                  <Text as="p" variant="headingSm">{gen.prompt}</Text>
+                  {gen.results && gen.results.length > 0 ? (
+                    <InlineGrid columns={{ xs: 2, sm: 3 }} gap="300">
+                      {gen.results.map((url, index) => (
+                        <Box key={index} borderRadius="200" overflowX="hidden">
+                          <img
+                            src={url}
+                            style={{ width: "100%", display: "block" }}
+                            alt={`Generated ${index + 1}`}
+                          />
+                        </Box>
+                      ))}
+                    </InlineGrid>
+                  ) : null}
+                </BlockStack>
+              </Box>
+            </Card>
+          ))}
+
+          {generations.length === 0 && history.length === 0 && (
+            <Box background="bg-fill-secondary" padding="400" borderRadius="200"></Box>
           )}
         </BlockStack>
       </InlineGrid>
