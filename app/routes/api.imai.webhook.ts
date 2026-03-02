@@ -88,6 +88,12 @@ export async function action({ request }: ActionFunctionArgs) {
       hasResult: !!payload.result,
     });
 
+    // Verify the update
+    const updatedJob = await prisma.imaiJob.findUnique({
+      where: { jobId: payload.jobId }
+    });
+    console.log("Updated job in database:", updatedJob?.status, updatedJob?.result ? "has result" : "no result");
+
     // TODO: In production, you might want to:
     // 1. Download images from IMAI URLs and store in Shopify
     // 2. Send real-time notifications to connected clients

@@ -48,7 +48,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       response.error = localJob.error;
     }
 
-    console.log("Returning completed/failed local job status:", response.status);
+    console.log("Returning completed/failed local job status:", response.status, "hasResult:", !!response.result);
     return Response.json(response);
   }
 

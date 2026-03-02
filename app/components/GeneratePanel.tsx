@@ -73,13 +73,53 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
     loadHistory();
   }, []);
 
+  // Load active (non-completed) jobs from database on mount
+  useEffect(() => {
+    const loadActiveJobs = async () => {
+      try {
+        const resp = await fetch('/api/imai/active-jobs');
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data.jobs && data.jobs.length > 0) {
+            console.log("Restoring active jobs from database:", data.jobs);
+            const activeGenerations = data.jobs.map((job: any) => ({
+              id: `restored-${job.jobId}`,
+              prompt: job.prompt,
+              uploadedFile: null,
+              previewUrl: null,
+              isGenerating: true,
+              jobId: job.jobId,
+              results: null,
+              error: null,
+            }));
+            setGenerations(prev => {
+              // Avoid duplicates
+              const existingJobIds = new Set(prev.map(g => g.jobId));
+              const newJobs = activeGenerations.filter((g: Generation) => !existingJobIds.has(g.jobId));
+              return [...newJobs, ...prev];
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load active jobs:', error);
+      }
+    };
+    loadActiveJobs();
+  }, []);
+
   const handleGenerationComplete = useCallback(
     (generationId: string) => (result: any) => {
-      setGenerations(prev => prev.map(gen =>
-        gen.id === generationId
-          ? { ...gen, isGenerating: false, results: result.urls || [] }
-          : gen
-      ));
+      console.log("handleGenerationComplete called for generation:", generationId, "result:", result);
+      setGenerations(prev => {
+        console.log("Updating generations, prev state:", prev.map(g => ({ id: g.id, isGenerating: g.isGenerating, jobId: g.jobId })));
+        const updated = prev.map(gen =>
+          gen.id === generationId
+            ? { ...gen, isGenerating: false, results: result.urls || [] }
+            : gen
+        );
+        console.log("Updated generations:", updated.map(g => ({ id: g.id, isGenerating: g.isGenerating, hasResults: !!g.results })));
+        return updated;
+      });
       onGenerationComplete();
     },
     [onGenerationComplete]

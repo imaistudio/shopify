@@ -85,11 +85,11 @@ export function useJobPoller(
             
             // Check if there are any pending IDs that need to be resolved
             if (result.pendingIds && result.pendingIds.length > 0) {
-              // Some assets are still processing, keep polling
-              console.log("Job completed but has pending IDs:", result.pendingIds);
-              return;
+              // Some assets are still processing, but show results now
+              console.log("Job completed with pending IDs:", result.pendingIds, "showing results");
             }
             
+            console.log("Job completed, calling onComplete with result");
             onComplete(result);
           } else if (data.status === "failed") {
             clearPoller(jobId);
