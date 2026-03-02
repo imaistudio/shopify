@@ -59,7 +59,7 @@ export default function DesignPage() {
   const primaryAction = undefined;
 
   return (
-    <Page title="Design" primaryAction={primaryAction}>
+    <Page title="Product Design" primaryAction={primaryAction}>
       <BlockStack gap="400">
         {!isConnected && (
           <Banner tone="info" title="Connect your IMAI Studio API key">

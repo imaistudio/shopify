@@ -59,7 +59,7 @@ export default function MarketingPage() {
   const primaryAction = undefined;
 
   return (
-    <Page title="Marketing" primaryAction={primaryAction}>
+    <Page title="Media Studio" primaryAction={primaryAction}>
       <BlockStack gap="400">
         {!isConnected && (
           <Banner tone="info" title="Connect your IMAI Studio API key">

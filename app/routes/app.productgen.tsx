@@ -292,7 +292,7 @@ export default function ProductGenPage() {
 
   return (
     <>
-      <Page title="ProductGen" primaryAction={primaryAction}>
+      <Page title="Product Gen" primaryAction={primaryAction}>
       <BlockStack gap="400">
         {!isConnected && (
           <Banner tone="info" title="Connect your IMAI Studio API key">
