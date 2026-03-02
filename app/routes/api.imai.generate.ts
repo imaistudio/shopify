@@ -57,7 +57,7 @@ export async function action({ request }: ActionFunctionArgs) {
   };
 
   const requestUrl = new URL(request.url);
-  const webhookUrl = `${requestUrl.protocol}//${requestUrl.host}/api/imai/webhook`;
+  const webhookUrl = `${process.env.SHOPIFY_APP_URL || requestUrl.protocol + '//' + requestUrl.host}/api/imai/webhook`;
   const webhookSecret = process.env.IMAI_WEBHOOK_SECRET || 'default-secret';
 
   requestBody.webhookUrl = webhookUrl;
