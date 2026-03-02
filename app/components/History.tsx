@@ -93,7 +93,7 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
       }
     };
     loadHistory();
-  }, [shop, refreshTrigger]);
+  }, [shop]); // Only depend on shop, not refreshTrigger
 
   if (loading) {
     return (

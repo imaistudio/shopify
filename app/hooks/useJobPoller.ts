@@ -18,17 +18,9 @@ interface JobItem {
 export function useJobPoller(
   jobs: JobItem[]
 ) {
-  const timeoutRef = useRef<Record<string, NodeJS.Timeout | null>>({});
   const pollTimeoutRef = useRef<Record<string, NodeJS.Timeout | null>>({});
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const jobsRef = useRef<JobItem[]>(jobs);
-
-  const clearTimeoutForJob = useCallback((jobId: string) => {
-    if (timeoutRef.current[jobId]) {
-      clearTimeout(timeoutRef.current[jobId]!);
-      timeoutRef.current[jobId] = null;
-    }
-  }, []);
+  const completedJobsRef = useRef<Set<string>>(new Set());
+  const pollAttemptsRef = useRef<Record<string, number>>({});
 
   const clearPollTimeoutForJob = useCallback((jobId: string) => {
     if (pollTimeoutRef.current[jobId]) {
@@ -38,142 +30,131 @@ export function useJobPoller(
   }, []);
 
   const clearAllTimeouts = useCallback(() => {
-    Object.keys(timeoutRef.current).forEach(jobId => clearTimeoutForJob(jobId));
     Object.keys(pollTimeoutRef.current).forEach(jobId => clearPollTimeoutForJob(jobId));
-  }, [clearTimeoutForJob, clearPollTimeoutForJob]);
+  }, [clearPollTimeoutForJob]);
 
-  const startPolling = useCallback(async (jobId: string, onComplete: (result: any) => void, onError: (error: string) => void) => {
+  // Exponential backoff: start at 3s, double each time, max 30s
+  const getPollInterval = useCallback((attempts: number) => {
+    return Math.min(3000 * Math.pow(2, attempts), 30000);
+  }, []);
+
+  const activePollersRef = useRef<Set<string>>(new Set());
+
+  const pollJobStatus = useCallback(async (jobId: string, onComplete: (result: any) => void, onError: (error: string) => void) => {
+    // Skip if already completed or if polling is already active for this job
+    if (completedJobsRef.current.has(jobId) || activePollersRef.current.has(jobId)) {
+      return;
+    }
+
+    activePollersRef.current.add(jobId);
+
     const poll = async () => {
+      // Double-check if completed before polling
+      if (completedJobsRef.current.has(jobId)) {
+        activePollersRef.current.delete(jobId);
+        return;
+      }
+
       try {
+        console.log(`Polling status for job ${jobId}, attempt ${pollAttemptsRef.current[jobId] || 0}`);
         const resp = await fetch(`/api/imai/status?jobId=${jobId}`);
-        
+
         if (!resp.ok) {
           throw new Error(`Status check failed: ${resp.status}`);
         }
-        
+
         const data = await resp.json();
 
         if (data.success === false || data.error) {
-          clearPollTimeoutForJob(jobId);
+          console.log(`Job ${jobId} failed:`, data.error || data.message);
+          completedJobsRef.current.add(jobId);
+          activePollersRef.current.delete(jobId);
           onError(data.error || data.message || "Generation failed.");
           return;
         }
 
         if (data.status === "completed" || (data.success && !data.accepted)) {
-          clearPollTimeoutForJob(jobId);
+          console.log(`Job ${jobId} completed`);
+          completedJobsRef.current.add(jobId);
+          activePollersRef.current.delete(jobId);
           const result = data.result || data;
           onComplete(result);
           return;
         } else if (data.status === "failed") {
-          clearPollTimeoutForJob(jobId);
+          console.log(`Job ${jobId} failed with status`);
+          completedJobsRef.current.add(jobId);
+          activePollersRef.current.delete(jobId);
           onError(data.error || data.message || "Generation failed.");
           return;
         }
-        // Continue polling every 45 seconds
-        pollTimeoutRef.current[jobId] = setTimeout(poll, 45000);
+
+        // Continue polling with exponential backoff
+        const attempts = pollAttemptsRef.current[jobId] || 0;
+        pollAttemptsRef.current[jobId] = attempts + 1;
+        const interval = getPollInterval(attempts);
+
+        console.log(`Job ${jobId} still processing, next poll in ${interval}ms`);
+        pollTimeoutRef.current[jobId] = setTimeout(poll, interval);
+
       } catch (error) {
-        console.error("Polling error:", error);
-        // Continue trying
-        pollTimeoutRef.current[jobId] = setTimeout(poll, 45000);
+        console.error(`Polling error for job ${jobId}:`, error);
+
+        // On network errors, retry with backoff (but less aggressively)
+        const attempts = pollAttemptsRef.current[jobId] || 0;
+        pollAttemptsRef.current[jobId] = attempts + 1;
+        const interval = getPollInterval(Math.min(attempts, 3)); // Cap at 4th attempt interval for errors
+
+        pollTimeoutRef.current[jobId] = setTimeout(poll, interval);
       }
     };
 
-    poll(); // Start polling immediately
-  }, [clearPollTimeoutForJob]);
+    // Start polling immediately
+    poll();
+  }, [getPollInterval]);
 
   useEffect(() => {
-    jobsRef.current = jobs;
-
-    // Clear timeouts for jobs that are no longer in the list
+    // Clear completed jobs for jobs that are no longer in the list
     const currentJobIds = jobs.map(job => job.jobId);
-    Object.keys(timeoutRef.current).forEach(jobId => {
+    completedJobsRef.current.forEach(jobId => {
       if (!currentJobIds.includes(jobId)) {
-        clearTimeoutForJob(jobId);
-        delete timeoutRef.current[jobId];
+        completedJobsRef.current.delete(jobId);
+        activePollersRef.current.delete(jobId);
+        delete pollAttemptsRef.current[jobId];
       }
     });
 
-    // Clear poll timeouts for jobs that are no longer in the list
+    // Clear timeouts for jobs that are no longer in the list
     Object.keys(pollTimeoutRef.current).forEach(jobId => {
       if (!currentJobIds.includes(jobId)) {
         clearPollTimeoutForJob(jobId);
+        activePollersRef.current.delete(jobId);
         delete pollTimeoutRef.current[jobId];
       }
     });
 
-    // Set up EventSource if not already connected
-    if (!eventSourceRef.current) {
-      eventSourceRef.current = new EventSource('/api/imai/events');
-
-      eventSourceRef.current.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'job_update') {
-            const { jobId, status, result, error } = data;
-
-            // Find the job in current jobs
-            const job = jobsRef.current.find(j => j.jobId === jobId);
-            if (job) {
-              // Clear both timeouts since we have an update
-              clearTimeoutForJob(jobId);
-              clearPollTimeoutForJob(jobId);
-
-              if (status === 'completed') {
-                // Handle both direct result format and nested result format
-                const jobResult = result.result || result;
-
-                // Check if there are any pending IDs that need to be resolved
-                if (jobResult.pendingIds && jobResult.pendingIds.length > 0) {
-                  // Some assets are still processing, but show results now
-                  console.log("Job completed with pending IDs:", jobResult.pendingIds, "showing results");
-                }
-
-                console.log("Job completed, calling onComplete with result");
-                job.onComplete(jobResult);
-              } else if (status === 'failed') {
-                job.onError(error || "Generation failed.");
-              }
-            }
-          }
-        } catch (err) {
-          console.error("Error parsing SSE event:", err);
-        }
-      };
-
-      eventSourceRef.current.onerror = (error) => {
-        console.error("SSE connection error:", error);
-      };
-    }
-
+    // Start polling for new jobs
     jobs.forEach(({ jobId, onComplete, onError }) => {
       if (!jobId) return;
 
-      // Set 10-minute final timeout if not set
-      if (!timeoutRef.current[jobId]) {
-        timeoutRef.current[jobId] = setTimeout(() => {
-          clearTimeoutForJob(jobId);
-          clearPollTimeoutForJob(jobId);
-          onError("Generation timed out. Check your Library in a few minutes.");
-        }, 600000); // 10 minutes
+      // Skip if already polling or completed
+      if (pollTimeoutRef.current[jobId] || completedJobsRef.current.has(jobId)) {
+        return;
       }
 
-      // Set 7-minute timeout to start fallback polling
-      if (!pollTimeoutRef.current[jobId]) {
-        pollTimeoutRef.current[jobId] = setTimeout(() => {
-          console.log(`Starting fallback polling for job ${jobId}`);
-          startPolling(jobId, onComplete, onError);
-        }, 420000); // 7 minutes
+      // Initialize attempts counter
+      if (!pollAttemptsRef.current[jobId]) {
+        pollAttemptsRef.current[jobId] = 0;
       }
+
+      console.log(`Starting polling for job ${jobId}`);
+      // Start polling immediately
+      pollJobStatus(jobId, onComplete, onError);
     });
 
     return () => {
       clearAllTimeouts();
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
     };
-  }, [jobs, clearTimeoutForJob, clearAllTimeouts]);
+  }, [jobs, pollJobStatus, clearPollTimeoutForJob, clearAllTimeouts]);
 
   return { clearAllTimeouts };
 }

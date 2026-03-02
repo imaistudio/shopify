@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
@@ -26,7 +26,6 @@ import { ImageIcon } from "@shopify/polaris-icons";
 // Components
 import { CreditsBadge } from "../components/CreditsBadge";
 import { History } from "../components/History";
-import { useJobPoller } from "../hooks/useJobPoller";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -278,45 +277,55 @@ export default function ProductGenPage() {
     // Clear inputs after starting generation
     setPrompt("");
     setUploadedFile(null);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    setPreviewUrl(null);
   };
 
-  const handleGenerationComplete = useCallback(
-    (generationId: string) => (result: any) => {
-      setGenerations(prev => prev.map(gen =>
-        gen.id === generationId
-          ? { ...gen, isGenerating: !(result.images?.urls && result.images.urls.length > 0), response: result }
-          : gen
-      ));
-      setProgress(100);
-      setTimeout(() => setProgress(0), 2000);
-    },
-    []
-  );
+  useEffect(() => {
+    if (!isConnected) return;
 
-  const handleGenerationError = useCallback(
-    (generationId: string) => (err: string) => {
-      setGenerations(prev => prev.map(gen =>
-        gen.id === generationId
-          ? { ...gen, isGenerating: false, error: "Failed to generate, please try again later." }
-          : gen
-      ));
-    },
-    []
-  );
+    const eventSource = new EventSource('/api/imai/events');
 
-  const jobs = generations
-    .filter(gen => gen.jobId && gen.isGenerating)
-    .map(gen => ({
-      jobId: gen.jobId!,
-      onComplete: handleGenerationComplete(gen.id),
-      onError: handleGenerationError(gen.id),
-    }));
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'job_update') {
+          const { jobId, status, result, error } = data;
 
-  useJobPoller(jobs);
+          // Find the generation with this jobId
+          const generationIndex = generations.findIndex(gen => gen.jobId === jobId);
+          if (generationIndex !== -1) {
+            if (status === 'completed') {
+              console.log('Job completed via webhook:', jobId);
+              setGenerations(prev => prev.map((gen, index) =>
+                index === generationIndex
+                  ? { ...gen, isGenerating: false, response: result }
+                  : gen
+              ));
+              setProgress(100);
+              setTimeout(() => setProgress(0), 2000);
+            } else if (status === 'failed') {
+              console.log('Job failed via webhook:', jobId, error);
+              setGenerations(prev => prev.map((gen, index) =>
+                index === generationIndex
+                  ? { ...gen, isGenerating: false, error: error || "Generation failed" }
+                  : gen
+              ));
+              setProgress(0);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error parsing SSE event:", err);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error("SSE connection error:", error);
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [isConnected, generations]);
 
   const primaryAction = undefined;
 
@@ -575,7 +584,6 @@ export default function ProductGenPage() {
         {isConnected && (
           <History 
             shop={shop} 
-            refreshTrigger={0}
           />
         )}
       </BlockStack>

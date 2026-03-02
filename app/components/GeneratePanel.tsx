@@ -9,7 +9,6 @@ import {
   Text,
   Badge,
   Banner,
-  ProgressBar,
   Thumbnail,
   Spinner,
   Box,
@@ -19,8 +18,6 @@ import {
   Icon,
 } from "@shopify/polaris";
 import { ImageIcon } from "@shopify/polaris-icons";
-import { useJobWebhook } from "../hooks/useJobWebhook";
-import { useJobFallback } from "../hooks/useJobFallback";
 
 interface Generation {
   id: string;
@@ -46,7 +43,6 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -129,11 +125,52 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
       onError: handleGenerationError(gen.id),
     }));
 
-  const { isConnected: sseConnected, connectionError } = useJobWebhook(jobs, shop);
-  
-  // Fallback to polling if SSE fails
-  const useFallback = !sseConnected && jobs.length > 0;
-  useJobFallback(jobs, useFallback);
+  // Set up SSE event listening for webhook completion
+  useEffect(() => {
+    const eventSource = new EventSource('/api/imai/events');
+
+    eventSource.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'job_update') {
+          const { jobId, status, result, error } = data;
+
+          // Find the generation with this jobId
+          const generationIndex = generations.findIndex(gen => gen.jobId === jobId);
+          if (generationIndex !== -1) {
+            if (status === 'completed') {
+              console.log('Job completed via webhook:', jobId);
+              setGenerations(prev => prev.map((gen, index) =>
+                index === generationIndex
+                  ? { ...gen, isGenerating: false, results: result?.urls || [] }
+                  : gen
+              ));
+              setIsGenerating(false);
+              onGenerationComplete();
+            } else if (status === 'failed') {
+              console.log('Job failed via webhook:', jobId, error);
+              setGenerations(prev => prev.map((gen, index) =>
+                index === generationIndex
+                  ? { ...gen, isGenerating: false, error: error || "Generation failed" }
+                  : gen
+              ));
+              setIsGenerating(false);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error parsing SSE event:", err);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error("SSE connection error:", error);
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [generations, onGenerationComplete]);
 
   const handleDrop = async (files: File[]) => {
     if (files.length > 0) {
@@ -243,21 +280,11 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
     setIsGenerating(true);
     setError(null);
 
-    // Animate progress bar to 80% over ~40 seconds
-    const progressInterval = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 80) return p;
-        return p + 2;
-      });
-    }, 1000);
-
     try {
       // Upload the image
       const processedImageUrl = await uploadImage();
       if (!processedImageUrl) {
-        clearInterval(progressInterval);
         setIsGenerating(false);
-        setProgress(0);
         setGenerations(prev => prev.map(gen =>
           gen.id === generationId ? { ...gen, isGenerating: false, error: "Upload failed" } : gen
         ));
@@ -288,8 +315,6 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
         ));
       } else if (data.result) {
         // Synchronous response
-        clearInterval(progressInterval);
-        setProgress(100);
         setGenerations(prev => prev.map(gen =>
           gen.id === generationId ? { ...gen, isGenerating: false, results: data.result.urls || [] } : gen
         ));
@@ -297,10 +322,8 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
         onGenerationComplete();
       }
     } catch (err) {
-      clearInterval(progressInterval);
       setError("Failed to generate, please try again later.");
       setIsGenerating(false);
-      setProgress(0);
       setGenerations(prev => prev.map(gen =>
           gen.id === generationId ? { ...gen, isGenerating: false, error: "Failed to generate, please try again later." } : gen
         ));
@@ -422,15 +445,6 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
               </Button>
             </InlineStack>
 
-            {hasActiveGeneration && (
-              <BlockStack gap="200">
-                <ProgressBar progress={progress} size="small" tone="primary" />
-                <Text as="p" tone="subdued" alignment="center">
-                  Generating your images...
-                </Text>
-              </BlockStack>
-            )}
-
             {error && (
               <div style={{ textAlign: 'center', padding: '20px' }}>
                 <Text as="p" tone="critical">Failed to generate, please try again later.</Text>
@@ -459,12 +473,12 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
                     textAlign: 'center'
                   }}
                 >
-                  <InlineStack gap="200" align="center" blockAlign="center">
+                  <BlockStack gap="200" align="center">
                     <Spinner size="large" />
                     <Text as="p" alignment="center" tone="subdued">
                       Generating your images...
                     </Text>
-                  </InlineStack>
+                  </BlockStack>
                 </div>
               </Box>
             ) : (
