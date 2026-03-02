@@ -46,6 +46,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
   const [generations, setGenerations] = useState<Generation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [showCancelButton, setShowCancelButton] = useState(false);
   
   // Track if any generation is currently in progress
   const hasActiveGeneration = useMemo(() => 
@@ -146,6 +147,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
                   : gen
               ));
               setIsGenerating(false);
+              setShowCancelButton(false);
               onGenerationComplete();
             } else if (status === 'failed') {
               console.log('Job failed via webhook:', jobId, error);
@@ -155,6 +157,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
                   : gen
               ));
               setIsGenerating(false);
+              setShowCancelButton(false);
             }
           }
         }
@@ -171,6 +174,46 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
       eventSource.close();
     };
   }, [generations, onGenerationComplete]);
+
+  // Timeout handling for webhook failures
+  useEffect(() => {
+    if (!hasActiveGeneration) {
+      setShowCancelButton(false);
+      return;
+    }
+
+    // Show cancel button after 2 minutes
+    const showCancelTimer = setTimeout(() => {
+      setShowCancelButton(true);
+    }, 120000); // 2 minutes
+
+    // Auto-cancel after 10 minutes if no webhook arrives
+    const autoCancelTimer = setTimeout(() => {
+      console.log('Auto-cancelling generation due to timeout');
+      setGenerations(prev => prev.map(gen =>
+        gen.isGenerating
+          ? { ...gen, isGenerating: false }
+          : gen
+      ));
+      setIsGenerating(false);
+      setShowCancelButton(false);
+    }, 600000); // 10 minutes
+
+    return () => {
+      clearTimeout(showCancelTimer);
+      clearTimeout(autoCancelTimer);
+    };
+  }, [hasActiveGeneration]);
+
+  const handleCancelGeneration = useCallback(() => {
+    setGenerations(prev => prev.map(gen =>
+      gen.isGenerating
+        ? { ...gen, isGenerating: false }
+        : gen
+    ));
+    setIsGenerating(false);
+    setShowCancelButton(false);
+  }, []);
 
   const handleDrop = async (files: File[]) => {
     if (files.length > 0) {
@@ -478,6 +521,16 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
                     <Text as="p" alignment="center" tone="subdued">
                       Generating your images...
                     </Text>
+                    {showCancelButton && (
+                      <Button
+                        variant="plain"
+                        tone="critical"
+                        size="micro"
+                        onClick={handleCancelGeneration}
+                      >
+                        Cancel Generation
+                      </Button>
+                    )}
                   </BlockStack>
                 </div>
               </Box>
