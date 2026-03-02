@@ -3,6 +3,7 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { decrypt } from "../lib/encryption.server";
 import crypto from "crypto";
+import { sendEventToShop } from './api.imai.events';
 
 /**
  * POST /api/imai/webhook
@@ -93,6 +94,17 @@ export async function action({ request }: ActionFunctionArgs) {
       where: { jobId: payload.jobId }
     });
     console.log("Updated job in database:", updatedJob?.status, updatedJob?.result ? "has result" : "no result");
+
+    // Send SSE event to connected clients
+    if (updatedJob && updatedJob.shop !== 'unknown') {
+      sendEventToShop(updatedJob.shop, {
+        type: 'job_update',
+        jobId: payload.jobId,
+        status: payload.status,
+        result: payload.result,
+        error: payload.error,
+      });
+    }
 
     // TODO: In production, you might want to:
     // 1. Download images from IMAI URLs and store in Shopify

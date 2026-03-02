@@ -288,7 +288,7 @@ export default function ProductGenPage() {
     (generationId: string) => (result: any) => {
       setGenerations(prev => prev.map(gen =>
         gen.id === generationId
-          ? { ...gen, isGenerating: false, response: result }
+          ? { ...gen, isGenerating: !(result.images?.urls && result.images.urls.length > 0), response: result }
           : gen
       ));
       setProgress(100);
@@ -381,7 +381,6 @@ export default function ProductGenPage() {
                       >
                         Remove
                       </Button>
-                      {isUploading && <Spinner size="small" />}
                     </InlineStack>
                   )}
                 </BlockStack>
@@ -406,185 +405,166 @@ export default function ProductGenPage() {
                   onClick={handleGenerate}
                   disabled={!isConnected || !uploadedFile || isUploading || hasActiveGeneration}
                   size="large"
-                  loading={hasActiveGeneration}
                 >
                   Generate Content
                 </Button>
-
-                {hasActiveGeneration && (
-                  <BlockStack gap="200">
-                    <ProgressBar progress={progress} size="small" tone="primary" />
-                    <Text as="p" tone="subdued" alignment="center">
-                      Generating your content... (This may take up to 8 minutes)
-                    </Text>
-                  </BlockStack>
-                )}
-
-                {error && (
-                  <Banner tone="critical" title="Error">
-                    <Text as="p">{error}</Text>
-                  </Banner>
-                )}
               </BlockStack>
 
               {/* Right Side */}
               <BlockStack gap="400">
-                {generations.length === 0 ? (
-                  <Box 
-                    background="bg-fill-secondary" 
-                    padding="800" 
-                    borderRadius="200"
-                    minHeight="500px"
-                    borderColor="border"
-                  >
-                    <div 
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center', 
-                        minHeight: '400px',
-                        width: '100%'
-                      }}
-                    >
-                      <BlockStack gap="200" align="center">
-                        <Icon source={ImageIcon} tone="subdued" />
-                        <Text as="p" alignment="center" tone="subdued">
-                          Generated images will appear here
-                        </Text>
-                      </BlockStack>
-                    </div>
-                  </Box>
-                ) : (
-                  generations.map((gen) => (
-                    <Card key={gen.id}>
-                      <Box padding="400">
-                        <BlockStack gap="400">
-                          {gen.prompt && (
-                            <Box>
-                              <Text variant="headingSm" as="h3">Prompt</Text>
-                              <Text as="p">{gen.prompt}</Text>
-                            </Box>
-                          )}
-                          {gen.isGenerating ? (
-                            <BlockStack gap="200" align="center">
-                              <Text as="p" tone="subdued">Generating...</Text>
-                            </BlockStack>
-                          ) : gen.error ? (
-                            <Text as="p" tone="critical">{gen.error}</Text>
-                          ) : gen.response ? (
-                            <>
-                              {gen.response.versionId && (
-                                <Box>
-                                  <Text variant="headingSm" as="h3">Version ID</Text>
-                                  <Text as="p">{gen.response.versionId}</Text>
-                                </Box>
-                              )}
-
-                              {gen.response.jobId && (
-                                <Box>
-                                  <Text variant="headingSm" as="h3">Job ID</Text>
-                                  <Text as="p">{gen.response.jobId}</Text>
-                                  {gen.response.status && (
-                                    <Text as="p" tone="subdued">Status: {gen.response.status}</Text>
-                                  )}
-                                </Box>
-                              )}
-
-                              {gen.response.images && gen.response.images.urls && gen.response.images.urls.length > 0 ? (
-                                <Box>
-                                  <Text variant="headingSm" as="h3">Generated Images</Text>
-                                  <div 
-                                    style={{ 
-                                      display: 'flex', 
-                                      flexDirection: 'row', 
-                                      flexWrap: 'wrap', 
-                                      gap: '16px',
-                                      justifyContent: 'center',
-                                      alignItems: 'center'
-                                    }}
-                                  >
-                                    {gen.response.images.urls.map((imageUrl: string, index: number) => (
-                                      <div key={index} style={{ textAlign: 'center' }}>
-                                        <img 
-                                          src={imageUrl} 
-                                          alt={`Generated product image ${index + 1}`}
-                                          style={{ 
-                                            maxWidth: "200px", 
-                                            height: "auto", 
-                                            borderRadius: "8px",
-                                            display: 'block'
-                                          }}
-                                        />
-                                      </div>
-                                    ))}
-                                  </div>
-                                </Box>
-                              ) : gen.response.images ? (
-                                <Box>
-                                  <Text variant="headingSm" as="h3">Generated Images</Text>
-                                  <Text as="p" tone="subdued">No images generated</Text>
-                                </Box>
-                              ) : null}
-
-                              {gen.response.details && (
-                                <Box>
-                                  <Text variant="headingSm" as="h3">Product Details</Text>
-                                  <BlockStack gap="200">
+                {(() => {
+                  if (hasActiveGeneration) {
+                    return (
+                      <Box 
+                        background="bg-fill-secondary" 
+                        padding="800" 
+                        borderRadius="200"
+                        minHeight="500px"
+                        borderColor="border"
+                      >
+                        <div 
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            minHeight: '400px',
+                            width: '100%',
+                            textAlign: 'center'
+                          }}
+                        >
+                          <BlockStack gap="200" align="center">
+                            <Spinner size="large" />
+                            <Text as="p" alignment="center" tone="subdued">
+                              Generating your content...
+                            </Text>
+                          </BlockStack>
+                        </div>
+                      </Box>
+                    );
+                  } else if (generations.length === 0) {
+                    return (
+                      <Box 
+                        background="bg-fill-secondary" 
+                        padding="800" 
+                        borderRadius="200"
+                        minHeight="500px"
+                        borderColor="border"
+                      >
+                        <div 
+                          style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            minHeight: '400px',
+                            width: '100%'
+                          }}
+                        >
+                          <BlockStack gap="200" align="center">
+                            <Icon source={ImageIcon} tone="subdued" />
+                            <Text as="p" alignment="center" tone="subdued">
+                              Generated images will appear here
+                            </Text>
+                          </BlockStack>
+                        </div>
+                      </Box>
+                    );
+                  } else {
+                    return generations.map((gen) => (
+                      <Card key={gen.id}>
+                        <Box padding="400">
+                          <BlockStack gap="400">
+                            {gen.prompt && (
+                              <Box>
+                                <Text variant="headingSm" as="h3">Prompt</Text>
+                                <Text as="p">{gen.prompt}</Text>
+                              </Box>
+                            )}
+                            {gen.isGenerating ? (
+                              <BlockStack gap="200" align="center">
+                                <Text as="p" tone="subdued">Generating...</Text>
+                              </BlockStack>
+                            ) : gen.error ? (
+                              <Text as="p" tone="critical">{gen.error}</Text>
+                            ) : gen.response?.images?.urls && gen.response.images.urls.length > 0 ? (
+                              <Box>
+                                <Text variant="headingSm" as="h3">Generated Images</Text>
+                                <div 
+                                  style={{ 
+                                    display: 'flex', 
+                                    flexDirection: 'row', 
+                                    flexWrap: 'wrap', 
+                                    gap: '16px',
+                                    justifyContent: 'center',
+                                    alignItems: 'center'
+                                  }}
+                                >
+                                  {gen.response.images.urls.map((url: string, index: number) => (
+                                    <div key={index} style={{ textAlign: 'center' }}>
+                                      <img 
+                                        src={url} 
+                                        alt={`Generated product image ${index + 1}`}
+                                        style={{ 
+                                          maxWidth: "200px", 
+                                          height: "auto", 
+                                          borderRadius: "8px",
+                                          display: 'block'
+                                        }}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </Box>
+                            ) : gen.response?.details ? (
+                              <Box>
+                                <Text variant="headingSm" as="h3">Product Details</Text>
+                                <BlockStack gap="200">
+                                  {gen.response.details.title && (
                                     <Box>
                                       <Text as="p" fontWeight="bold">Title:</Text>
                                       <Text as="p">{gen.response.details.title}</Text>
                                     </Box>
-                                    
+                                  )}
+                                  
+                                  {gen.response.details.description && (
                                     <Box>
                                       <Text as="p" fontWeight="bold">Description:</Text>
                                       <Text as="p">{gen.response.details.description}</Text>
                                     </Box>
-
-                                    {gen.response.details.features && Array.isArray(gen.response.details.features) && gen.response.details.features.length > 0 && (
-                                      <Box>
-                                        <Text as="p" fontWeight="bold">Features:</Text>
-                                        <ul>
-                                          {gen.response.details.features.map((feature: string, index: number) => (
-                                            <li key={index}>{feature}</li>
-                                          ))}
-                                        </ul>
-                                      </Box>
-                                    )}
-
-                                    {gen.response.details.specifications && typeof gen.response.details.specifications === 'object' && Object.keys(gen.response.details.specifications).length > 0 && (
-                                      <Box>
-                                        <Text as="p" fontWeight="bold">Specifications:</Text>
-                                        <ul>
-                                          {Object.entries(gen.response.details.specifications).map(([key, value]) => (
-                                            <li key={key}><strong>{key}:</strong> {String(value)}</li>
-                                          ))}
-                                        </ul>
-                                      </Box>
-                                    )}
-
-                                    {gen.response.details.platforms && typeof gen.response.details.platforms === 'object' && Object.keys(gen.response.details.platforms).length > 0 && (
-                                      <Box>
-                                        <Text as="p" fontWeight="bold">Platform-Specific Content:</Text>
-                                        {Object.entries(gen.response.details.platforms).map(([platform, content]) => (
-                                          <Box key={platform} padding="200">
-                                            <Text as="p" fontWeight="bold">{platform.toUpperCase()}:</Text>
-                                            <pre style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
-                                              {JSON.stringify(content, null, 2)}
-                                            </pre>
-                                          </Box>
+                                  )}
+                                  
+                                  {gen.response.details.specifications && typeof gen.response.details.specifications === 'object' && Object.keys(gen.response.details.specifications).length > 0 && (
+                                    <Box>
+                                      <Text as="p" fontWeight="bold">Specifications:</Text>
+                                      <ul>
+                                        {Object.entries(gen.response.details.specifications).map(([key, value]) => (
+                                          <li key={key}><strong>{key}:</strong> {String(value)}</li>
                                         ))}
-                                      </Box>
-                                    )}
-                                  </BlockStack>
-                                </Box>
-                              )}
-                            </>
-                          ) : null}
-                        </BlockStack>
-                      </Box>
-                    </Card>
-                  ))
-                )}
+                                      </ul>
+                                    </Box>
+                                  )}
+                                  
+                                  {gen.response.details.platforms && typeof gen.response.details.platforms === 'object' && Object.keys(gen.response.details.platforms).length > 0 && (
+                                    <Box>
+                                      <Text as="p" fontWeight="bold">Platform-Specific Content:</Text>
+                                      {Object.entries(gen.response.details.platforms).map(([platform, content]) => (
+                                        <Box key={platform} padding="200">
+                                          <Text as="p" fontWeight="bold">{platform.toUpperCase()}:</Text>
+                                          <pre style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
+                                            {JSON.stringify(content, null, 2)}
+                                          </pre>
+                                        </Box>
+                                      ))}
+                                    </Box>
+                                  )}
+                                </BlockStack>
+                              </Box>
+                            ) : null}
+                          </BlockStack>
+                        </Box>
+                      </Card>
+                    ));
+                  }
+                })()}
               </BlockStack>
             </InlineGrid>
           </Box>
@@ -598,6 +578,6 @@ export default function ProductGenPage() {
         )}
       </BlockStack>
     </Page>
-    </>
-  );
+  </>
+);
 }

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import {
   BlockStack,
   Card,
@@ -19,7 +19,8 @@ import {
   Icon,
 } from "@shopify/polaris";
 import { ImageIcon } from "@shopify/polaris-icons";
-import { useJobPoller } from "../hooks/useJobPoller";
+import { useJobWebhook } from "../hooks/useJobWebhook";
+import { useJobFallback } from "../hooks/useJobFallback";
 
 interface Generation {
   id: string;
@@ -51,7 +52,10 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
   const [isUploading, setIsUploading] = useState(false);
   
   // Track if any generation is currently in progress
-  const hasActiveGeneration = generations.some(gen => gen.isGenerating);
+  const hasActiveGeneration = useMemo(() => 
+    generations.some(gen => gen.isGenerating), 
+    [generations]
+  );
 
 
   // Load active (non-completed) jobs from database on mount
@@ -95,7 +99,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
         console.log("Updating generations, prev state:", prev.map(g => ({ id: g.id, isGenerating: g.isGenerating, jobId: g.jobId })));
         const updated = prev.map(gen =>
           gen.id === generationId
-            ? { ...gen, isGenerating: false, results: result.urls || [] }
+            ? { ...gen, isGenerating: !(result.urls && result.urls.length > 0), results: result.urls || [] }
             : gen
         );
         console.log("Updated generations:", updated.map(g => ({ id: g.id, isGenerating: g.isGenerating, hasResults: !!g.results })));
@@ -125,7 +129,11 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
       onError: handleGenerationError(gen.id),
     }));
 
-  useJobPoller(jobs);
+  const { isConnected: sseConnected, connectionError } = useJobWebhook(jobs, shop);
+  
+  // Fallback to polling if SSE fails
+  const useFallback = !sseConnected && jobs.length > 0;
+  useJobFallback(jobs, useFallback);
 
   const handleDrop = async (files: File[]) => {
     if (files.length > 0) {
@@ -374,7 +382,6 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
                   >
                     Remove
                   </Button>
-                  {isUploading && <Spinner size="small" />}
                 </InlineStack>
               )}
             </BlockStack>
@@ -409,7 +416,6 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
               <Button
                 variant="primary"
                 size="large"
-                loading={hasActiveGeneration}
                 disabled={!prompt.trim() || !uploadedFile || isUploading || hasActiveGeneration}
                 onClick={handleGenerate}
               >
@@ -421,7 +427,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
               <BlockStack gap="200">
                 <ProgressBar progress={progress} size="small" tone="primary" />
                 <Text as="p" tone="subdued" alignment="center">
-                  Generating your images... (This may take up to 7 minutes)
+                  Generating your images...
                 </Text>
               </BlockStack>
             )}
@@ -435,8 +441,9 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
 
           {/* Right Side */}
           <BlockStack gap="400">
-            {generations.length === 0 ? (
+            {hasActiveGeneration ? (
               <Box 
+                key="loading-state"
                 background="bg-fill-secondary" 
                 padding="800" 
                 borderRadius="200"
@@ -449,69 +456,99 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
                     alignItems: 'center', 
                     justifyContent: 'center', 
                     minHeight: '400px',
-                    width: '100%'
+                    width: '100%',
+                    textAlign: 'center'
                   }}
                 >
-                  <BlockStack gap="200" align="center">
-                    <Icon source={ImageIcon} tone="subdued" />
+                  <InlineStack gap="200" align="center" blockAlign="center">
+                    <Spinner size="large" />
                     <Text as="p" alignment="center" tone="subdued">
-                      Generated images will appear here
+                      Generating your images...
                     </Text>
-                  </BlockStack>
+                  </InlineStack>
                 </div>
               </Box>
             ) : (
-              generations.map((gen) => (
-                <Card key={gen.id}>
-                  <Box padding="400">
-                    <BlockStack gap="400">
-                      {gen.prompt && (
-                        <Box>
-                          <Text variant="headingSm" as="h3">Prompt</Text>
-                          <Text as="p">{gen.prompt}</Text>
-                        </Box>
-                      )}
-                      {gen.isGenerating ? (
-                        <BlockStack gap="200" align="center">
-                          <Text as="p" tone="subdued">Generating...</Text>
-                        </BlockStack>
-                      ) : gen.error ? (
-                        <Text as="p" tone="critical">{gen.error}</Text>
-                      ) : gen.results && gen.results.length > 0 ? (
-                        <Box>
-                          <Text variant="headingSm" as="h3">Generated Images</Text>
-                          <div 
-                            style={{ 
-                              display: 'flex', 
-                              flexDirection: 'row', 
-                              flexWrap: 'wrap', 
-                              gap: '16px',
-                              justifyContent: 'center',
-                              alignItems: 'center'
-                            }}
-                          >
-                            {gen.results.map((imageUrl: string, index: number) => (
-                              <div key={index} style={{ textAlign: 'center' }}>
-                                <img 
-                                  src={imageUrl} 
-                                  alt={`Generated image ${index + 1}`}
-                                  style={{ 
-                                    maxWidth: "200px", 
-                                    height: "auto", 
-                                    borderRadius: "8px",
-                                    display: 'block'
-                                  }}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        </Box>
-                      ) : null}
+              generations.length === 0 ? (
+                <Box 
+                  key="empty-state"
+                  background="bg-fill-secondary" 
+                  padding="800" 
+                  borderRadius="200"
+                  minHeight="500px"
+                  borderColor="border"
+                >
+                  <div 
+                    style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center', 
+                      minHeight: '400px',
+                      width: '100%'
+                    }}
+                  >
+                    <BlockStack gap="200" align="center">
+                      <Icon source={ImageIcon} tone="subdued" />
+                      <Text as="p" alignment="center" tone="subdued">
+                        Generated images will appear here
+                      </Text>
                     </BlockStack>
-                  </Box>
-                </Card>
-              ))
-            )}
+                  </div>
+                </Box>
+              ) : (
+                <div key="results-container">
+                  {generations.map((gen) => (
+                  <Card key={gen.id}>
+                    <Box padding="400">
+                      <BlockStack gap="400">
+                        {gen.prompt && (
+                          <Box>
+                            <Text variant="headingSm" as="h3">Prompt</Text>
+                            <Text as="p">{gen.prompt}</Text>
+                          </Box>
+                        )}
+                        {gen.isGenerating ? (
+                          <BlockStack gap="200" align="center">
+                            <Text as="p" tone="subdued">Generating...</Text>
+                          </BlockStack>
+                        ) : gen.error ? (
+                          <Text as="p" tone="critical">{gen.error}</Text>
+                        ) : gen.results && gen.results.length > 0 ? (
+                          <Box>
+                            <Text variant="headingSm" as="h3">Generated Images</Text>
+                            <div 
+                              style={{ 
+                                display: 'flex', 
+                                flexDirection: 'row', 
+                                flexWrap: 'wrap', 
+                                gap: '16px',
+                                justifyContent: 'center',
+                                alignItems: 'center'
+                              }}
+                            >
+                              {gen.results.map((imageUrl: string, index: number) => (
+                                <div key={index} style={{ textAlign: 'center' }}>
+                                  <img 
+                                    src={imageUrl} 
+                                    alt={`Generated image ${index + 1}`}
+                                    style={{ 
+                                      maxWidth: "200px", 
+                                      height: "auto", 
+                                      borderRadius: "8px",
+                                      display: 'block'
+                                    }}
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </Box>
+                        ) : null}
+                      </BlockStack>
+                    </Box>
+                  </Card>
+                ))}
+                </div>
+            ))}
           </BlockStack>
         </InlineGrid>
       </Box>
