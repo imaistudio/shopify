@@ -348,11 +348,7 @@ export default function ProductGenPage() {
 
               if (elapsed >= 600000) { // Already 10+ minutes old
                 console.log('Job already timed out, cancelling immediately');
-                setGenerations(prev => prev.map(gen =>
-                  gen.isGenerating
-                    ? { ...gen, isGenerating: false }
-                    : gen
-                ));
+                setGenerations(prev => prev.filter(gen => !gen.isGenerating));
                 setShowCancelButton(false);
                 return;
               } else {
@@ -430,11 +426,7 @@ export default function ProductGenPage() {
           }
         }
 
-        setGenerations(prev => prev.map(gen =>
-          gen.isGenerating
-            ? { ...gen, isGenerating: false }
-            : gen
-        ));
+            setGenerations(prev => prev.filter(gen => !gen.isGenerating));
         setShowCancelButton(false);
       }, timeoutDelay);
 
@@ -464,12 +456,8 @@ export default function ProductGenPage() {
       console.error('Failed to cancel job in database:', error);
     }
 
-    // Update local state
-    setGenerations(prev => prev.map(gen =>
-      gen.isGenerating
-        ? { ...gen, isGenerating: false }
-        : gen
-    ));
+    // Remove the cancelled generation from state to revert to placeholder
+    setGenerations(prev => prev.filter(gen => gen.jobId !== activeGeneration.jobId));
     setShowCancelButton(false);
   }, [generations, shop]);
 

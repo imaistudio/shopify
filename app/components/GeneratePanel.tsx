@@ -250,11 +250,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
               }
             }
 
-            setGenerations(prev => prev.map(gen =>
-              gen.isGenerating
-                ? { ...gen, isGenerating: false }
-                : gen
-            ));
+            setGenerations(prev => prev.filter(gen => !gen.isGenerating));
             setIsGenerating(false);
             setShowCancelButton(false);
           }, timeoutDelay);
@@ -291,11 +287,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
           }
         }
 
-        setGenerations(prev => prev.map(gen =>
-          gen.isGenerating
-            ? { ...gen, isGenerating: false }
-            : gen
-        ));
+            setGenerations(prev => prev.filter(gen => !gen.isGenerating));
         setIsGenerating(false);
         setShowCancelButton(false);
       }, timeoutDelay);
@@ -326,12 +318,8 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
       console.error('Failed to cancel job in database:', error);
     }
 
-    // Update local state
-    setGenerations(prev => prev.map(gen =>
-      gen.isGenerating
-        ? { ...gen, isGenerating: false }
-        : gen
-    ));
+    // Remove the cancelled generation from state to revert to placeholder
+    setGenerations(prev => prev.filter(gen => gen.jobId !== activeGeneration.jobId));
     setIsGenerating(false);
     setShowCancelButton(false);
   }, [generations, shop]);
