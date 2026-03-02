@@ -279,7 +279,7 @@ export default function ProductGenPage() {
                 
                 {!uploadedFile ? (
                   <DropZone
-                    accept="image/*"
+                    accept=".webp,.png,.jpeg,.jpg"
                     type="image"
                     onDrop={handleDrop}
                     allowMultiple={false}
