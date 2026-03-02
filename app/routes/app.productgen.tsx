@@ -17,6 +17,7 @@ import {
   Thumbnail,
   InlineStack,
   Spinner,
+  InlineGrid,
 } from "@shopify/polaris";
 
 // Components
@@ -78,6 +79,17 @@ interface EcommerceResponse {
   message?: string;
 }
 
+interface ProductGeneration {
+  id: string;
+  prompt: string;
+  uploadedFile: File | null;
+  previewUrl: string | null;
+  isGenerating: boolean;
+  jobId: string | null;
+  response: EcommerceResponse | null;
+  error: string | null;
+}
+
 export default function ProductGenPage() {
   const { shop, isConnected, balance } = useLoaderData<typeof loader>();
   
@@ -88,11 +100,7 @@ export default function ProductGenPage() {
   const [isUploading, setIsUploading] = useState(false);
   
   // Generation state
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [jobId, setJobId] = useState<string | null>(null);
-  
-  // Response state
-  const [response, setResponse] = useState<EcommerceResponse | null>(null);
+  const [generations, setGenerations] = useState<ProductGeneration[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const uploadUrlToTempFile = async (imageUrl: string): Promise<string> => {
@@ -180,16 +188,28 @@ export default function ProductGenPage() {
       return;
     }
 
-    setIsGenerating(true);
+    const generationId = Date.now().toString();
+    const newGeneration: ProductGeneration = {
+      id: generationId,
+      prompt: prompt.trim(),
+      uploadedFile,
+      previewUrl,
+      isGenerating: true,
+      jobId: null,
+      response: null,
+      error: null,
+    };
+
+    setGenerations(prev => [newGeneration, ...prev]);
     setError(null);
-    setResponse(null);
-    setJobId(null);
 
     try {
       // Upload the image
       const processedImageUrl = await uploadImage();
       if (!processedImageUrl) {
-        setIsGenerating(false);
+        setGenerations(prev => prev.map(gen =>
+          gen.id === generationId ? { ...gen, isGenerating: false, error: "Upload failed" } : gen
+        ));
         return;
       }
 
@@ -210,33 +230,65 @@ export default function ProductGenPage() {
       const data = await resp.json();
       
       if (data.jobId) {
-        setJobId(data.jobId);
+        setGenerations(prev => prev.map(gen =>
+          gen.id === generationId ? { ...gen, jobId: data.jobId } : gen
+        ));
       } else if (data.success) {
         // Synchronous response
-        setResponse(data);
-        setIsGenerating(false);
+        setGenerations(prev => prev.map(gen =>
+          gen.id === generationId ? { ...gen, isGenerating: false, response: data } : gen
+        ));
       }
     } catch (err) {
-      setError("Generation failed. Please try again.");
-      setIsGenerating(false);
+      const errorMsg = "Generation failed. Please try again.";
+      setError(errorMsg);
+      setGenerations(prev => prev.map(gen =>
+        gen.id === generationId ? { ...gen, isGenerating: false, error: errorMsg } : gen
+      ));
     }
+
+    // Clear inputs after starting generation
+    setPrompt("");
+    setUploadedFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
   };
 
-  const handleGenerationComplete = useCallback((result: any) => {
-    setResponse(result);
-    setIsGenerating(false);
-  }, []);
+  const handleGenerationComplete = useCallback(
+    (generationId: string) => (result: any) => {
+      setGenerations(prev => prev.map(gen =>
+        gen.id === generationId
+          ? { ...gen, isGenerating: false, response: result }
+          : gen
+      ));
+    },
+    []
+  );
 
-  const handleGenerationError = useCallback((err: string) => {
-    setError(err);
-    setIsGenerating(false);
-  }, []);
+  const handleGenerationError = useCallback(
+    (generationId: string) => (err: string) => {
+      setGenerations(prev => prev.map(gen =>
+        gen.id === generationId
+          ? { ...gen, isGenerating: false, error: err }
+          : gen
+      ));
+    },
+    []
+  );
 
-  useJobPoller(jobId, handleGenerationComplete, handleGenerationError);
+  const jobs = generations
+    .filter(gen => gen.jobId && gen.isGenerating)
+    .map(gen => ({
+      jobId: gen.jobId!,
+      onComplete: handleGenerationComplete(gen.id),
+      onError: handleGenerationError(gen.id),
+    }));
 
-  const primaryAction = isConnected ? (
-    <CreditsBadge balance={balance} isLoading={false} />
-  ) : undefined;
+  useJobPoller(jobs);
+
+  const primaryAction = undefined;
 
   return (
     <>
@@ -254,187 +306,207 @@ export default function ProductGenPage() {
           </Banner>
         )}
 
-        {isConnected && balance !== null && balance < 100 && (
-          <Banner tone="warning" title="Low credits">
-            <Text as="p">
-              You have fewer than 100 credits remaining. Top up at{" "}
-              <a href="https://www.imai.studio" target="_blank" rel="noopener noreferrer">
-                www.imai.studio
-              </a>
-            </Text>
-          </Banner>
-        )}
-
         <Card>
           <Box padding="400">
-            <BlockStack gap="400">
-              <Text variant="headingMd" as="h2">
-                Generate E-commerce Content
-              </Text>
-              
-              <BlockStack gap="200">
-                <Text variant="bodyMd" as="p">
-                  Reference Image
-                </Text>
-                
-                {!uploadedFile ? (
-                  <DropZone
-                    accept=".webp,.png,.jpeg,.jpg"
-                    type="image"
-                    onDrop={handleDrop}
-                    allowMultiple={false}
-                  >
-                    <Box padding="400">
-                      <Text as="p" alignment="center" tone="subdued">
-                        Drop an image here or click to upload
-                      </Text>
-                    </Box>
-                  </DropZone>
-                ) : (
-                  <InlineStack gap="200" blockAlign="center">
-                    <Thumbnail source={previewUrl || ""} size="small" alt="Reference" />
-                    <Text as="p">{uploadedFile.name}</Text>
-                    <Button
-                      variant="plain"
-                      tone="critical"
-                      onClick={clearImage}
-                      disabled={isGenerating}
+            <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+              {/* Left Side */}
+              <BlockStack gap="400">
+                <BlockStack gap="200">
+                  <Text variant="bodyMd" as="p">
+                    Reference Image
+                  </Text>
+                  
+                  {!uploadedFile ? (
+                    <DropZone
+                      accept=".webp,.png,.jpeg,.jpg"
+                      type="image"
+                      onDrop={handleDrop}
+                      allowMultiple={false}
                     >
-                      Remove
-                    </Button>
-                    {isUploading && <Spinner size="small" />}
-                  </InlineStack>
+                      <Box padding="400">
+                        <Text as="p" alignment="center" tone="subdued">
+                          Drop an image here or click to upload
+                        </Text>
+                      </Box>
+                    </DropZone>
+                  ) : (
+                    <InlineStack gap="200" blockAlign="center">
+                      <Thumbnail source={previewUrl || ""} size="small" alt="Reference" />
+                      <Text as="p">{uploadedFile.name}</Text>
+                      <Button
+                        variant="plain"
+                        tone="critical"
+                        onClick={clearImage}
+                      >
+                        Remove
+                      </Button>
+                      {isUploading && <Spinner size="small" />}
+                    </InlineStack>
+                  )}
+                </BlockStack>
+
+                <TextField
+                  label="Custom Prompt (Optional)"
+                  value={prompt}
+                  onChange={setPrompt}
+                  placeholder="Generate premium leather goods content"
+                  multiline={3}
+                  autoComplete="off"
+                />
+
+                {balance !== null && (
+                  <Text as="p" tone="subdued">
+                    Credits: {Math.round(balance)}
+                  </Text>
+                )}
+
+                <Button
+                  variant="primary"
+                  onClick={handleGenerate}
+                  disabled={!isConnected || !uploadedFile || isUploading}
+                  size="large"
+                >
+                  Generate Content
+                </Button>
+
+                {error && (
+                  <Banner tone="critical" title="Error">
+                    <Text as="p">{error}</Text>
+                  </Banner>
                 )}
               </BlockStack>
 
-              <TextField
-                label="Custom Prompt (Optional)"
-                value={prompt}
-                onChange={setPrompt}
-                placeholder="Generate premium leather goods content"
-                multiline={3}
-                autoComplete="off"
-              />
+              {/* Right Side */}
+              <BlockStack gap="400">
+                {generations.length === 0 ? (
+                  <Box padding="400">
+                    <Text as="p" alignment="center" tone="subdued">
+                      Generated content will appear here
+                    </Text>
+                  </Box>
+                ) : (
+                  generations.map((gen) => (
+                    <Card key={gen.id}>
+                      <Box padding="400">
+                        <BlockStack gap="400">
+                          {gen.prompt && (
+                            <Box>
+                              <Text variant="headingSm" as="h3">Prompt</Text>
+                              <Text as="p">{gen.prompt}</Text>
+                            </Box>
+                          )}
+                          {gen.isGenerating ? (
+                            <BlockStack gap="200" align="center">
+                              <Spinner size="large" />
+                              <Text as="p" tone="subdued">Generating...</Text>
+                            </BlockStack>
+                          ) : gen.error ? (
+                            <Text as="p" tone="critical">{gen.error}</Text>
+                          ) : gen.response ? (
+                            <>
+                              {gen.response.versionId && (
+                                <Box>
+                                  <Text variant="headingSm" as="h3">Version ID</Text>
+                                  <Text as="p">{gen.response.versionId}</Text>
+                                </Box>
+                              )}
 
-              <Button
-                variant="primary"
-                onClick={handleGenerate}
-                loading={isGenerating}
-                disabled={!isConnected || !uploadedFile || isGenerating || isUploading}
-                size="large"
-              >
-                Generate Content
-              </Button>
+                              {gen.response.jobId && (
+                                <Box>
+                                  <Text variant="headingSm" as="h3">Job ID</Text>
+                                  <Text as="p">{gen.response.jobId}</Text>
+                                  {gen.response.status && (
+                                    <Text as="p" tone="subdued">Status: {gen.response.status}</Text>
+                                  )}
+                                </Box>
+                              )}
 
-              {error && (
-                <Banner tone="critical" title="Error">
-                  <Text as="p">{error}</Text>
-                </Banner>
-              )}
-            </BlockStack>
+                              {gen.response.images && gen.response.images.urls && gen.response.images.urls.length > 0 ? (
+                                <Box>
+                                  <Text variant="headingSm" as="h3">Generated Images</Text>
+                                  <BlockStack gap="200">
+                                    {gen.response.images.urls.map((imageUrl: string, index: number) => (
+                                      <Box key={index}>
+                                        <img 
+                                          src={imageUrl} 
+                                          alt={`Generated product image ${index + 1}`}
+                                          style={{ maxWidth: "200px", height: "auto" }}
+                                        />
+                                        <Text as="p" tone="subdued">{imageUrl}</Text>
+                                      </Box>
+                                    ))}
+                                  </BlockStack>
+                                </Box>
+                              ) : gen.response.images ? (
+                                <Box>
+                                  <Text variant="headingSm" as="h3">Generated Images</Text>
+                                  <Text as="p" tone="subdued">No images generated</Text>
+                                </Box>
+                              ) : null}
+
+                              {gen.response.details && (
+                                <Box>
+                                  <Text variant="headingSm" as="h3">Product Details</Text>
+                                  <BlockStack gap="200">
+                                    <Box>
+                                      <Text as="p" fontWeight="bold">Title:</Text>
+                                      <Text as="p">{gen.response.details.title}</Text>
+                                    </Box>
+                                    
+                                    <Box>
+                                      <Text as="p" fontWeight="bold">Description:</Text>
+                                      <Text as="p">{gen.response.details.description}</Text>
+                                    </Box>
+
+                                    {gen.response.details.features && Array.isArray(gen.response.details.features) && gen.response.details.features.length > 0 && (
+                                      <Box>
+                                        <Text as="p" fontWeight="bold">Features:</Text>
+                                        <ul>
+                                          {gen.response.details.features.map((feature: string, index: number) => (
+                                            <li key={index}>{feature}</li>
+                                          ))}
+                                        </ul>
+                                      </Box>
+                                    )}
+
+                                    {gen.response.details.specifications && typeof gen.response.details.specifications === 'object' && Object.keys(gen.response.details.specifications).length > 0 && (
+                                      <Box>
+                                        <Text as="p" fontWeight="bold">Specifications:</Text>
+                                        <ul>
+                                          {Object.entries(gen.response.details.specifications).map(([key, value]) => (
+                                            <li key={key}><strong>{key}:</strong> {String(value)}</li>
+                                          ))}
+                                        </ul>
+                                      </Box>
+                                    )}
+
+                                    {gen.response.details.platforms && typeof gen.response.details.platforms === 'object' && Object.keys(gen.response.details.platforms).length > 0 && (
+                                      <Box>
+                                        <Text as="p" fontWeight="bold">Platform-Specific Content:</Text>
+                                        {Object.entries(gen.response.details.platforms).map(([platform, content]) => (
+                                          <Box key={platform} padding="200">
+                                            <Text as="p" fontWeight="bold">{platform.toUpperCase()}:</Text>
+                                            <pre style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
+                                              {JSON.stringify(content, null, 2)}
+                                            </pre>
+                                          </Box>
+                                        ))}
+                                      </Box>
+                                    )}
+                                  </BlockStack>
+                                </Box>
+                              )}
+                            </>
+                          ) : null}
+                        </BlockStack>
+                      </Box>
+                    </Card>
+                  ))
+                )}
+              </BlockStack>
+            </InlineGrid>
           </Box>
         </Card>
-
-        {response && (
-          <Card>
-            <Box padding="400">
-              <BlockStack gap="400">
-                {response.versionId && (
-                  <Box>
-                    <Text variant="headingSm" as="h3">Version ID</Text>
-                    <Text as="p">{response.versionId}</Text>
-                  </Box>
-                )}
-
-                {response.jobId && (
-                  <Box>
-                    <Text variant="headingSm" as="h3">Job ID</Text>
-                    <Text as="p">{response.jobId}</Text>
-                    {response.status && (
-                      <Text as="p" tone="subdued">Status: {response.status}</Text>
-                    )}
-                  </Box>
-                )}
-
-                {response.images && response.images.urls && response.images.urls.length > 0 ? (
-                  <Box>
-                    <Text variant="headingSm" as="h3">Generated Images</Text>
-                    <BlockStack gap="200">
-                      {response.images.urls.map((imageUrl, index) => (
-                        <Box key={index}>
-                          <img 
-                            src={imageUrl} 
-                            alt={`Generated product image ${index + 1}`}
-                            style={{ maxWidth: "200px", height: "auto" }}
-                          />
-                          <Text as="p" tone="subdued">{imageUrl}</Text>
-                        </Box>
-                      ))}
-                    </BlockStack>
-                  </Box>
-                ) : response.images ? (
-                  <Box>
-                    <Text variant="headingSm" as="h3">Generated Images</Text>
-                    <Text as="p" tone="subdued">No images generated</Text>
-                  </Box>
-                ) : null}
-
-                {response.details && (
-                  <Box>
-                    <Text variant="headingSm" as="h3">Product Details</Text>
-                    <BlockStack gap="200">
-                      <Box>
-                        <Text as="p" fontWeight="bold">Title:</Text>
-                        <Text as="p">{response.details.title}</Text>
-                      </Box>
-                      
-                      <Box>
-                        <Text as="p" fontWeight="bold">Description:</Text>
-                        <Text as="p">{response.details.description}</Text>
-                      </Box>
-
-                      {response.details.features && Array.isArray(response.details.features) && response.details.features.length > 0 && (
-                        <Box>
-                          <Text as="p" fontWeight="bold">Features:</Text>
-                          <ul>
-                            {response.details.features.map((feature, index) => (
-                              <li key={index}>{feature}</li>
-                            ))}
-                          </ul>
-                        </Box>
-                      )}
-
-                      {response.details.specifications && typeof response.details.specifications === 'object' && Object.keys(response.details.specifications).length > 0 && (
-                        <Box>
-                          <Text as="p" fontWeight="bold">Specifications:</Text>
-                          <ul>
-                            {Object.entries(response.details.specifications).map(([key, value]) => (
-                              <li key={key}><strong>{key}:</strong> {String(value)}</li>
-                            ))}
-                          </ul>
-                        </Box>
-                      )}
-
-                      {response.details.platforms && typeof response.details.platforms === 'object' && Object.keys(response.details.platforms).length > 0 && (
-                        <Box>
-                          <Text as="p" fontWeight="bold">Platform-Specific Content:</Text>
-                          {Object.entries(response.details.platforms).map(([platform, content]) => (
-                            <Box key={platform} padding="200">
-                              <Text as="p" fontWeight="bold">{platform.toUpperCase()}:</Text>
-                              <pre style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
-                                {JSON.stringify(content, null, 2)}
-                              </pre>
-                            </Box>
-                          ))}
-                        </Box>
-                      )}
-                    </BlockStack>
-                  </Box>
-                )}
-              </BlockStack>
-            </Box>
-          </Card>
-        )}
       </BlockStack>
     </Page>
     </>

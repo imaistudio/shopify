@@ -56,9 +56,7 @@ export default function DesignPage() {
     setLibraryRefreshTrigger((prev) => prev + 1);
   }, []);
 
-  const primaryAction = isConnected ? (
-    <CreditsBadge balance={balance} />
-  ) : undefined;
+  const primaryAction = undefined;
 
   return (
     <Page title="Design" primaryAction={primaryAction}>
@@ -75,17 +73,6 @@ export default function DesignPage() {
           </Banner>
         )}
 
-        {isConnected && balance !== null && balance < 100 && (
-          <Banner tone="warning" title="Low credits">
-            <Text>
-              You have fewer than 100 credits remaining. Top up at{" "}
-              <a href="https://www.imai.studio" target="_blank" rel="noopener noreferrer">
-                www.imai.studio
-              </a>
-            </Text>
-          </Banner>
-        )}
-
         <Card>
           <Box padding="400">
             {isConnected ? (
@@ -93,6 +80,7 @@ export default function DesignPage() {
                 onGenerationComplete={handleGenerationComplete}
                 shop={shop}
                 defaultMode="design"
+                balance={balance}
               />
             ) : (
               <BlockStack gap="400" align="center">

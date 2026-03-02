@@ -31,7 +31,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   console.log("Local job found:", !!localJob, localJob?.status);
 
-  if (localJob) {
+  // If job is completed or failed, return local status
+  if (localJob && (localJob.status === "completed" || localJob.status === "failed")) {
     const response: any = {
       success: true,
       jobId: localJob.jobId,
@@ -47,13 +48,13 @@ export async function loader({ request }: LoaderFunctionArgs) {
       response.error = localJob.error;
     }
 
-    console.log("Returning local job status:", response.status);
+    console.log("Returning completed/failed local job status:", response.status);
     return Response.json(response);
   }
 
-  console.log("Job not found locally, attempting authentication...");
+  console.log("Job not completed locally, attempting authentication...");
 
-  // If not found in database, try to authenticate for API polling
+  // Try to authenticate for API polling if job is ongoing or not found
   let session;
   try {
     const authResult = await authenticate.admin(request);
@@ -61,7 +62,27 @@ export async function loader({ request }: LoaderFunctionArgs) {
     console.log("Authentication successful for shop:", session.shop);
   } catch (error) {
     console.log("Authentication failed:", (error as Error).message);
-    // If authentication fails and we don't have the job in DB, return error
+    // If authentication fails and we have local job, return it
+    if (localJob) {
+      const response: any = {
+        success: true,
+        jobId: localJob.jobId,
+        endpoint: localJob.endpoint,
+        status: localJob.status,
+      };
+
+      if (localJob.result) {
+        response.result = JSON.parse(localJob.result);
+      }
+
+      if (localJob.error) {
+        response.error = localJob.error;
+      }
+
+      console.log("Returning local job status (unauthenticated):", response.status);
+      return Response.json(response);
+    }
+    // If no local job and not authenticated, return error
     return Response.json(
       { error: "Job not found and authentication required" },
       { status: 404 }

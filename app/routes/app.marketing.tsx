@@ -56,29 +56,16 @@ export default function MarketingPage() {
     setLibraryRefreshTrigger((prev) => prev + 1);
   }, []);
 
-  const primaryAction = isConnected ? (
-    <CreditsBadge balance={balance} />
-  ) : undefined;
+  const primaryAction = undefined;
 
   return (
     <Page title="Marketing" primaryAction={primaryAction}>
       <BlockStack gap="400">
         {!isConnected && (
           <Banner tone="info" title="Connect your IMAI Studio API key">
-            <Text>
+            <Text as="p">
               Connect your API key in the Settings tab to start generating marketing images.
               Get your key at{" "}
-              <a href="https://www.imai.studio" target="_blank" rel="noopener noreferrer">
-                www.imai.studio
-              </a>
-            </Text>
-          </Banner>
-        )}
-
-        {isConnected && balance !== null && balance < 100 && (
-          <Banner tone="warning" title="Low credits">
-            <Text>
-              You have fewer than 100 credits remaining. Top up at{" "}
               <a href="https://www.imai.studio" target="_blank" rel="noopener noreferrer">
                 www.imai.studio
               </a>
@@ -93,10 +80,11 @@ export default function MarketingPage() {
                 onGenerationComplete={handleGenerationComplete}
                 shop={shop}
                 defaultMode="marketing"
+                balance={balance}
               />
             ) : (
               <BlockStack gap="400" align="center">
-                <Text tone="subdued" alignment="center">
+                <Text as="p" tone="subdued" alignment="center">
                   Connect your API key to generate marketing images
                 </Text>
               </BlockStack>

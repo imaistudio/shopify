@@ -54,9 +54,14 @@ export async function action({ request }: ActionFunctionArgs) {
   const requestBody: any = {
     prompt: prompt.trim(),
     async: true, // Always use async for proper polling behavior
-    webhookUrl: `${process.env.APP_URL || request.headers.get('origin')}/api/imai/webhook`,
-    webhookSecret: process.env.IMAI_WEBHOOK_SECRET || 'default-secret',
   };
+
+  const requestUrl = new URL(request.url);
+  const webhookUrl = `${requestUrl.protocol}//${requestUrl.host}/api/imai/webhook`;
+  const webhookSecret = process.env.IMAI_WEBHOOK_SECRET || 'default-secret';
+
+  requestBody.webhookUrl = webhookUrl;
+  requestBody.webhookSecret = webhookSecret;
 
   // Add URL if provided (required for marketing, optional for design)
   if (url) {

@@ -19,41 +19,67 @@ import {
 } from "@shopify/polaris";
 import { useJobPoller } from "../hooks/useJobPoller";
 
+interface Generation {
+  id: string;
+  prompt: string;
+  uploadedFile: File | null;
+  previewUrl: string | null;
+  isGenerating: boolean;
+  jobId: string | null;
+  results: string[] | null;
+  error: string | null;
+}
+
 interface GeneratePanelProps {
   onGenerationComplete: () => void;
   shop: string;
   defaultMode?: "marketing" | "design";
+  balance: number | null;
 }
 
-export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: GeneratePanelProps) {
+export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance }: GeneratePanelProps) {
   const [prompt, setPrompt] = useState("");
   const [mode, setMode] = useState<"marketing" | "design">(defaultMode || "marketing");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [results, setResults] = useState<string[]>([]);
+  const [generations, setGenerations] = useState<Generation[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
   const handleGenerationComplete = useCallback(
-    (result: any) => {
-      setProgress(100);
-      setResults(result.urls || []);
-      setIsGenerating(false);
+    (generationId: string) => (result: any) => {
+      setGenerations(prev => prev.map(gen =>
+        gen.id === generationId
+          ? { ...gen, isGenerating: false, results: result.urls || [] }
+          : gen
+      ));
       onGenerationComplete();
     },
     [onGenerationComplete]
   );
 
-  const handleGenerationError = useCallback((err: string) => {
-    setError(err);
-    setIsGenerating(false);
-    setProgress(0);
-  }, []);
+  const handleGenerationError = useCallback(
+    (generationId: string) => (err: string) => {
+      setGenerations(prev => prev.map(gen =>
+        gen.id === generationId
+          ? { ...gen, isGenerating: false, error: err }
+          : gen
+      ));
+    },
+    []
+  );
 
-  useJobPoller(jobId, handleGenerationComplete, handleGenerationError);
+  const jobs = generations
+    .filter(gen => gen.jobId && gen.isGenerating)
+    .map(gen => ({
+      jobId: gen.jobId!,
+      onComplete: handleGenerationComplete(gen.id),
+      onError: handleGenerationError(gen.id),
+    }));
+
+  useJobPoller(jobs);
 
   const handleDrop = async (files: File[]) => {
     if (files.length > 0) {
@@ -141,9 +167,21 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
       return;
     }
 
+    const generationId = Date.now().toString();
+    const newGeneration: Generation = {
+      id: generationId,
+      prompt: prompt.trim(),
+      uploadedFile,
+      previewUrl,
+      isGenerating: true,
+      jobId: null,
+      results: null,
+      error: null,
+    };
+
+    setGenerations(prev => [newGeneration, ...prev]);
     setIsGenerating(true);
     setError(null);
-    setResults([]);
 
     // Animate progress bar to 80% over ~40 seconds
     const progressInterval = setInterval(() => {
@@ -160,6 +198,9 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
         clearInterval(progressInterval);
         setIsGenerating(false);
         setProgress(0);
+        setGenerations(prev => prev.map(gen =>
+          gen.id === generationId ? { ...gen, isGenerating: false, error: "Upload failed" } : gen
+        ));
         return;
       }
 
@@ -182,21 +223,37 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
       const data = await resp.json();
       
       if (data.jobId) {
-        setJobId(data.jobId);
+        setGenerations(prev => prev.map(gen =>
+          gen.id === generationId ? { ...gen, jobId: data.jobId } : gen
+        ));
       } else if (data.result) {
         // Synchronous response
         clearInterval(progressInterval);
         setProgress(100);
-        setResults(data.result.urls || []);
+        setGenerations(prev => prev.map(gen =>
+          gen.id === generationId ? { ...gen, isGenerating: false, results: data.result.urls || [] } : gen
+        ));
         setIsGenerating(false);
         onGenerationComplete();
       }
     } catch (err) {
       clearInterval(progressInterval);
-      setError("Generation failed. Please try again.");
+      const errorMsg = "Generation failed. Please try again.";
+      setError(errorMsg);
       setIsGenerating(false);
       setProgress(0);
+      setGenerations(prev => prev.map(gen =>
+        gen.id === generationId ? { ...gen, isGenerating: false, error: errorMsg } : gen
+      ));
     }
+
+    // Clear inputs after starting generation
+    setPrompt("");
+    setUploadedFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
   };
 
   return (
@@ -211,109 +268,143 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode }: Gener
         </Banner>
       )}
 
-      <TextField
-        label="What do you want to generate?"
-        multiline={4}
-        placeholder="e.g. Generate 3 lifestyle shots on a clean white background..."
-        value={prompt}
-        onChange={setPrompt}
-        autoComplete="off"
-        disabled={isGenerating}
-      />
+      <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+        {/* Left Side */}
+        <BlockStack gap="400">
+          <TextField
+            label="What do you want to generate?"
+            multiline={4}
+            placeholder="e.g. Generate 3 lifestyle shots on a clean white background..."
+            value={prompt}
+            onChange={setPrompt}
+            autoComplete="off"
+            disabled={isGenerating}
+          />
 
-      <BlockStack gap="200">
-        <Text variant="bodyMd" as="p">
-          Reference Image
-        </Text>
-        
-        {!uploadedFile ? (
-          <DropZone
-            accept=".webp,.png,.jpeg,.jpg"
-            type="image"
-            onDrop={handleDrop}
-            allowMultiple={false}
-          >
+          <BlockStack gap="200">
+            <Text variant="bodyMd" as="p">
+              Reference Image
+            </Text>
+            
+            {!uploadedFile ? (
+              <DropZone
+                accept=".webp,.png,.jpeg,.jpg"
+                type="image"
+                onDrop={handleDrop}
+                allowMultiple={false}
+              >
+                <Box padding="400">
+                  <Text as="p" alignment="center" tone="subdued">
+                    Drop an image here or click to upload
+                  </Text>
+                </Box>
+              </DropZone>
+            ) : (
+              <InlineStack gap="200" blockAlign="center">
+                <Thumbnail source={previewUrl || ""} size="small" alt="Reference" />
+                <Text as="p">{uploadedFile.name}</Text>
+                <Button
+                  variant="plain"
+                  tone="critical"
+                  onClick={clearImage}
+                  disabled={isGenerating}
+                >
+                  Remove
+                </Button>
+                {isUploading && <Spinner size="small" />}
+              </InlineStack>
+            )}
+          </BlockStack>
+
+          {!defaultMode && (
+            <BlockStack gap="200">
+              <Text as="p" variant="headingSm">Generation Mode</Text>
+              <RadioButton
+                label="Marketing Images"
+                helpText="Product shots, lifestyle images, and listing photos"
+                checked={mode === "marketing"}
+                onChange={() => setMode("marketing")}
+                disabled={isGenerating}
+              />
+              <RadioButton
+                label="Design Concepts"
+                helpText="Creative concepts and design variations"
+                checked={mode === "design"}
+                onChange={() => setMode("design")}
+                disabled={isGenerating}
+              />
+            </BlockStack>
+          )}
+
+          {balance !== null && (
+            <Text as="p" tone="subdued">
+              Credits: {Math.round(balance)}
+            </Text>
+          )}
+
+          <InlineStack gap="300" blockAlign="center">
+            <Button
+              variant="primary"
+              size="large"
+              loading={isGenerating}
+              disabled={!prompt.trim() || !uploadedFile || isGenerating || isUploading}
+              onClick={handleGenerate}
+            >
+              Generate
+            </Button>
+          </InlineStack>
+
+          {isGenerating && progress < 100 && (
+            <BlockStack gap="200">
+              <ProgressBar progress={progress} size="small" tone="primary" />
+              <Text as="p" tone="subdued" alignment="center">
+                Generating your images...
+              </Text>
+            </BlockStack>
+          )}
+        </BlockStack>
+
+        {/* Right Side */}
+        <BlockStack gap="400">
+          {generations.length === 0 ? (
             <Box padding="400">
               <Text as="p" alignment="center" tone="subdued">
-                Drop an image here or click to upload
+                Generated images will appear here
               </Text>
             </Box>
-          </DropZone>
-        ) : (
-          <InlineStack gap="200" blockAlign="center">
-            <Thumbnail source={previewUrl || ""} size="small" alt="Reference" />
-            <Text as="p">{uploadedFile.name}</Text>
-            <Button
-              variant="plain"
-              tone="critical"
-              onClick={clearImage}
-              disabled={isGenerating}
-            >
-              Remove
-            </Button>
-            {isUploading && <Spinner size="small" />}
-          </InlineStack>
-        )}
-      </BlockStack>
-
-      {!defaultMode && (
-        <BlockStack gap="200">
-          <Text as="p" variant="headingSm">Generation Mode</Text>
-          <RadioButton
-            label="Marketing Images"
-            helpText="Product shots, lifestyle images, and listing photos"
-            checked={mode === "marketing"}
-            onChange={() => setMode("marketing")}
-            disabled={isGenerating}
-          />
-          <RadioButton
-            label="Design Concepts"
-            helpText="Creative concepts and design variations"
-            checked={mode === "design"}
-            onChange={() => setMode("design")}
-            disabled={isGenerating}
-          />
+          ) : (
+            generations.map((gen) => (
+              <Card key={gen.id}>
+                <Box padding="400">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="headingSm">{gen.prompt}</Text>
+                    {gen.isGenerating ? (
+                      <BlockStack gap="200" align="center">
+                        <Spinner size="large" />
+                        <Text as="p" tone="subdued">Generating...</Text>
+                      </BlockStack>
+                    ) : gen.error ? (
+                      <Text as="p" tone="critical">{gen.error}</Text>
+                    ) : gen.results ? (
+                      <InlineGrid columns={{ xs: 2, sm: 3 }} gap="300">
+                        {gen.results.map((url, index) => (
+                          <Box key={index} borderRadius="200" overflowX="hidden">
+                            <img
+                              src={url}
+                              style={{ width: "100%", display: "block" }}
+                              alt={`Generated ${index + 1}`}
+                            />
+                          </Box>
+                        ))}
+                      </InlineGrid>
+                    ) : null}
+                  </BlockStack>
+                </Box>
+              </Card>
+            ))
+          )}
         </BlockStack>
-      )}
-
-      <InlineStack gap="300" blockAlign="center">
-        <Button
-          variant="primary"
-          size="large"
-          loading={isGenerating}
-          disabled={!prompt.trim() || !uploadedFile || isGenerating || isUploading}
-          onClick={handleGenerate}
-        >
-          Generate
-        </Button>
-      </InlineStack>
-
-      {isGenerating && progress < 100 && (
-        <BlockStack gap="200">
-          <ProgressBar progress={progress} size="small" tone="primary" />
-          <Text as="p" tone="subdued" alignment="center">
-            Generating your images...
-          </Text>
-        </BlockStack>
-      )}
-
-      {results.length > 0 && (
-        <BlockStack gap="400">
-          <Divider />
-          <Text as="p" variant="headingSm">Results</Text>
-          <InlineGrid columns={{ xs: 2, sm: 3 }} gap="300">
-            {results.map((url, index) => (
-              <Box key={index} borderRadius="200" overflowX="hidden">
-                <img
-                  src={url}
-                  style={{ width: "100%", display: "block" }}
-                  alt={`Generated ${index + 1}`}
-                />
-              </Box>
-            ))}
-          </InlineGrid>
-        </BlockStack>
-      )}
+      </InlineGrid>
     </BlockStack>
     </>
   );
