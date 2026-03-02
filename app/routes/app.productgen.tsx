@@ -267,7 +267,7 @@ export default function ProductGenPage() {
       }
     } catch (err) {
       clearInterval(progressInterval);
-      const errorMsg = "Generation failed. Please try again.";
+      const errorMsg = "Failed to generate, please try again later.";
       setError(errorMsg);
       setProgress(0);
       setGenerations(prev => prev.map(gen =>
@@ -301,7 +301,7 @@ export default function ProductGenPage() {
     (generationId: string) => (err: string) => {
       setGenerations(prev => prev.map(gen =>
         gen.id === generationId
-          ? { ...gen, isGenerating: false, error: err }
+          ? { ...gen, isGenerating: false, error: "Failed to generate, please try again later." }
           : gen
       ));
     },
@@ -484,7 +484,9 @@ export default function ProductGenPage() {
                                 <Text as="p" tone="subdued">Generating...</Text>
                               </BlockStack>
                             ) : gen.error ? (
-                              <Text as="p" tone="critical">{gen.error}</Text>
+                              <div style={{ textAlign: 'center', padding: '20px' }}>
+                                <Text as="p" tone="critical">Failed to generate, please try again later.</Text>
+                              </div>
                             ) : gen.response?.images?.urls && gen.response.images.urls.length > 0 ? (
                               <Box>
                                 <Text variant="headingSm" as="h3">Generated Images</Text>

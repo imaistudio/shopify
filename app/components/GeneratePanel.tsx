@@ -298,13 +298,12 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
       }
     } catch (err) {
       clearInterval(progressInterval);
-      const errorMsg = "Generation failed. Please try again.";
-      setError(errorMsg);
+      setError("Failed to generate, please try again later.");
       setIsGenerating(false);
       setProgress(0);
       setGenerations(prev => prev.map(gen =>
-        gen.id === generationId ? { ...gen, isGenerating: false, error: errorMsg } : gen
-      ));
+          gen.id === generationId ? { ...gen, isGenerating: false, error: "Failed to generate, please try again later." } : gen
+        ));
     }
 
     // Clear inputs after starting generation
@@ -319,12 +318,12 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
   return (
     <BlockStack gap="400">
       {error && (
-        <Banner tone="critical" title="Generation failed">
-          <Text as="p">{error}</Text>
+        <div style={{ textAlign: 'center', padding: '20px' }}>
+          <Text as="p" tone="critical">Failed to generate, please try again later.</Text>
           <Button onClick={handleGenerate} tone="critical" variant="plain">
             Retry
           </Button>
-        </Banner>
+        </div>
       )}
 
       <Box padding="400">
@@ -433,9 +432,9 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
             )}
 
             {error && (
-              <Banner tone="critical" title="Error">
-                <Text as="p">{error}</Text>
-              </Banner>
+              <div style={{ textAlign: 'center', padding: '20px' }}>
+                <Text as="p" tone="critical">Failed to generate, please try again later.</Text>
+              </div>
             )}
           </BlockStack>
 
