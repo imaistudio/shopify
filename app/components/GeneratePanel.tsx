@@ -33,13 +33,11 @@ interface Generation {
 interface GeneratePanelProps {
   onGenerationComplete: () => void;
   shop: string;
-  defaultMode?: "marketing" | "design";
   balance: number | null;
 }
 
-export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance }: GeneratePanelProps) {
+export function GeneratePanel({ onGenerationComplete, shop, balance }: GeneratePanelProps) {
   const [prompt, setPrompt] = useState("");
-  const [mode, setMode] = useState<"marketing" | "design">(defaultMode || "marketing");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -450,7 +448,7 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
         body: JSON.stringify({
           prompt: prompt.trim(),
           url: processedImageUrl,
-          mode,
+          mode: "marketing",
           shop,
         }),
       });
@@ -560,25 +558,6 @@ export function GeneratePanel({ onGenerationComplete, shop, defaultMode, balance
               )}
             </BlockStack>
 
-            {!defaultMode && (
-              <BlockStack gap="200">
-                <Text as="p" variant="headingSm">Generation Mode</Text>
-                <RadioButton
-                  label="Marketing Images"
-                  helpText="Product shots, lifestyle images, and listing photos"
-                  checked={mode === "marketing"}
-                  onChange={() => setMode("marketing")}
-                  disabled={hasActiveGeneration}
-                />
-                <RadioButton
-                  label="Design Concepts"
-                  helpText="Creative concepts and design variations"
-                  checked={mode === "design"}
-                  onChange={() => setMode("design")}
-                  disabled={hasActiveGeneration}
-                />
-              </BlockStack>
-            )}
 
             {balance !== null && (
               <Text as="p" tone="subdued">

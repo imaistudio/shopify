@@ -46,7 +46,6 @@ interface LibraryGridProps {
 export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedTab, setSelectedTab] = useState(0);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
@@ -58,7 +57,7 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
     setIsLoading(true);
     try {
       const currentCursor = resetCursor ? null : cursor;
-      const endpoint = selectedTab === 0 ? '/api/v1/library/design' : '/api/v1/library/marketing';
+      const endpoint = '/api/v1/library/marketing';
       
       const params = new URLSearchParams({
         numItems: '24',
@@ -93,7 +92,7 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
     setCursor(null);
     setFailedImages(new Set());
     fetchLibrary(true);
-  }, [selectedTab, refreshTrigger]);
+  }, [refreshTrigger]);
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -138,10 +137,6 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
     }
   };
 
-  const handleTabChange = (selectedTabIndex: number) => {
-    setSelectedTab(selectedTabIndex);
-  };
-
   const handleLoadMore = () => {
     if (hasMore && !isLoading) {
       fetchLibrary(false);
@@ -178,9 +173,7 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
           <Button 
             onClick={handleRefresh} 
             disabled={isLoading}
-          >
-            Refresh
-          </Button>
+          />
         </InlineStack>
       </BlockStack>
     );
@@ -189,33 +182,7 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
   return (
     <Frame>
       <div style={{ backgroundColor: 'white' }}>
-        <style>{`
-          .Polaris-Tabs__TabContainer[aria-selected="true"] {
-            background-color: black;
-            color: white;
-            border-radius: 8px;
-          }
-          .Polaris-Tabs__TabContainer[aria-selected="true"] .Polaris-Tabs__Title {
-            color: white;
-          }
-        `}</style>
         <BlockStack gap="400">
-          <Tabs
-            tabs={[
-              {
-                id: 'design',
-                content: 'Design',
-                accessibilityLabel: 'Design assets from chat generations',
-              },
-              {
-                id: 'marketing',
-                content: 'Marketing',
-                accessibilityLabel: 'Marketing assets from product generations',
-              },
-            ]}
-            selected={selectedTab}
-            onSelect={handleTabChange}
-          />
           <BlockStack gap="100">
             <InlineGrid columns={{ xs: 2, sm: 3, md: 4 }} gap="300">
               {assets.filter(asset => !failedImages.has(asset.id)).map((asset) => (
