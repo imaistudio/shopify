@@ -164,13 +164,20 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
                             onClick={() => handleImageClick(url, index, item.prompt)}
                             style={{ cursor: "pointer" }}
                           >
-                            <Box borderRadius="200" overflowX="hidden">
+                            <div 
+                              style={{ 
+                                borderRadius: "8px", 
+                                overflow: "hidden", 
+                                aspectRatio: "1",
+                                width: "100%"
+                              }}
+                            >
                               <img
                                 src={url}
-                                style={{ width: "100%", display: "block" }}
+                                style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                                 alt={`Generated ${index + 1}`}
                               />
-                            </Box>
+                            </div>
                           </div>
                         ))}
                       </InlineGrid>
@@ -187,13 +194,20 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
                                 onClick={() => handleImageClick(url, index, item.prompt)}
                                 style={{ cursor: "pointer" }}
                               >
-                                <Box borderRadius="200" overflowX="hidden">
+                                <div 
+                                  style={{ 
+                                    borderRadius: "8px", 
+                                    overflow: "hidden", 
+                                    aspectRatio: "1",
+                                    width: "100%"
+                                  }}
+                                >
                                   <img
                                     src={url}
-                                    style={{ width: "100%", display: "block" }}
+                                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                                     alt={`Generated ${index + 1}`}
                                   />
-                                </Box>
+                                </div>
                               </div>
                             ))}
                           </InlineGrid>

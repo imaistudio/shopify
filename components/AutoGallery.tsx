@@ -56,15 +56,18 @@ export function AutoGallery() {
           flex-direction: column;
           gap: 10px;
           width: 140px;
+          overflow-y: auto;
         }
 
         .ag-thumb {
-          flex: 1;
+          width: 140px;
+          height: 140px;
           border-radius: 18px;
           overflow: hidden;
           cursor: pointer;
           border: 2px solid transparent;
           transition: transform 0.2s ease, border 0.2s ease;
+          flex-shrink: 0;
         }
 
         .ag-thumb:hover {
