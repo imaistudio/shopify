@@ -62,6 +62,22 @@ export default function MarketingPage() {
   return (
     <Page title="Media Studio" primaryAction={primaryAction}>
       <BlockStack gap="400">
+        {/* First Banner - Top of Page */}
+        <Card>
+          <Box padding="400">
+            <img 
+              src="/marketing.png" 
+              alt="Marketing Generation Banner"
+              style={{ 
+                width: "100%", 
+                height: "auto", 
+                borderRadius: "12px",
+                objectFit: "cover"
+              }}
+            />
+          </Box>
+        </Card>
+
         {!isConnected && (
           <Banner tone="info" title="Connect your IMAI Studio API key">
             <Text as="p">
@@ -90,6 +106,22 @@ export default function MarketingPage() {
                 </Text>
               </BlockStack>
             )}
+          </Box>
+        </Card>
+
+        {/* Second Banner - Above History */}
+        <Card>
+          <Box padding="400">
+            <img 
+              src="/marketing2.png" 
+              alt="Marketing History Banner"
+              style={{ 
+                width: "100%", 
+                height: "auto", 
+                borderRadius: "12px",
+                objectFit: "cover"
+              }}
+            />
           </Box>
         </Card>
 

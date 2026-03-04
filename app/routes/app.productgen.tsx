@@ -467,6 +467,22 @@ export default function ProductGenPage() {
     <>
       <Page title="Product Gen" primaryAction={primaryAction}>
       <BlockStack gap="400">
+        {/* First Banner - Top of Page */}
+        <Card>
+          <Box padding="400">
+            <img 
+              src="/productgen.png" 
+              alt="Product Generation Banner"
+              style={{ 
+                width: "100%", 
+                height: "auto", 
+                borderRadius: "12px",
+                objectFit: "cover"
+              }}
+            />
+          </Box>
+        </Card>
+
         {!isConnected && (
           <Banner tone="info" title="Connect your IMAI Studio API key">
             <Text as="p">
@@ -722,6 +738,22 @@ export default function ProductGenPage() {
                 })()}
               </BlockStack>
             </InlineGrid>
+          </Box>
+        </Card>
+
+        {/* Second Banner - Above History */}
+        <Card>
+          <Box padding="400">
+            <img 
+              src="/productgen2.png" 
+              alt="Product History Banner"
+              style={{ 
+                width: "100%", 
+                height: "auto", 
+                borderRadius: "12px",
+                objectFit: "cover"
+              }}
+            />
           </Box>
         </Card>
 
