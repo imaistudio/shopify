@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import {
   BlockStack,
   Card,
@@ -17,7 +17,7 @@ import {
   RadioButton,
   Icon,
 } from "@shopify/polaris";
-import { ImageIcon } from "@shopify/polaris-icons";
+import { ImageIcon, CheckCircleIcon, XCircleIcon, ClockIcon } from "@shopify/polaris-icons";
 
 interface Generation {
   id: string;
@@ -28,6 +28,8 @@ interface Generation {
   jobId: string | null;
   results: string[] | null;
   error: string | null;
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  createdAt: number;
 }
 
 interface GeneratePanelProps {
@@ -35,6 +37,13 @@ interface GeneratePanelProps {
   shop: string;
   balance: number | null;
 }
+
+// Constants for polling and timeouts
+const INITIAL_WAIT_MS = 120000; // 2 minutes initial wait
+const WEBHOOK_GRACE_PERIOD_MS = 210000; // 3.5 minutes to wait for webhook
+const POLL_INTERVAL_MS = 120000; // 2 minutes between polls
+const MAX_POLL_COUNT = 4; // Max 4 polling attempts
+const CANCEL_BUTTON_TIMEOUT_MS = 60000; // 1 minute before showing cancel button
 
 export function GeneratePanel({ onGenerationComplete, shop, balance }: GeneratePanelProps) {
   const [prompt, setPrompt] = useState("");
@@ -46,12 +55,26 @@ export function GeneratePanel({ onGenerationComplete, shop, balance }: GenerateP
   const [isUploading, setIsUploading] = useState(false);
   const [showCancelButton, setShowCancelButton] = useState(false);
   
+  // Use refs to track polling state without causing re-renders
+  const pollStartTimeRef = useRef<number>(0);
+  const activeJobIdsRef = useRef<Set<string>>(new Set());
+  const generationsRef = useRef<Generation[]>([]);
+  const pollCountRef = useRef<number>(0);
+  const initialWaitCompleteRef = useRef<boolean>(false);
+  
+  // Keep ref in sync with state
+  useEffect(() => {
+    generationsRef.current = generations;
+    activeJobIdsRef.current = new Set(
+      generations.filter(g => g.isGenerating && g.jobId).map(g => g.jobId!)
+    );
+  }, [generations]);
+  
   // Track if any generation is currently in progress
   const hasActiveGeneration = useMemo(() => 
     generations.some(gen => gen.isGenerating), 
     [generations]
   );
-
 
   // Load active (non-completed) jobs from database on mount
   useEffect(() => {
@@ -67,10 +90,12 @@ export function GeneratePanel({ onGenerationComplete, shop, balance }: GenerateP
               prompt: job.prompt,
               uploadedFile: null,
               previewUrl: null,
-              isGenerating: true,
+              isGenerating: job.status === 'queued' || job.status === 'processing',
               jobId: job.jobId,
-              results: null,
-              error: null,
+              results: job.result ? JSON.parse(job.result).urls || [] : null,
+              error: job.error || null,
+              status: job.status,
+              createdAt: job.createdAt ? new Date(job.createdAt).getTime() : Date.now(),
             }));
             setGenerations(prev => {
               // Avoid duplicates
@@ -87,47 +112,26 @@ export function GeneratePanel({ onGenerationComplete, shop, balance }: GenerateP
     loadActiveJobs();
   }, []);
 
-  const handleGenerationComplete = useCallback(
-    (generationId: string) => (result: any) => {
-      console.log("handleGenerationComplete called for generation:", generationId, "result:", result);
-      setGenerations(prev => {
-        console.log("Updating generations, prev state:", prev.map(g => ({ id: g.id, isGenerating: g.isGenerating, jobId: g.jobId })));
-        const updated = prev.map(gen =>
-          gen.id === generationId
-            ? { ...gen, isGenerating: !(result.urls && result.urls.length > 0), results: result.urls || [] }
-            : gen
-        );
-        console.log("Updated generations:", updated.map(g => ({ id: g.id, isGenerating: g.isGenerating, hasResults: !!g.results })));
-        return updated;
-      });
-      onGenerationComplete();
-    },
-    [onGenerationComplete]
-  );
-
-  const handleGenerationError = useCallback(
-    (generationId: string) => (err: string) => {
-      setGenerations(prev => prev.map(gen =>
-        gen.id === generationId
-          ? { ...gen, isGenerating: false, error: err }
-          : gen
-      ));
-    },
-    []
-  );
-
-  const jobs = generations
-    .filter(gen => gen.jobId && gen.isGenerating)
-    .map(gen => ({
-      jobId: gen.jobId!,
-      onComplete: handleGenerationComplete(gen.id),
-      onError: handleGenerationError(gen.id),
-    }));
+  // Update generation status helper - uses functional update to avoid stale closure
+  const updateGenerationStatus = useCallback((jobId: string, updates: Partial<Generation>) => {
+    console.log(`Updating generation ${jobId}:`, updates);
+    setGenerations(prev => {
+      const index = prev.findIndex(g => g.jobId === jobId);
+      if (index === -1) {
+        console.log(`Generation with jobId ${jobId} not found`);
+        return prev;
+      }
+      const updated = [...prev];
+      updated[index] = { ...updated[index], ...updates };
+      return updated;
+    });
+  }, []);
 
   // Set up SSE event listening for webhook completion
   useEffect(() => {
     console.log("Setting up SSE connection for shop:", shop);
     const eventSource = new EventSource(`/api/imai/events?shop=${shop}`);
+    let reconnectTimeout: NodeJS.Timeout;
 
     eventSource.onopen = () => {
       console.log("SSE connection opened successfully");
@@ -141,33 +145,53 @@ export function GeneratePanel({ onGenerationComplete, shop, balance }: GenerateP
         if (data.type === 'job_update') {
           const { jobId, status, result, error } = data;
 
-          // Find the generation with this jobId
-          const generationIndex = generations.findIndex(gen => gen.jobId === jobId);
-          console.log("Found generation index:", generationIndex, "for jobId:", jobId);
-          
-          if (generationIndex !== -1) {
+          // Use functional update to always get latest state
+          setGenerations(prev => {
+            const index = prev.findIndex(gen => gen.jobId === jobId);
+            console.log("Found generation index:", index, "for jobId:", jobId);
+            
+            if (index === -1) {
+              console.log("No generation found for jobId:", jobId);
+              return prev;
+            }
+
+            const updated = [...prev];
+            
             if (status === 'completed') {
               console.log('Job completed via webhook:', jobId);
-              setGenerations(prev => prev.map((gen, index) =>
-                index === generationIndex
-                  ? { ...gen, isGenerating: false, results: result?.urls || [] }
-                  : gen
-              ));
-              setIsGenerating(false);
-              setShowCancelButton(false);
-              onGenerationComplete();
+              updated[index] = {
+                ...updated[index],
+                isGenerating: false,
+                status: 'completed',
+                results: result?.urls || [],
+                error: null,
+              };
+              // Trigger completion callback outside of render
+              setTimeout(() => onGenerationComplete(), 0);
             } else if (status === 'failed') {
               console.log('Job failed via webhook:', jobId, error);
-              setGenerations(prev => prev.map((gen, index) =>
-                index === generationIndex
-                  ? { ...gen, isGenerating: false, error: error || "Generation failed" }
-                  : gen
-              ));
-              setIsGenerating(false);
-              setShowCancelButton(false);
+              updated[index] = {
+                ...updated[index],
+                isGenerating: false,
+                status: 'failed',
+                error: error || "Generation failed. Please try again.",
+                results: null,
+              };
+            } else if (status === 'processing' || status === 'queued') {
+              updated[index] = {
+                ...updated[index],
+                status: status,
+              };
             }
-          } else {
-            console.log("No generation found for jobId:", jobId, "current generations:", generations.map(g => g.jobId));
+            
+            return updated;
+          });
+
+          // Clear from active jobs
+          if (status === 'completed' || status === 'failed') {
+            activeJobIdsRef.current.delete(jobId);
+            setIsGenerating(activeJobIdsRef.current.size > 0);
+            setShowCancelButton(false);
           }
         }
       } catch (err) {
@@ -177,213 +201,145 @@ export function GeneratePanel({ onGenerationComplete, shop, balance }: GenerateP
 
     eventSource.onerror = (error) => {
       console.error("SSE connection error:", error);
+      eventSource.close();
+      
+      // Auto-reconnect after 5 seconds
+      reconnectTimeout = setTimeout(() => {
+        console.log("Attempting SSE reconnection...");
+        // The effect will re-run due to shop dependency if component is still mounted
+      }, 5000);
     };
 
     return () => {
       console.log("Closing SSE connection");
       eventSource.close();
+      clearTimeout(reconnectTimeout);
     };
-  }, [shop]); // Only depend on shop, not generations
+  }, [shop, onGenerationComplete]);
 
-  // Fallback polling for jobs that might have missed SSE events
+  // Background polling - waits 2min, then 3.5min webhook grace, then 2min x4 polls
   useEffect(() => {
-    if (!hasActiveGeneration) return;
+    if (!hasActiveGeneration) {
+      pollStartTimeRef.current = 0;
+      pollCountRef.current = 0;
+      initialWaitCompleteRef.current = false;
+      return;
+    }
 
-    let retryCount = 0;
-    const maxRetries = 5;
-    const pollInterval = 6000; // 6 seconds to give SSE time first
-    
-    const pollJobStatus = async () => {
-      const activeJobs = generations.filter(gen => gen.isGenerating && gen.jobId);
+    // Start polling timer
+    if (pollStartTimeRef.current === 0) {
+      pollStartTimeRef.current = Date.now();
+      console.log('Starting generation - initial 2min wait...');
+    }
+
+    const pollInterval = setInterval(async () => {
+      const elapsed = Date.now() - pollStartTimeRef.current;
+      const activeJobIds = Array.from(activeJobIdsRef.current);
       
-      if (activeJobs.length === 0) return;
-      
-      retryCount++;
-      console.log(`Background polling attempt ${retryCount}/${maxRetries} for ${activeJobs.length} jobs`);
-      
-      for (const job of activeJobs) {
+      if (activeJobIds.length === 0) {
+        clearInterval(pollInterval);
+        return;
+      }
+
+      // Phase 1: Initial 2 minute wait - do nothing
+      if (elapsed < INITIAL_WAIT_MS) {
+        console.log(`Initial wait: ${Math.round(elapsed / 1000)}s / ${INITIAL_WAIT_MS / 1000}s`);
+        return;
+      }
+
+      // Mark initial wait as complete
+      if (!initialWaitCompleteRef.current) {
+        initialWaitCompleteRef.current = true;
+        console.log('Initial 2min wait complete - entering webhook grace period (3.5min)');
+      }
+
+      // Phase 2: Webhook grace period (3.5 min) - light logging only
+      const gracePeriodElapsed = elapsed - INITIAL_WAIT_MS;
+      if (gracePeriodElapsed < WEBHOOK_GRACE_PERIOD_MS) {
+        console.log(`Webhook grace period: ${Math.round(gracePeriodElapsed / 1000)}s / ${WEBHOOK_GRACE_PERIOD_MS / 1000}s`);
+        return;
+      }
+
+      // Phase 3: Active polling - every 2 minutes, max 4 times
+      if (pollCountRef.current >= MAX_POLL_COUNT) {
+        console.log('Max polling attempts reached (4x), marking as failed');
+        // Mark remaining jobs as failed
+        setGenerations(prev => prev.map(gen => {
+          if (gen.isGenerating && gen.jobId) {
+            return { ...gen, isGenerating: false, status: 'failed', error: 'Generation timed out. Please try again.' };
+          }
+          return gen;
+        }));
+        setIsGenerating(false);
+        setShowCancelButton(false);
+        pollStartTimeRef.current = 0;
+        pollCountRef.current = 0;
+        clearInterval(pollInterval);
+        return;
+      }
+
+      pollCountRef.current++;
+      console.log(`Polling attempt ${pollCountRef.current}/${MAX_POLL_COUNT} (${elapsed / 1000}s elapsed)`);
+
+      for (const jobId of activeJobIds) {
         try {
-          const resp = await fetch(`/api/imai/status?jobId=${job.jobId}`);
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data.job && (data.job.status === 'completed' || data.job.status === 'failed')) {
-              console.log('Found completed/failed job via polling:', data.job);
-              
-              const generationIndex = generations.findIndex(gen => gen.jobId === job.jobId);
-              if (generationIndex !== -1) {
-                if (data.job.status === 'completed') {
-                  const result = data.job.result ? JSON.parse(data.job.result) : null;
-                  setGenerations(prev => prev.map((gen, index) =>
-                    index === generationIndex
-                      ? { ...gen, isGenerating: false, results: result?.urls || [] }
-                      : gen
-                  ));
-                } else if (data.job.status === 'failed') {
-                  setGenerations(prev => prev.map((gen, index) =>
-                    index === generationIndex
-                      ? { ...gen, isGenerating: false, error: data.job.error || "Generation failed" }
-                      : gen
-                  ));
-                }
-                setIsGenerating(false);
-                setShowCancelButton(false);
-                onGenerationComplete();
-                return; // Stop polling once we find a completed/failed job
-              }
-            }
+          const resp = await fetch(`/api/imai/status?jobId=${jobId}`);
+          if (!resp.ok) continue;
+
+          const data = await resp.json();
+          console.log(`Poll result for ${jobId}:`, data.status);
+
+          if (data.job?.status === 'completed' || data.status === 'completed') {
+            const result = data.job?.result ? JSON.parse(data.job.result) : data.result;
+            updateGenerationStatus(jobId, {
+              isGenerating: false,
+              status: 'completed',
+              results: result?.urls || [],
+              error: null,
+            });
+            activeJobIdsRef.current.delete(jobId);
+            setIsGenerating(activeJobIdsRef.current.size > 0);
+            onGenerationComplete();
+          } else if (data.job?.status === 'failed' || data.status === 'failed') {
+            updateGenerationStatus(jobId, {
+              isGenerating: false,
+              status: 'failed',
+              error: data.job?.error || data.error || 'Generation failed. Please try again.',
+              results: null,
+            });
+            activeJobIdsRef.current.delete(jobId);
+            setIsGenerating(activeJobIdsRef.current.size > 0);
           }
         } catch (error) {
-          console.error('Failed to poll job status:', error);
+          console.error(`Failed to poll status for ${jobId}:`, error);
         }
       }
-      
-      // Continue polling if we haven't reached max retries
-      if (retryCount < maxRetries) {
-        setTimeout(pollJobStatus, pollInterval);
-      } else {
-        console.log('Max polling retries reached, stopping background polling');
-      }
-    };
-
-    // Start polling after 6 seconds (give SSE events chance first)
-    const initialDelay = setTimeout(pollJobStatus, 6000);
+    }, 5000); // Check every 5 seconds internally, but only poll after intervals
 
     return () => {
-      clearTimeout(initialDelay);
+      clearInterval(pollInterval);
     };
-  }, [hasActiveGeneration, generations, onGenerationComplete]);
+  }, [hasActiveGeneration, updateGenerationStatus, onGenerationComplete]);
 
-  // Timeout handling for webhook failures - persistent across refreshes
+  // Show cancel button after timeout (user can cancel if webhook seems stuck)
   useEffect(() => {
     if (!hasActiveGeneration) {
       setShowCancelButton(false);
       return;
     }
 
-    // Find the active generation and check how long ago it was created
-    const activeGeneration = generations.find(gen => gen.isGenerating && gen.jobId);
-    if (!activeGeneration?.jobId) return;
+    const timer = setTimeout(() => {
+      setShowCancelButton(true);
+    }, CANCEL_BUTTON_TIMEOUT_MS);
 
-    // For restored jobs, we need to check the database for creation time
-    // For new jobs, we can use the current time as reference
-    const isRestoredJob = activeGeneration.id.startsWith('restored-');
-
-    let timeoutDelay = 600000; // 10 minutes default
-    let showCancelDelay = 120000; // 2 minutes default
-
-    if (isRestoredJob) {
-      // For restored jobs, fetch the creation time from database
-      const checkJobAge = async () => {
-        try {
-          const resp = await fetch(`/api/imai/status?jobId=${activeGeneration.jobId}`);
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data.job && data.job.createdAt) {
-              const createdAt = new Date(data.job.createdAt);
-              const now = new Date();
-              const elapsed = now.getTime() - createdAt.getTime();
-
-              if (elapsed >= 600000) { // Already 10+ minutes old
-                console.log('Job already timed out, cancelling immediately');
-                setGenerations(prev => prev.map(gen =>
-                  gen.isGenerating
-                    ? { ...gen, isGenerating: false }
-                    : gen
-                ));
-                setIsGenerating(false);
-                setShowCancelButton(false);
-                return;
-              } else {
-                // Calculate remaining time
-                timeoutDelay = 600000 - elapsed;
-                showCancelDelay = Math.max(120000 - elapsed, 0);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Failed to check job age:', error);
-        }
-
-        // Set up the timers with calculated delays
-        if (showCancelDelay > 0) {
-          const showCancelTimer = setTimeout(() => {
-            setShowCancelButton(true);
-          }, showCancelDelay);
-
-          const autoCancelTimer = setTimeout(async () => {
-            console.log('Auto-cancelling generation due to timeout');
-
-            if (activeGeneration?.jobId) {
-              try {
-                await fetch('/api/imai/cancel', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    jobId: activeGeneration.jobId,
-                    shop,
-                  }),
-                });
-              } catch (error) {
-                console.error('Failed to auto-cancel job in database:', error);
-              }
-            }
-
-            setGenerations(prev => prev.filter(gen => !gen.isGenerating));
-            setIsGenerating(false);
-            setShowCancelButton(false);
-          }, timeoutDelay);
-
-          return () => {
-            clearTimeout(showCancelTimer);
-            clearTimeout(autoCancelTimer);
-          };
-        }
-      };
-
-      checkJobAge();
-    } else {
-      // For new jobs, use the normal timer logic
-      const showCancelTimer = setTimeout(() => {
-        setShowCancelButton(true);
-      }, showCancelDelay);
-
-      const autoCancelTimer = setTimeout(async () => {
-        console.log('Auto-cancelling generation due to timeout');
-
-        if (activeGeneration?.jobId) {
-          try {
-            await fetch('/api/imai/cancel', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                jobId: activeGeneration.jobId,
-                shop,
-              }),
-            });
-          } catch (error) {
-            console.error('Failed to auto-cancel job in database:', error);
-          }
-        }
-
-            setGenerations(prev => prev.filter(gen => !gen.isGenerating));
-        setIsGenerating(false);
-        setShowCancelButton(false);
-      }, timeoutDelay);
-
-      return () => {
-        clearTimeout(showCancelTimer);
-        clearTimeout(autoCancelTimer);
-      };
-    }
-  }, [hasActiveGeneration, generations, shop]);
+    return () => clearTimeout(timer);
+  }, [hasActiveGeneration]);
 
   const handleCancelGeneration = useCallback(async () => {
-    // Find the active generation jobId
     const activeGeneration = generations.find(gen => gen.isGenerating && gen.jobId);
     if (!activeGeneration?.jobId) return;
 
     try {
-      // Update the database to mark job as cancelled
       await fetch('/api/imai/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -396,10 +352,14 @@ export function GeneratePanel({ onGenerationComplete, shop, balance }: GenerateP
       console.error('Failed to cancel job in database:', error);
     }
 
-    // Remove the cancelled generation from state to revert to placeholder
-    setGenerations(prev => prev.filter(gen => gen.jobId !== activeGeneration.jobId));
+    setGenerations(prev => prev.map(gen => 
+      gen.jobId === activeGeneration.jobId
+        ? { ...gen, isGenerating: false, status: 'cancelled', error: 'Generation was cancelled' }
+        : gen
+    ));
     setIsGenerating(false);
     setShowCancelButton(false);
+    activeJobIdsRef.current.delete(activeGeneration.jobId);
   }, [generations, shop]);
 
   const handleDrop = async (files: File[]) => {
@@ -504,6 +464,8 @@ export function GeneratePanel({ onGenerationComplete, shop, balance }: GenerateP
       jobId: null,
       results: null,
       error: null,
+      status: 'queued',
+      createdAt: Date.now(),
     };
 
     setGenerations(prev => [newGeneration, ...prev]);
@@ -541,12 +503,12 @@ export function GeneratePanel({ onGenerationComplete, shop, balance }: GenerateP
       
       if (data.jobId) {
         setGenerations(prev => prev.map(gen =>
-          gen.id === generationId ? { ...gen, jobId: data.jobId } : gen
+          gen.id === generationId ? { ...gen, jobId: data.jobId, status: 'queued' } : gen
         ));
       } else if (data.result) {
         // Synchronous response
         setGenerations(prev => prev.map(gen =>
-          gen.id === generationId ? { ...gen, isGenerating: false, results: data.result.urls || [] } : gen
+          gen.id === generationId ? { ...gen, isGenerating: false, status: 'completed', results: data.result.urls || [] } : gen
         ));
         setIsGenerating(false);
         onGenerationComplete();
@@ -555,7 +517,7 @@ export function GeneratePanel({ onGenerationComplete, shop, balance }: GenerateP
       setError("Failed to generate, please try again later.");
       setIsGenerating(false);
       setGenerations(prev => prev.map(gen =>
-          gen.id === generationId ? { ...gen, isGenerating: false, error: "Failed to generate, please try again later." } : gen
+          gen.id === generationId ? { ...gen, isGenerating: false, status: 'failed', error: "Failed to generate, please try again later." } : gen
         ));
     }
 
@@ -743,32 +705,61 @@ export function GeneratePanel({ onGenerationComplete, shop, balance }: GenerateP
                         )}
                         {gen.isGenerating ? (
                           <BlockStack gap="200" align="center">
-                            <Text as="p" tone="subdued">Generating...</Text>
+                            <InlineStack gap="200" blockAlign="center">
+                              <Spinner size="small" />
+                              <Text as="p" tone="subdued">
+                                {gen.status === 'processing' ? 'Processing your images...' : 'Queued for generation...'}
+                              </Text>
+                            </InlineStack>
+                            <Text as="p" tone="subdued" variant="bodySm">
+                              This may take a few minutes. You can navigate away and come back.
+                            </Text>
                           </BlockStack>
-                        ) : gen.error ? (
-                          <Text as="p" tone="critical">{gen.error}</Text>
+                        ) : gen.status === 'failed' || gen.error ? (
+                          <BlockStack gap="200" align="center">
+                            <InlineStack gap="200" blockAlign="center">
+                              <Icon source={XCircleIcon} tone="critical" />
+                              <Text as="p" tone="critical">{gen.error || "Generation failed"}</Text>
+                            </InlineStack>
+                            <Button 
+                              variant="plain" 
+                              tone="critical"
+                              onClick={() => {
+                                setPrompt(gen.prompt);
+                                if (gen.previewUrl) {
+                                  setPreviewUrl(gen.previewUrl);
+                                }
+                              }}
+                            >
+                              Retry with same prompt
+                            </Button>
+                          </BlockStack>
+                        ) : gen.status === 'cancelled' ? (
+                          <BlockStack gap="200" align="center">
+                            <InlineStack gap="200" blockAlign="center">
+                              <Icon source={XCircleIcon} tone="subdued" />
+                              <Text as="p" tone="subdued">Generation was cancelled</Text>
+                            </InlineStack>
+                          </BlockStack>
                         ) : gen.results && gen.results.length > 0 ? (
                           <Box>
-                            <Text variant="headingSm" as="h3">Generated Images</Text>
                             <div 
                               style={{ 
-                                display: 'flex', 
-                                flexDirection: 'row', 
-                                flexWrap: 'wrap', 
-                                gap: '16px',
-                                justifyContent: 'center',
-                                alignItems: 'center'
+                                display: 'grid', 
+                                gridTemplateColumns: 'repeat(2, 1fr)', 
+                                gap: '8px',
+                                width: '100%'
                               }}
                             >
                               {gen.results.map((imageUrl: string, index: number) => (
-                                <div key={index} style={{ textAlign: 'center' }}>
+                                <div key={index} style={{ aspectRatio: '1/1', overflow: 'hidden', borderRadius: '8px' }}>
                                   <img 
                                     src={imageUrl} 
-                                    alt={`Generated image ${index + 1}`}
+                                    alt={`Generated ${index + 1}`}
                                     style={{ 
-                                      maxWidth: "200px", 
-                                      height: "auto", 
-                                      borderRadius: "8px",
+                                      width: '100%', 
+                                      height: '100%', 
+                                      objectFit: 'cover',
                                       display: 'block'
                                     }}
                                   />

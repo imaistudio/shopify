@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
@@ -21,7 +21,7 @@ import {
   ProgressBar,
   Icon,
 } from "@shopify/polaris";
-import { ImageIcon } from "@shopify/polaris-icons";
+import { ImageIcon, CheckCircleIcon, XCircleIcon } from "@shopify/polaris-icons";
 
 // Components
 import { CreditsBadge } from "../components/CreditsBadge";
@@ -65,18 +65,17 @@ interface EcommerceResponse {
   jobId?: string;
   status?: string;
   statusEndpoint?: string;
+  urls?: string[];
+  text?: string;
+  details?: {
+    title?: string;
+    description?: string;
+    features?: string[];
+    specifications?: Record<string, string>;
+    platforms?: Record<string, any>;
+  };
   images?: {
     urls: string[];
-    assetIds: string[];
-    failedIds: string[];
-    pendingIds: string[];
-  };
-  details?: {
-    title: string;
-    description: string;
-    features: string[];
-    specifications: Record<string, string>;
-    platforms: Record<string, any>;
   };
   error?: string;
   message?: string;
@@ -91,10 +90,25 @@ interface ProductGeneration {
   jobId: string | null;
   response: EcommerceResponse | null;
   error: string | null;
+  status: 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  createdAt: number;
 }
+
+// Constants for polling and timeouts
+const INITIAL_WAIT_MS = 120000; // 2 minutes initial wait
+const WEBHOOK_GRACE_PERIOD_MS = 210000; // 3.5 minutes to wait for webhook
+const POLL_INTERVAL_MS = 120000; // 2 minutes between polls
+const MAX_POLL_COUNT = 4; // Max 4 polling attempts
+const CANCEL_BUTTON_TIMEOUT_MS = 60000; // 1 minute before showing cancel button
 
 export default function ProductGenPage() {
   const { shop, isConnected, balance } = useLoaderData<typeof loader>();
+  
+  // Use refs to track polling state without causing re-renders
+  const pollStartTimeRef = useRef<number>(0);
+  const activeJobIdsRef = useRef<Set<string>>(new Set());
+  const pollCountRef = useRef<number>(0);
+  const initialWaitCompleteRef = useRef<boolean>(false);
   
   // Form state
   const [prompt, setPrompt] = useState("");
@@ -212,6 +226,8 @@ export default function ProductGenPage() {
       jobId: null,
       response: null,
       error: null,
+      status: 'queued',
+      createdAt: Date.now(),
     };
 
     setGenerations(prev => [newGeneration, ...prev]);
@@ -245,12 +261,12 @@ export default function ProductGenPage() {
       
       if (data.jobId) {
         setGenerations(prev => prev.map(gen =>
-          gen.id === generationId ? { ...gen, jobId: data.jobId } : gen
+          gen.id === generationId ? { ...gen, jobId: data.jobId, status: 'queued' } : gen
         ));
       } else if (data.success) {
         // Synchronous response
         setGenerations(prev => prev.map(gen =>
-          gen.id === generationId ? { ...gen, isGenerating: false, response: data } : gen
+          gen.id === generationId ? { ...gen, isGenerating: false, status: 'completed', response: data } : gen
         ));
       }
     } catch (err) {
@@ -266,10 +282,17 @@ export default function ProductGenPage() {
     setUploadedFile(null);
   };
 
+  // Set up SSE event listening for webhook completion
   useEffect(() => {
     if (!isConnected) return;
 
+    console.log("Setting up SSE connection for shop:", shop);
     const eventSource = new EventSource(`/api/imai/events?shop=${shop}`);
+    let reconnectTimeout: NodeJS.Timeout;
+
+    eventSource.onopen = () => {
+      console.log("SSE connection opened successfully");
+    };
 
     eventSource.onmessage = (event) => {
       try {
@@ -279,33 +302,56 @@ export default function ProductGenPage() {
         if (data.type === 'job_update') {
           const { jobId, status, result, error } = data;
 
-          // Find the generation with this jobId
-          const generationIndex = generations.findIndex(gen => gen.jobId === jobId);
-          console.log("Found generation index:", generationIndex, "for jobId:", jobId);
-          
-          if (generationIndex !== -1) {
+          // Use functional update to always get latest state
+          setGenerations(prev => {
+            const index = prev.findIndex(gen => gen.jobId === jobId);
+            console.log("Found generation index:", index, "for jobId:", jobId);
+            
+            if (index === -1) {
+              console.log("No generation found for jobId:", jobId);
+              return prev;
+            }
+
+            const updated = [...prev];
+            
             if (status === 'completed') {
               console.log('Job completed via webhook:', jobId);
-              setGenerations(prev => prev.map((gen, index) =>
-                index === generationIndex
-                  ? { ...gen, isGenerating: false, response: result }
-                  : gen
-              ));
-              setProgress(100);
-              setTimeout(() => setProgress(0), 2000);
-              setShowCancelButton(false);
+              updated[index] = {
+                ...updated[index],
+                isGenerating: false,
+                status: 'completed',
+                response: result,
+                error: null,
+              };
+              // Update progress outside of render
+              setTimeout(() => {
+                setProgress(100);
+                setTimeout(() => setProgress(0), 2000);
+              }, 0);
             } else if (status === 'failed') {
               console.log('Job failed via webhook:', jobId, error);
-              setGenerations(prev => prev.map((gen, index) =>
-                index === generationIndex
-                  ? { ...gen, isGenerating: false, error: error || "Generation failed" }
-                  : gen
-              ));
-              setProgress(0);
-              setShowCancelButton(false);
+              updated[index] = {
+                ...updated[index],
+                isGenerating: false,
+                status: 'failed',
+                error: error || "Generation failed. Please try again.",
+                response: null,
+              };
+              setTimeout(() => setProgress(0), 0);
+            } else if (status === 'processing' || status === 'queued') {
+              updated[index] = {
+                ...updated[index],
+                status: status,
+              };
             }
-          } else {
-            console.log("No generation found for jobId:", jobId, "current generations:", generations.map(g => g.jobId));
+            
+            return updated;
+          });
+
+          // Clear from active jobs and update UI state
+          if (status === 'completed' || status === 'failed') {
+            activeJobIdsRef.current.delete(jobId);
+            setShowCancelButton(false);
           }
         }
       } catch (err) {
@@ -315,209 +361,159 @@ export default function ProductGenPage() {
 
     eventSource.onerror = (error) => {
       console.error("SSE connection error:", error);
+      eventSource.close();
+      
+      // Auto-reconnect after 5 seconds
+      reconnectTimeout = setTimeout(() => {
+        console.log("Attempting SSE reconnection...");
+      }, 5000);
     };
 
     return () => {
+      console.log("Closing SSE connection");
       eventSource.close();
+      clearTimeout(reconnectTimeout);
     };
-  }, [isConnected, shop]); // Only depend on isConnected and shop, not generations
+  }, [isConnected, shop]);
 
-  // Fallback polling for jobs that might have missed SSE events
+  // Background polling - waits 2min, then 3.5min webhook grace, then 2min x4 polls
   useEffect(() => {
-    if (!isConnected || !hasActiveGeneration) return;
+    if (!isConnected || !hasActiveGeneration) {
+      pollStartTimeRef.current = 0;
+      pollCountRef.current = 0;
+      initialWaitCompleteRef.current = false;
+      return;
+    }
 
-    let retryCount = 0;
-    const maxRetries = 5;
-    const pollInterval = 6000; // 6 seconds to give SSE time first
-    
-    const pollJobStatus = async () => {
-      const activeJobs = generations.filter(gen => gen.isGenerating && gen.jobId);
+    // Start polling timer
+    if (pollStartTimeRef.current === 0) {
+      pollStartTimeRef.current = Date.now();
+      console.log('Starting generation - initial 2min wait...');
+    }
+
+    const pollInterval = setInterval(async () => {
+      const elapsed = Date.now() - pollStartTimeRef.current;
+      const activeJobIds = Array.from(activeJobIdsRef.current);
       
-      if (activeJobs.length === 0) return;
-      
-      retryCount++;
-      console.log(`Background polling attempt ${retryCount}/${maxRetries} for ${activeJobs.length} jobs`);
-      
-      for (const job of activeJobs) {
+      if (activeJobIds.length === 0) {
+        clearInterval(pollInterval);
+        return;
+      }
+
+      // Phase 1: Initial 2 minute wait - do nothing
+      if (elapsed < INITIAL_WAIT_MS) {
+        console.log(`Initial wait: ${Math.round(elapsed / 1000)}s / ${INITIAL_WAIT_MS / 1000}s`);
+        return;
+      }
+
+      // Mark initial wait as complete
+      if (!initialWaitCompleteRef.current) {
+        initialWaitCompleteRef.current = true;
+        console.log('Initial 2min wait complete - entering webhook grace period (3.5min)');
+      }
+
+      // Phase 2: Webhook grace period (3.5 min) - light logging only
+      const gracePeriodElapsed = elapsed - INITIAL_WAIT_MS;
+      if (gracePeriodElapsed < WEBHOOK_GRACE_PERIOD_MS) {
+        console.log(`Webhook grace period: ${Math.round(gracePeriodElapsed / 1000)}s / ${WEBHOOK_GRACE_PERIOD_MS / 1000}s`);
+        return;
+      }
+
+      // Phase 3: Active polling - every 2 minutes, max 4 times
+      if (pollCountRef.current >= MAX_POLL_COUNT) {
+        console.log('Max polling attempts reached (4x), marking as failed');
+        // Mark remaining jobs as failed
+        setGenerations(prev => prev.map(gen => {
+          if (gen.isGenerating && gen.jobId) {
+            return { ...gen, isGenerating: false, status: 'failed', error: 'Generation timed out. Please try again.' };
+          }
+          return gen;
+        }));
+        setProgress(0);
+        setShowCancelButton(false);
+        pollStartTimeRef.current = 0;
+        pollCountRef.current = 0;
+        clearInterval(pollInterval);
+        return;
+      }
+
+      pollCountRef.current++;
+      console.log(`Polling attempt ${pollCountRef.current}/${MAX_POLL_COUNT} (${elapsed / 1000}s elapsed)`);
+
+      for (const jobId of activeJobIds) {
         try {
-          const resp = await fetch(`/api/imai/status?jobId=${job.jobId}`);
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data.job && (data.job.status === 'completed' || data.job.status === 'failed')) {
-              console.log('Found completed/failed job via polling:', data.job);
-              
-              const generationIndex = generations.findIndex(gen => gen.jobId === job.jobId);
-              if (generationIndex !== -1) {
-                if (data.job.status === 'completed') {
-                  const result = data.job.result ? JSON.parse(data.job.result) : null;
-                  setGenerations(prev => prev.map((gen, index) =>
-                    index === generationIndex
-                      ? { ...gen, isGenerating: false, response: result }
-                      : gen
-                  ));
-                  setProgress(100);
-                  setTimeout(() => setProgress(0), 2000);
-                  setShowCancelButton(false);
-                } else if (data.job.status === 'failed') {
-                  setGenerations(prev => prev.map((gen, index) =>
-                    index === generationIndex
-                      ? { ...gen, isGenerating: false, error: data.job.error || "Generation failed" }
-                      : gen
-                  ));
-                  setProgress(0);
-                  setShowCancelButton(false);
-                }
-                return; // Stop polling once we find a completed/failed job
-              }
-            }
+          const resp = await fetch(`/api/imai/status?jobId=${jobId}`);
+          if (!resp.ok) continue;
+
+          const data = await resp.json();
+          console.log(`Poll result for ${jobId}:`, data.status);
+
+          if (data.job?.status === 'completed' || data.status === 'completed') {
+            const result = data.job?.result ? JSON.parse(data.job.result) : data.result;
+            setGenerations(prev => {
+              const index = prev.findIndex(gen => gen.jobId === jobId);
+              if (index === -1) return prev;
+              const updated = [...prev];
+              updated[index] = {
+                ...updated[index],
+                isGenerating: false,
+                status: 'completed',
+                response: result,
+                error: null,
+              };
+              return updated;
+            });
+            setProgress(100);
+            setTimeout(() => setProgress(0), 2000);
+            activeJobIdsRef.current.delete(jobId);
+            setShowCancelButton(false);
+          } else if (data.job?.status === 'failed' || data.status === 'failed') {
+            setGenerations(prev => {
+              const index = prev.findIndex(gen => gen.jobId === jobId);
+              if (index === -1) return prev;
+              const updated = [...prev];
+              updated[index] = {
+                ...updated[index],
+                isGenerating: false,
+                status: 'failed',
+                error: data.job?.error || data.error || 'Generation failed. Please try again.',
+                response: null,
+              };
+              return updated;
+            });
+            setProgress(0);
+            activeJobIdsRef.current.delete(jobId);
+            setShowCancelButton(false);
           }
         } catch (error) {
-          console.error('Failed to poll job status:', error);
+          console.error(`Failed to poll status for ${jobId}:`, error);
         }
       }
-      
-      // Continue polling if we haven't reached max retries
-      if (retryCount < maxRetries) {
-        setTimeout(pollJobStatus, pollInterval);
-      } else {
-        console.log('Max polling retries reached, stopping background polling');
-      }
-    };
-
-    // Start polling after 6 seconds (give SSE events chance first)
-    const initialDelay = setTimeout(pollJobStatus, 6000);
+    }, 5000); // Check every 5 seconds internally, but only poll after intervals
 
     return () => {
-      clearTimeout(initialDelay);
+      clearInterval(pollInterval);
     };
-  }, [isConnected, hasActiveGeneration, generations]);
+  }, [isConnected, hasActiveGeneration]);
+  // Show cancel button after timeout (user can cancel if webhook seems stuck)
   useEffect(() => {
     if (!hasActiveGeneration) {
       setShowCancelButton(false);
       return;
     }
 
-    // Find the active generation and check how long ago it was created
-    const activeGeneration = generations.find(gen => gen.isGenerating && gen.jobId);
-    if (!activeGeneration?.jobId) return;
+    const timer = setTimeout(() => {
+      setShowCancelButton(true);
+    }, CANCEL_BUTTON_TIMEOUT_MS);
 
-    // For restored jobs, we need to check the database for creation time
-    // For new jobs, we can use the current time as reference
-    const isRestoredJob = activeGeneration.id.startsWith('restored-');
-
-    let timeoutDelay = 600000; // 10 minutes default
-    let showCancelDelay = 120000; // 2 minutes default
-
-    if (isRestoredJob) {
-      // For restored jobs, fetch the creation time from database
-      const checkJobAge = async () => {
-        try {
-          const resp = await fetch(`/api/imai/status?jobId=${activeGeneration.jobId}`);
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data.job && data.job.createdAt) {
-              const createdAt = new Date(data.job.createdAt);
-              const now = new Date();
-              const elapsed = now.getTime() - createdAt.getTime();
-
-              if (elapsed >= 600000) { // Already 10+ minutes old
-                console.log('Job already timed out, cancelling immediately');
-                setGenerations(prev => prev.filter(gen => !gen.isGenerating));
-                setShowCancelButton(false);
-                return;
-              } else {
-                // Calculate remaining time
-                timeoutDelay = 600000 - elapsed;
-                showCancelDelay = Math.max(120000 - elapsed, 0);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('Failed to check job age:', error);
-        }
-
-        // Set up the timers with calculated delays
-        if (showCancelDelay > 0) {
-          const showCancelTimer = setTimeout(() => {
-            setShowCancelButton(true);
-          }, showCancelDelay);
-
-          const autoCancelTimer = setTimeout(async () => {
-            console.log('Auto-cancelling generation due to timeout');
-
-            if (activeGeneration?.jobId) {
-              try {
-                await fetch('/api/imai/cancel', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    jobId: activeGeneration.jobId,
-                    shop,
-                  }),
-                });
-              } catch (error) {
-                console.error('Failed to auto-cancel job in database:', error);
-              }
-            }
-
-            setGenerations(prev => prev.map(gen =>
-              gen.isGenerating
-                ? { ...gen, isGenerating: false }
-                : gen
-            ));
-            setShowCancelButton(false);
-          }, timeoutDelay);
-
-          return () => {
-            clearTimeout(showCancelTimer);
-            clearTimeout(autoCancelTimer);
-          };
-        }
-      };
-
-      checkJobAge();
-    } else {
-      // For new jobs, use the normal timer logic
-      const showCancelTimer = setTimeout(() => {
-        setShowCancelButton(true);
-      }, showCancelDelay);
-
-      const autoCancelTimer = setTimeout(async () => {
-        console.log('Auto-cancelling generation due to timeout');
-
-        if (activeGeneration?.jobId) {
-          try {
-            await fetch('/api/imai/cancel', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                jobId: activeGeneration.jobId,
-                shop,
-              }),
-            });
-          } catch (error) {
-            console.error('Failed to auto-cancel job in database:', error);
-          }
-        }
-
-            setGenerations(prev => prev.filter(gen => !gen.isGenerating));
-        setShowCancelButton(false);
-      }, timeoutDelay);
-
-      return () => {
-        clearTimeout(showCancelTimer);
-        clearTimeout(autoCancelTimer);
-      };
-    }
-  }, [hasActiveGeneration, generations, shop]);
+    return () => clearTimeout(timer);
+  }, [hasActiveGeneration]);
 
   const handleCancelGeneration = useCallback(async () => {
-    // Find the active generation jobId
     const activeGeneration = generations.find(gen => gen.isGenerating && gen.jobId);
     if (!activeGeneration?.jobId) return;
 
     try {
-      // Update the database to mark job as cancelled
       await fetch('/api/imai/cancel', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -530,9 +526,13 @@ export default function ProductGenPage() {
       console.error('Failed to cancel job in database:', error);
     }
 
-    // Remove the cancelled generation from state to revert to placeholder
-    setGenerations(prev => prev.filter(gen => gen.jobId !== activeGeneration.jobId));
+    setGenerations(prev => prev.map(gen => 
+      gen.jobId === activeGeneration.jobId
+        ? { ...gen, isGenerating: false, status: 'cancelled', error: 'Generation was cancelled' }
+        : gen
+    ));
     setShowCancelButton(false);
+    activeJobIdsRef.current.delete(activeGeneration.jobId);
   }, [generations, shop]);
 
   const primaryAction = undefined;
@@ -724,34 +724,61 @@ export default function ProductGenPage() {
                             )}
                             {gen.isGenerating ? (
                               <BlockStack gap="200" align="center">
-                                <Text as="p" tone="subdued">Generating...</Text>
+                                <InlineStack gap="200" blockAlign="center">
+                                  <Spinner size="small" />
+                                  <Text as="p" tone="subdued">
+                                    {gen.status === 'processing' ? 'Processing your content...' : 'Queued for generation...'}
+                                  </Text>
+                                </InlineStack>
+                                <Text as="p" tone="subdued" variant="bodySm">
+                                  This may take a few minutes. You can navigate away and come back.
+                                </Text>
                               </BlockStack>
-                            ) : gen.error ? (
-                              <div style={{ textAlign: 'center', padding: '20px' }}>
-                                <Text as="p" tone="critical">Failed to generate, please try again later.</Text>
-                              </div>
-                            ) : gen.response?.images?.urls && gen.response.images.urls.length > 0 ? (
-                              <Box>
-                                <Text variant="headingSm" as="h3">Generated Images</Text>
-                                <div 
-                                  style={{ 
-                                    display: 'flex', 
-                                    flexDirection: 'row', 
-                                    flexWrap: 'wrap', 
-                                    gap: '16px',
-                                    justifyContent: 'center',
-                                    alignItems: 'center'
+                            ) : gen.status === 'failed' || gen.error ? (
+                              <BlockStack gap="200" align="center">
+                                <InlineStack gap="200" blockAlign="center">
+                                  <Icon source={XCircleIcon} tone="critical" />
+                                  <Text as="p" tone="critical">{gen.error || "Generation failed"}</Text>
+                                </InlineStack>
+                                <Button 
+                                  variant="plain" 
+                                  tone="critical"
+                                  onClick={() => {
+                                    setPrompt(gen.prompt);
+                                    if (gen.previewUrl) {
+                                      setPreviewUrl(gen.previewUrl);
+                                    }
                                   }}
                                 >
-                                  {gen.response.images.urls.map((url: string, index: number) => (
-                                    <div key={index} style={{ textAlign: 'center' }}>
+                                  Retry with same prompt
+                                </Button>
+                              </BlockStack>
+                            ) : gen.status === 'cancelled' ? (
+                              <BlockStack gap="200" align="center">
+                                <InlineStack gap="200" blockAlign="center">
+                                  <Icon source={XCircleIcon} tone="subdued" />
+                                  <Text as="p" tone="subdued">Generation was cancelled</Text>
+                                </InlineStack>
+                              </BlockStack>
+                            ) : gen.response?.urls && gen.response.urls.length > 0 ? (
+                              <Box>
+                                <div 
+                                  style={{ 
+                                    display: 'grid', 
+                                    gridTemplateColumns: 'repeat(2, 1fr)', 
+                                    gap: '8px',
+                                    width: '100%'
+                                  }}
+                                >
+                                  {gen.response.urls.slice(0, 4).map((url: string, index: number) => (
+                                    <div key={index} style={{ aspectRatio: '1/1', overflow: 'hidden', borderRadius: '8px' }}>
                                       <img 
                                         src={url} 
-                                        alt={`Generated product image ${index + 1}`}
+                                        alt={`Generated ${index + 1}`}
                                         style={{ 
-                                          maxWidth: "200px", 
-                                          height: "auto", 
-                                          borderRadius: "8px",
+                                          width: '100%', 
+                                          height: '100%', 
+                                          objectFit: 'cover',
                                           display: 'block'
                                         }}
                                       />
@@ -759,51 +786,114 @@ export default function ProductGenPage() {
                                   ))}
                                 </div>
                               </Box>
-                            ) : gen.response?.details ? (
-                              <Box>
-                                <Text variant="headingSm" as="h3">Product Details</Text>
-                                <BlockStack gap="200">
-                                  {gen.response.details.title && (
-                                    <Box>
-                                      <Text as="p" fontWeight="bold">Title:</Text>
-                                      <Text as="p">{gen.response.details.title}</Text>
-                                    </Box>
-                                  )}
-                                  
-                                  {gen.response.details.description && (
-                                    <Box>
-                                      <Text as="p" fontWeight="bold">Description:</Text>
-                                      <Text as="p">{gen.response.details.description}</Text>
-                                    </Box>
-                                  )}
-                                  
-                                  {gen.response.details.specifications && typeof gen.response.details.specifications === 'object' && Object.keys(gen.response.details.specifications).length > 0 && (
-                                    <Box>
-                                      <Text as="p" fontWeight="bold">Specifications:</Text>
-                                      <ul>
-                                        {Object.entries(gen.response.details.specifications).map(([key, value]) => (
-                                          <li key={key}><strong>{key}:</strong> {String(value)}</li>
-                                        ))}
-                                      </ul>
-                                    </Box>
-                                  )}
-                                  
-                                  {gen.response.details.platforms && typeof gen.response.details.platforms === 'object' && Object.keys(gen.response.details.platforms).length > 0 && (
-                                    <Box>
-                                      <Text as="p" fontWeight="bold">Platform-Specific Content:</Text>
-                                      {Object.entries(gen.response.details.platforms).map(([platform, content]) => (
-                                        <Box key={platform} padding="200">
-                                          <Text as="p" fontWeight="bold">{platform.toUpperCase()}:</Text>
-                                          <pre style={{ whiteSpace: "pre-wrap", fontSize: "12px" }}>
-                                            {JSON.stringify(content, null, 2)}
-                                          </pre>
+                            ) : gen.response?.text ? (() => {
+                              // Parse text field which contains JSON string
+                              let parsedDetails: any = null;
+                              try {
+                                parsedDetails = JSON.parse(gen.response.text || '{}');
+                              } catch (e) {
+                                parsedDetails = { description: gen.response.text };
+                              }
+                              return (
+                                <Box>
+                                  <Text variant="headingSm" as="h3">Product Details</Text>
+                                  <BlockStack gap="200">
+                                    {parsedDetails?.title && (
+                                      <Box>
+                                        <Text as="p" fontWeight="bold">Title:</Text>
+                                        <Text as="p">{parsedDetails.title}</Text>
+                                      </Box>
+                                    )}
+                                    
+                                    {parsedDetails?.description && (
+                                      <Box>
+                                        <Text as="p" fontWeight="bold">Description:</Text>
+                                        <Text as="p">{parsedDetails.description}</Text>
+                                      </Box>
+                                    )}
+                                    
+                                    {parsedDetails?.features && parsedDetails.features.length > 0 && (
+                                      <Box paddingBlockStart="200">
+                                        <Text as="p" fontWeight="bold">Features:</Text>
+                                        <Box paddingBlockStart="100">
+                                          {parsedDetails.features.map((feature: string, idx: number) => (
+                                            <InlineStack key={idx} gap="200" blockAlign="center">
+                                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4A90E2' }} />
+                                              <Text as="p" variant="bodySm">{feature}</Text>
+                                            </InlineStack>
+                                          ))}
                                         </Box>
-                                      ))}
-                                    </Box>
-                                  )}
-                                </BlockStack>
-                              </Box>
-                            ) : null}
+                                      </Box>
+                                    )}
+                                    
+                                    {parsedDetails?.specifications && typeof parsedDetails.specifications === 'object' && Object.keys(parsedDetails.specifications).length > 0 && (
+                                      <Box paddingBlockStart="200">
+                                        <Text as="p" fontWeight="bold">Specifications:</Text>
+                                        <Box paddingBlockStart="100">
+                                          <InlineStack gap="200" wrap>
+                                            {Object.entries(parsedDetails.specifications).map(([key, value]) => (
+                                              <span key={key} style={{ 
+                                                background: '#f1f1f1', 
+                                                padding: '4px 12px', 
+                                                borderRadius: '12px',
+                                                fontSize: '12px'
+                                              }}>
+                                                <strong>{key}:</strong> {String(value)}
+                                              </span>
+                                            ))}
+                                          </InlineStack>
+                                        </Box>
+                                      </Box>
+                                    )}
+                                    
+                                    {parsedDetails?.platforms && typeof parsedDetails.platforms === 'object' && Object.keys(parsedDetails.platforms).length > 0 && (
+                                      <Box paddingBlockStart="300">
+                                        <Text as="p" fontWeight="bold">Platform Content:</Text>
+                                        <Box paddingBlockStart="200">
+                                          <BlockStack gap="300">
+                                          {Object.entries(parsedDetails.platforms).map(([platform, content]: [string, any]) => (
+                                            <Card key={platform}>
+                                              <Box padding="300">
+                                                <BlockStack gap="200">
+                                                  <Text as="p" fontWeight="bold" tone="subdued">
+                                                    {platform === 'shopify' ? '🛍️ Shopify' : platform === 'generic' ? '🌐 Generic' : platform.toUpperCase()}
+                                                  </Text>
+                                                  {content?.title && (
+                                                    <Box>
+                                                      <Text as="p" variant="bodySm" tone="subdued">Title</Text>
+                                                      <Text as="p">{content.title}</Text>
+                                                    </Box>
+                                                  )}
+                                                  {content?.description && (
+                                                    <Box>
+                                                      <Text as="p" variant="bodySm" tone="subdued">Description</Text>
+                                                      <Text as="p" variant="bodySm">{content.description}</Text>
+                                                    </Box>
+                                                  )}
+                                                  {content?.metadata?.features && content.metadata.features.length > 0 && (
+                                                    <Box>
+                                                      <Text as="p" variant="bodySm" tone="subdued">Key Features</Text>
+                                                      <InlineStack gap="100" wrap>
+                                                        {content.metadata.features.slice(0, 3).map((f: string, i: number) => (
+                                                          <span key={i} style={{ fontSize: '11px', background: '#e8f4fd', padding: '2px 8px', borderRadius: '4px' }}>
+                                                            {f.substring(0, 30)}{f.length > 30 ? '...' : ''}
+                                                          </span>
+                                                        ))}
+                                                      </InlineStack>
+                                                    </Box>
+                                                  )}
+                                                </BlockStack>
+                                              </Box>
+                                            </Card>
+                                          ))}
+                                          </BlockStack>
+                                        </Box>
+                                      </Box>
+                                    )}
+                                  </BlockStack>
+                                </Box>
+                              );
+                            })() : null}
                           </BlockStack>
                         </Box>
                       </Card>

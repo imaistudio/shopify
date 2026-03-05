@@ -38,6 +38,27 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
   const [showToast, setShowToast] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
 
+  const loadHistory = async () => {
+    try {
+      setLoading(true);
+      const resp = await fetch('/api/imai/history');
+      if (resp.ok) {
+        const data = await resp.json();
+        setHistory(data.map((h: any) => ({
+          id: `history-${h.id}`,
+          prompt: h.prompt,
+          results: h.results || null,
+          response: h.response || null,
+          error: null,
+        })));
+      }
+    } catch (error) {
+      console.error('Failed to load history:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleImport = async () => {
     if (!selectedImage?.url) return;
     
@@ -71,29 +92,44 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
     setSelectedImage({ url, prompt, index });
   };
 
+  // Initial load and when shop changes
   useEffect(() => {
-    const loadHistory = async () => {
+    loadHistory();
+  }, [shop]);
+
+  // Listen for SSE events to auto-refresh
+  useEffect(() => {
+    if (!shop) return;
+
+    const eventSource = new EventSource(`/api/imai/events?shop=${shop}`);
+
+    eventSource.onmessage = (event) => {
       try {
-        setLoading(true);
-        const resp = await fetch('/api/imai/history');
-        if (resp.ok) {
-          const data = await resp.json();
-          setHistory(data.map((h: any) => ({
-            id: `history-${h.id}`,
-            prompt: h.prompt,
-            results: h.results || null,
-            response: h.response || null,
-            error: null,
-          })));
+        const data = JSON.parse(event.data);
+        if (data.type === 'job_update' && (data.status === 'completed' || data.status === 'failed')) {
+          // Refresh history when a job completes or fails
+          loadHistory();
         }
-      } catch (error) {
-        console.error('Failed to load history:', error);
-      } finally {
-        setLoading(false);
+      } catch (err) {
+        console.error("Error parsing SSE event in History:", err);
       }
     };
-    loadHistory();
-  }, [shop]); // Only depend on shop, not refreshTrigger
+
+    eventSource.onerror = () => {
+      eventSource.close();
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [shop]);
+
+  // Also refresh when refreshTrigger changes
+  useEffect(() => {
+    if (refreshTrigger) {
+      loadHistory();
+    }
+  }, [refreshTrigger]);
 
   if (loading) {
     return (
@@ -128,6 +164,7 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
     if (item.results && item.results.length > 0) return true;
     
     // Check if item has product generation response with images
+    if (item.response?.urls && item.response.urls.length > 0) return true;
     if (item.response?.images?.urls && item.response.images.urls.length > 0) return true;
     
     return false;
@@ -186,9 +223,9 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
                     {/* Handle product generation responses */}
                     {item.response && (
                       <BlockStack gap="200">
-                        {item.response.images?.urls && item.response.images.urls.length > 0 && (
+                        {(item.response.urls || item.response.images?.urls)?.length > 0 && (
                           <InlineGrid columns={{ xs: 2 }} gap="200">
-                            {item.response.images.urls.map((url: string, index: number) => (
+                            {(item.response.urls || item.response.images?.urls).map((url: string, index: number) => (
                               <div 
                                 key={index} 
                                 onClick={() => handleImageClick(url, index, item.prompt)}
