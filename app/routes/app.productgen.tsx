@@ -274,11 +274,15 @@ export default function ProductGenPage() {
     eventSource.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
+        console.log("SSE event received:", data);
+        
         if (data.type === 'job_update') {
           const { jobId, status, result, error } = data;
 
           // Find the generation with this jobId
           const generationIndex = generations.findIndex(gen => gen.jobId === jobId);
+          console.log("Found generation index:", generationIndex, "for jobId:", jobId);
+          
           if (generationIndex !== -1) {
             if (status === 'completed') {
               console.log('Job completed via webhook:', jobId);
@@ -300,6 +304,8 @@ export default function ProductGenPage() {
               setProgress(0);
               setShowCancelButton(false);
             }
+          } else {
+            console.log("No generation found for jobId:", jobId, "current generations:", generations.map(g => g.jobId));
           }
         }
       } catch (err) {
@@ -314,9 +320,77 @@ export default function ProductGenPage() {
     return () => {
       eventSource.close();
     };
-  }, [isConnected, generations]);
+  }, [isConnected, shop]); // Only depend on isConnected and shop, not generations
 
-  // Timeout handling for webhook failures - persistent across refreshes
+  // Fallback polling for jobs that might have missed SSE events
+  useEffect(() => {
+    if (!isConnected || !hasActiveGeneration) return;
+
+    let retryCount = 0;
+    const maxRetries = 5;
+    const pollInterval = 6000; // 6 seconds to give SSE time first
+    
+    const pollJobStatus = async () => {
+      const activeJobs = generations.filter(gen => gen.isGenerating && gen.jobId);
+      
+      if (activeJobs.length === 0) return;
+      
+      retryCount++;
+      console.log(`Background polling attempt ${retryCount}/${maxRetries} for ${activeJobs.length} jobs`);
+      
+      for (const job of activeJobs) {
+        try {
+          const resp = await fetch(`/api/imai/status?jobId=${job.jobId}`);
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data.job && (data.job.status === 'completed' || data.job.status === 'failed')) {
+              console.log('Found completed/failed job via polling:', data.job);
+              
+              const generationIndex = generations.findIndex(gen => gen.jobId === job.jobId);
+              if (generationIndex !== -1) {
+                if (data.job.status === 'completed') {
+                  const result = data.job.result ? JSON.parse(data.job.result) : null;
+                  setGenerations(prev => prev.map((gen, index) =>
+                    index === generationIndex
+                      ? { ...gen, isGenerating: false, response: result }
+                      : gen
+                  ));
+                  setProgress(100);
+                  setTimeout(() => setProgress(0), 2000);
+                  setShowCancelButton(false);
+                } else if (data.job.status === 'failed') {
+                  setGenerations(prev => prev.map((gen, index) =>
+                    index === generationIndex
+                      ? { ...gen, isGenerating: false, error: data.job.error || "Generation failed" }
+                      : gen
+                  ));
+                  setProgress(0);
+                  setShowCancelButton(false);
+                }
+                return; // Stop polling once we find a completed/failed job
+              }
+            }
+          }
+        } catch (error) {
+          console.error('Failed to poll job status:', error);
+        }
+      }
+      
+      // Continue polling if we haven't reached max retries
+      if (retryCount < maxRetries) {
+        setTimeout(pollJobStatus, pollInterval);
+      } else {
+        console.log('Max polling retries reached, stopping background polling');
+      }
+    };
+
+    // Start polling after 6 seconds (give SSE events chance first)
+    const initialDelay = setTimeout(pollJobStatus, 6000);
+
+    return () => {
+      clearTimeout(initialDelay);
+    };
+  }, [isConnected, hasActiveGeneration, generations]);
   useEffect(() => {
     if (!hasActiveGeneration) {
       setShowCancelButton(false);
