@@ -9,8 +9,12 @@ const activeStreams = new Map<string, Array<{ id: string; controller: ReadableSt
  * Server-Sent Events endpoint for real-time job updates
  */
 export async function loader({ request }: LoaderFunctionArgs) {
-  const { session } = await authenticate.admin(request);
-  const shop = session.shop;
+  const url = new URL(request.url);
+  const shop = url.searchParams.get('shop');
+  
+  if (!shop) {
+    return new Response('Shop parameter required', { status: 400 });
+  }
 
   // Create a unique ID for this connection
   const connectionId = crypto.randomUUID();

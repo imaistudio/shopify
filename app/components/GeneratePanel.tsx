@@ -126,7 +126,7 @@ export function GeneratePanel({ onGenerationComplete, shop, balance }: GenerateP
 
   // Set up SSE event listening for webhook completion
   useEffect(() => {
-    const eventSource = new EventSource('/api/imai/events');
+    const eventSource = new EventSource(`/api/imai/events?shop=${shop}`);
 
     eventSource.onmessage = (event) => {
       try {

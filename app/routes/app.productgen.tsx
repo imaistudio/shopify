@@ -269,7 +269,7 @@ export default function ProductGenPage() {
   useEffect(() => {
     if (!isConnected) return;
 
-    const eventSource = new EventSource('/api/imai/events');
+    const eventSource = new EventSource(`/api/imai/events?shop=${shop}`);
 
     eventSource.onmessage = (event) => {
       try {
