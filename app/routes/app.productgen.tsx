@@ -735,24 +735,26 @@ export default function ProductGenPage() {
                                 </Text>
                               </BlockStack>
                             ) : gen.status === 'failed' || gen.error ? (
-                              <BlockStack gap="200" align="center">
-                                <InlineStack gap="200" blockAlign="center">
-                                  <Icon source={XCircleIcon} tone="critical" />
-                                  <Text as="p" tone="critical">{gen.error || "Generation failed"}</Text>
-                                </InlineStack>
-                                <Button 
-                                  variant="plain" 
-                                  tone="critical"
-                                  onClick={() => {
-                                    setPrompt(gen.prompt);
-                                    if (gen.previewUrl) {
-                                      setPreviewUrl(gen.previewUrl);
-                                    }
-                                  }}
-                                >
-                                  Retry with same prompt
-                                </Button>
-                              </BlockStack>
+                              <div style={{ textAlign: 'center', padding: '20px' }}>
+                                <BlockStack gap="200" align="center">
+                                  <InlineStack gap="200" blockAlign="center">
+                                    <Icon source={XCircleIcon} tone="critical" />
+                                    <Text as="p" tone="critical">Failed to generate, please try again later.</Text>
+                                  </InlineStack>
+                                  <Button 
+                                    variant="plain" 
+                                    tone="critical"
+                                    onClick={() => {
+                                      setPrompt(gen.prompt);
+                                      if (gen.previewUrl) {
+                                        setPreviewUrl(gen.previewUrl);
+                                      }
+                                    }}
+                                  >
+                                    Retry with same prompt
+                                  </Button>
+                                </BlockStack>
+                              </div>
                             ) : gen.status === 'cancelled' ? (
                               <BlockStack gap="200" align="center">
                                 <InlineStack gap="200" blockAlign="center">
