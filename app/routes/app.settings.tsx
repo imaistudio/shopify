@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useFetcher, useLoaderData } from "react-router";
-import { authenticate } from "../shopify.server";
+import { authenticate, sessionStorage } from "../shopify.server";
 import prisma from "../db.server";
 import { encrypt, decrypt, maskApiKey } from "../lib/encryption.server";
 import {
@@ -110,9 +110,112 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         success: true, 
         maskedKey,
         balance: creditsData.balance || 0,
+        message: "IMAI API key connected successfully",
       };
     } catch (err) {
       return { error: "Network error. Could not reach IMAI Studio." };
+    }
+  }
+
+  if (intent === "connectStoreToImai") {
+    console.log("[IMAI_SYNC] Start connectStoreToImai", {
+      shop: session.shop,
+      hasOnlineAccessToken: Boolean(session.accessToken),
+      sessionScope: session.scope ?? null,
+    });
+
+    const apiKeyRecord = await prisma.apiKey.findUnique({
+      where: { shop: session.shop },
+    });
+
+    if (!apiKeyRecord) {
+      console.error("[IMAI_SYNC] Missing IMAI API key for shop", { shop: session.shop });
+      return { error: "Failed to connect store token to IMAI." };
+    }
+
+    const offlineSessionId = `offline_${session.shop}`;
+    const offlineSession = await sessionStorage.loadSession(offlineSessionId);
+    const sourceSession = offlineSession ?? session;
+    console.log("[IMAI_SYNC] Session resolution", {
+      shop: session.shop,
+      offlineSessionId,
+      foundOfflineSession: Boolean(offlineSession),
+      usingOfflineSession: Boolean(offlineSession),
+      hasSourceAccessToken: Boolean(sourceSession?.accessToken),
+      sourceScope: sourceSession?.scope ?? null,
+    });
+
+    if (!sourceSession?.accessToken) {
+      console.error("[IMAI_SYNC] No Shopify access token found", {
+        shop: session.shop,
+        usedOfflineSession: Boolean(offlineSession),
+      });
+      return { error: "Failed to connect store token to IMAI." };
+    }
+
+    const apiKey = decrypt(apiKeyRecord.encryptedKey);
+    const scope = sourceSession.scope
+      ? sourceSession.scope.split(",").map((value) => value.trim()).filter(Boolean)
+      : undefined;
+    const requestPayload = {
+      platform: "shopify",
+      platformUserId: session.shop,
+      token: sourceSession.accessToken,
+      scope,
+      domain: session.shop,
+    };
+
+    console.log("[IMAI_SYNC] Prepared payload", {
+      endpoint: "https://www.imai.studio/api/v1/oauth",
+      shop: session.shop,
+      payloadPreview: {
+        ...requestPayload,
+        token: `${requestPayload.token.slice(0, 6)}...${requestPayload.token.slice(-4)}`,
+      },
+      tokenLength: requestPayload.token.length,
+      hasScope: Boolean(scope?.length),
+      scopeCount: scope?.length ?? 0,
+    });
+
+    try {
+      const response = await fetch("https://www.imai.studio/api/v1/oauth", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestPayload),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      console.log("[IMAI_SYNC] IMAI response received", {
+        shop: session.shop,
+        status: response.status,
+        ok: response.ok,
+        responseBody: data,
+      });
+
+      if (!response.ok) {
+        console.error("[IMAI_SYNC] IMAI sync failed", {
+          shop: session.shop,
+          status: response.status,
+          responseBody: data,
+        });
+        return { error: "Failed to connect store token to IMAI." };
+      }
+
+      console.log("[IMAI_SYNC] IMAI sync success", {
+        shop: session.shop,
+        tokenId: data?.tokenId ?? null,
+      });
+      return {
+        success: true,
+        tokenId: data?.tokenId ?? null,
+        message: "Store token connected to IMAI successfully",
+      };
+    } catch (error) {
+      console.error("[IMAI_SYNC] Network error", { shop: session.shop, error });
+      return { error: "Failed to connect to IMAI.Studio." };
     }
   }
 
@@ -121,7 +224,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     await prisma.apiKey.delete({
       where: { shop: session.shop },
     });
-    return { success: true, removed: true };
+    return { success: true, removed: true, message: "IMAI API key removed" };
   }
 
   return null;
@@ -149,7 +252,21 @@ export default function SettingsPage() {
     );
   }, [fetcher]);
 
+  const connectStoreToImai = useCallback(() => {
+    fetcher.submit(
+      { intent: "connectStoreToImai" },
+      { method: "post" }
+    );
+  }, [fetcher]);
+
   const error = fetcher.data?.error;
+  const successMessage = fetcher.data?.success ? fetcher.data?.message : null;
+  const isConnectingStore =
+    fetcher.state === "submitting" &&
+    fetcher.formData?.get("intent") === "connectStoreToImai";
+  const isRemovingKey =
+    fetcher.state === "submitting" &&
+    fetcher.formData?.get("intent") === "removeKey";
 
   return (
     <Page title="Settings">
@@ -167,6 +284,11 @@ export default function SettingsPage() {
             {error}
           </Banner>
         )}
+        {successMessage && (
+          <Banner tone="success" title="Success">
+            {successMessage}
+          </Banner>
+        )}
 
         <Box paddingInlineStart="400" paddingInlineEnd="400">
           <div
@@ -174,26 +296,13 @@ export default function SettingsPage() {
               display: "grid",
               gridTemplateColumns: "3fr 2fr",
               gap: 24,
-              alignItems: "stretch",
+              alignItems: "start",
             }}
             className="settings-grid"
           >
-            <div style={{ height: "100%", display: "flex" }}>
-              <div style={{ 
-                flex: 1, 
-                display: "flex", 
-                flexDirection: "column",
-                backgroundColor: "var(--p-color-bg-surface)",
-                borderRadius: "var(--p-border-radius-200)",
-                border: "1px solid var(--p-color-border)"
-              }}>
-                <div style={{ 
-                  padding: "var(--p-space-400)", 
-                  flex: 1, 
-                  display: "flex", 
-                  flexDirection: "column", 
-                  justifyContent: "center" 
-                }}>
+            <BlockStack gap="400">
+              <Card>
+                <Box padding="400">
                   {isConnected ? (
                     <BlockStack gap="300">
                       <InlineStack gap="200" blockAlign="center">
@@ -216,7 +325,7 @@ export default function SettingsPage() {
                       <div>
                         <Button
                           onClick={removeKey}
-                          loading={fetcher.state === "submitting"}
+                          loading={isRemovingKey}
                           variant="primary"
                           tone="critical"
                         >
@@ -236,37 +345,45 @@ export default function SettingsPage() {
                       onKeySaved={handleKeySaved}
                     />
                   )}
-                </div>
-              </div>
-            </div>
+                </Box>
+              </Card>
 
-            <div style={{ height: "100%", display: "flex" }}>
-              <div style={{ 
-                flex: 1, 
-                display: "flex", 
-                flexDirection: "column",
-                backgroundColor: "var(--p-color-bg-surface)",
-                borderRadius: "var(--p-border-radius-200)",
-                border: "1px solid var(--p-color-border)"
-              }}>
-                <div style={{ 
-                  padding: "var(--p-space-400)", 
-                  flex: 1, 
-                  display: "flex", 
-                  flexDirection: "column", 
-                  justifyContent: "center" 
-                }}>
-                  <BlockStack gap="200">
+              <Card>
+                <Box padding="400">
+                  <BlockStack gap="300">
                     <Text as="h2" variant="headingMd">
-                      Credits Remaining
+                      Sync Products to IMAI.STUDIO
                     </Text>
-                    <Text as="p" variant="headingLg" fontWeight="medium">
-                      {balance === null ? "0" : balance.toLocaleString()}
+                    <Text as="p" tone="subdued">
+                      Sync all the products in your store to IMAI.STUDIO so your catalog stays connected and ready for generation.
                     </Text>
+                    <InlineStack>
+                      <Button
+                        onClick={connectStoreToImai}
+                        loading={isConnectingStore}
+                        disabled={!isConnected}
+                        variant="primary"
+                      >
+                        Connect Store to IMAI
+                      </Button>
+                    </InlineStack>
                   </BlockStack>
-                </div>
-              </div>
-            </div>
+                </Box>
+              </Card>
+            </BlockStack>
+
+            <Card>
+              <Box padding="400">
+                <BlockStack gap="200">
+                  <Text as="h2" variant="headingMd">
+                    Credits Remaining
+                  </Text>
+                  <Text as="p" variant="headingLg" fontWeight="medium">
+                    {balance === null ? "0" : balance.toLocaleString()}
+                  </Text>
+                </BlockStack>
+              </Box>
+            </Card>
           </div>
         </Box>
       </BlockStack>

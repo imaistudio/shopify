@@ -37,6 +37,16 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
   const [selectedImage, setSelectedImage] = useState<SelectedImage | null>(null);
   const [showToast, setShowToast] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [brokenImageUrls, setBrokenImageUrls] = useState<Set<string>>(new Set());
+
+  const markImageAsBroken = (url: string) => {
+    setBrokenImageUrls((prev) => {
+      if (prev.has(url)) return prev;
+      const next = new Set(prev);
+      next.add(url);
+      return next;
+    });
+  };
 
   const loadHistory = async () => {
     try {
@@ -44,6 +54,7 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
       const resp = await fetch('/api/imai/history');
       if (resp.ok) {
         const data = await resp.json();
+        setBrokenImageUrls(new Set());
         setHistory(data.map((h: any) => ({
           id: `history-${h.id}`,
           prompt: h.prompt,
@@ -159,15 +170,13 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
   const validHistoryItems = history.filter(item => {
     // Check if item has error
     if (item.error) return false;
-    
-    // Check if item has regular image results
-    if (item.results && item.results.length > 0) return true;
-    
-    // Check if item has product generation response with images
-    if (item.response?.urls && item.response.urls.length > 0) return true;
-    if (item.response?.images?.urls && item.response.images.urls.length > 0) return true;
-    
-    return false;
+
+    const regularUrls = (item.results || []).filter((url) => !brokenImageUrls.has(url));
+    if (regularUrls.length > 0) return true;
+
+    const responseUrls = (item.response?.urls || item.response?.images?.urls || [])
+      .filter((url: string) => !brokenImageUrls.has(url));
+    return responseUrls.length > 0;
   });
 
   if (validHistoryItems.length === 0) {
@@ -193,9 +202,11 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
                 <Box key={item.id} padding="300" background="bg-fill-secondary" borderRadius="200">
                   <BlockStack gap="200">
                     {/* Handle regular image results */}
-                    {item.results && item.results.length > 0 && (
+                    {item.results && item.results.filter((url) => !brokenImageUrls.has(url)).length > 0 && (
                       <InlineGrid columns={{ xs: 2 }} gap="200">
-                        {item.results.map((url, index) => (
+                        {item.results
+                          .filter((url) => !brokenImageUrls.has(url))
+                          .map((url, index) => (
                           <div 
                             key={index} 
                             onClick={() => handleImageClick(url, index, item.prompt)}
@@ -211,6 +222,7 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
                             >
                               <img
                                 src={url}
+                                onError={() => markImageAsBroken(url)}
                                 style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                                 alt={`Generated ${index + 1}`}
                               />
@@ -223,9 +235,13 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
                     {/* Handle product generation responses */}
                     {item.response && (
                       <BlockStack gap="200">
-                        {(item.response.urls || item.response.images?.urls)?.length > 0 && (
+                        {(item.response.urls || item.response.images?.urls)
+                          ?.filter((url: string) => !brokenImageUrls.has(url))
+                          .length > 0 && (
                           <InlineGrid columns={{ xs: 2 }} gap="200">
-                            {(item.response.urls || item.response.images?.urls).map((url: string, index: number) => (
+                            {(item.response.urls || item.response.images?.urls)
+                              .filter((url: string) => !brokenImageUrls.has(url))
+                              .map((url: string, index: number) => (
                               <div 
                                 key={index} 
                                 onClick={() => handleImageClick(url, index, item.prompt)}
@@ -241,6 +257,7 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
                                 >
                                   <img
                                     src={url}
+                                    onError={() => markImageAsBroken(url)}
                                     style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
                                     alt={`Generated ${index + 1}`}
                                   />
