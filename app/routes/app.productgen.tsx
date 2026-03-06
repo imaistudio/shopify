@@ -543,7 +543,7 @@ export default function ProductGenPage() {
       <BlockStack gap="400">
         <Box paddingBlockEnd="200" style={{ marginTop: '-20px' }}>
           <Text as="p" tone="subdued">
-            Create professional product photos for your store. Turn any product image into clean catalogue shots, lifestyle scenes, or marketing visuals.
+            Create professional product photos for your store. Turn any product image into clean catalogue shots.
           </Text>
         </Box>
         {/* First Banner - Top of Page */}
