@@ -1155,6 +1155,157 @@ curl -X POST "https://YOUR_DOMAIN/api/v1/storage" \
 
 ---
 
+## 10. Store OAuth Token
+
+Store an OAuth access token for a supported external platform.
+
+**Endpoint**: `POST /api/v1/oauth`
+
+**Authentication**: Required (any valid API key)
+
+**Security Notes**:
+
+- The API key is the only authentication mechanism for this endpoint.
+- The server binds the stored token to the organization from the validated API key.
+- Access tokens are stored as one-way hashes and can still be verified server-side.
+- `refreshToken` is intentionally not accepted by this endpoint.
+
+**Request Body**:
+
+- `platform` (string, required): Platform name (for example `github`, `slack`, `discord`, `google`, or any other provider you use)
+- `platformUserId` (string, required): User's ID on the external platform
+- `token` (string, required): Raw OAuth access token
+- `tokenExpiresAt` (number, optional): Token expiration timestamp
+- `scope` (string[], optional): OAuth scopes granted
+- `metadata` (object, optional): Additional user metadata
+  - `email` (string, optional): User's email
+  - `username` (string, optional): User's username
+  - `avatar` (string, optional): User's avatar URL
+- `domain` (string, optional): Source domain for bookkeeping only
+
+**Response**: Success confirmation with stored token ID
+
+---
+
+#### curl Examples
+
+**Store GitHub OAuth token**:
+
+```bash
+curl -X POST "https://YOUR_DOMAIN/api/v1/oauth" \
+  -H "Authorization: Bearer sk_live_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "platform": "github",
+    "platformUserId": "12345",
+    "token": "gho_xxxxxxxxxxxxxxxxxxxx",
+    "tokenExpiresAt": 1735689600000,
+    "scope": ["repo", "user:email"],
+    "metadata": {
+      "username": "johndoe",
+      "email": "john@example.com",
+      "avatar": "https://github.com/images/error/johndoe_happy.gif"
+    },
+    "domain": "github.com"
+  }'
+```
+
+**Store Slack OAuth token**:
+
+```bash
+curl -X POST "https://YOUR_DOMAIN/api/v1/oauth" \
+  -H "Authorization: Bearer sk_live_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "platform": "slack",
+    "platformUserId": "U1234567890",
+    "token": "xoxp-1234567890-1234567890-abcdefghijklmnopqrstuvwx",
+    "scope": ["channels:read", "chat:write", "users:read"],
+    "metadata": {
+      "username": "johndoe",
+      "email": "john@company.com"
+    },
+    "domain": "slack.com"
+  }'
+```
+
+#### Postman Setup
+
+1. **Method**: `POST`
+2. **URL**: `https://YOUR_DOMAIN/api/v1/oauth`
+3. **Headers**:
+   - `Authorization: Bearer sk_live_xxxxx`
+   - `Content-Type: application/json`
+4. **Body** (raw JSON):
+
+```json
+{
+  "platform": "github",
+  "platformUserId": "12345",
+  "token": "gho_xxxxxxxxxxxxxxxxxxxx",
+  "tokenExpiresAt": 1735689600000,
+  "scope": ["repo", "user:email"],
+  "metadata": {
+    "username": "johndoe",
+    "email": "john@example.com",
+    "avatar": "https://github.com/images/error/johndoe_happy.gif"
+  },
+  "domain": "github.com"
+}
+```
+
+#### Expected Response
+
+**Successful Token Storage** (`POST /api/v1/oauth`):
+
+```json
+{
+  "success": true,
+  "tokenId": "kd8token123abc",
+  "message": "OAuth token stored successfully"
+}
+```
+
+#### Error Responses
+
+**400 Bad Request** (Missing required fields):
+
+```json
+{
+  "error": "Missing required fields",
+  "required": ["platform", "platformUserId", "token"]
+}
+```
+
+**400 Bad Request** (`refreshToken` is no longer accepted):
+
+```json
+{
+  "error": "refreshToken is not supported",
+  "message": "Store only the access token. Refresh tokens are no longer accepted by this endpoint."
+}
+```
+
+**401 Unauthorized** (Invalid or missing API key):
+
+```json
+{
+  "error": "Invalid or expired API key",
+  "message": "Please check your API key or generate a new one"
+}
+```
+
+**500 Internal Server Error** (Server/storage error):
+
+```json
+{
+  "error": "Internal server error",
+  "message": "Failed to store OAuth token"
+}
+```
+
+---
+
 ## Common Issues
 
 ### CORS Errors
