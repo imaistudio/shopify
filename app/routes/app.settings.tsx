@@ -130,7 +130,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     if (!apiKeyRecord) {
       console.error("[IMAI_SYNC] Missing IMAI API key for shop", { shop: session.shop });
-      return { error: "Failed to connect store token to IMAI." };
+      return { error: "failed to connect to IMAI.Studio" };
     }
 
     const offlineSessionId = `offline_${session.shop}`;
@@ -150,7 +150,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         shop: session.shop,
         usedOfflineSession: Boolean(offlineSession),
       });
-      return { error: "Failed to connect store token to IMAI." };
+      return { error: "failed to connect to IMAI.Studio" };
     }
 
     const apiKey = decrypt(apiKeyRecord.encryptedKey);
@@ -201,7 +201,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           status: response.status,
           responseBody: data,
         });
-        return { error: "Failed to connect store token to IMAI." };
+        return { error: "failed to connect to IMAI.Studio" };
       }
 
       console.log("[IMAI_SYNC] IMAI sync success", {
@@ -215,7 +215,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       };
     } catch (error) {
       console.error("[IMAI_SYNC] Network error", { shop: session.shop, error });
-      return { error: "Failed to connect to IMAI.Studio." };
+      return { error: "failed to connect to IMAI.Studio" };
     }
   }
 
