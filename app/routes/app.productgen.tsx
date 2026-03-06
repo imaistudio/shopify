@@ -21,7 +21,7 @@ import {
   ProgressBar,
   Icon,
 } from "@shopify/polaris";
-import { ImageIcon, CheckCircleIcon, XCircleIcon } from "@shopify/polaris-icons";
+import { ImageIcon, CheckCircleIcon, XCircleIcon, PlusIcon } from "@shopify/polaris-icons";
 
 // Components
 import { CreditsBadge } from "../components/CreditsBadge";
@@ -587,21 +587,31 @@ export default function ProductGenPage() {
                       allowMultiple={false}
                     >
                       <div 
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        justifyContent: 'center', 
-                        minHeight: '200px',
-                        width: '100%'
-                      }}
-                    >
-                      <BlockStack gap="200" align="center">
-                        <Icon source={ImageIcon} tone="subdued" />
-                        <Text as="p" alignment="center" tone="subdued">
-                          Drop an image here or click to upload
-                        </Text>
-                      </BlockStack>
-                    </div>
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center', 
+                          minHeight: '200px',
+                          width: '100%',
+                          padding: '16px'
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '4px',
+                            margin: 0,
+                            padding: 0,
+                          }}
+                        >
+                          <Icon source={PlusIcon} tone="subdued" />
+                          <span style={{ fontSize: '13px', color: 'var(--p-color-text-subdued)', margin: 0, lineHeight: 1.3 }}>
+                            Drop or click to upload
+                          </span>
+                        </div>
+                      </div>
                     </DropZone>
                   ) : (
                     <InlineStack gap="200" blockAlign="center">
@@ -622,25 +632,39 @@ export default function ProductGenPage() {
                   label="Custom Prompt (Optional)"
                   value={prompt}
                   onChange={setPrompt}
-                  placeholder="Generate premium leather goods content"
+                  placeholder="E.g. “Premium leather goods on marble” or “Minimal flat lay with natural lighting” — leave blank for auto-generated content."
                   multiline={3}
                   autoComplete="off"
+                  helpText="Optional. Add details like style, mood, or product focus to guide the AI."
                 />
 
                 {balance !== null && (
                   <Text as="p" tone="subdued">
-                    Credits: {Math.round(balance)}
+                    Credits remaining: {Math.round(balance)}
                   </Text>
                 )}
 
-                <Button
-                  variant="primary"
-                  onClick={handleGenerate}
-                  disabled={!isConnected || !uploadedFile || isUploading || hasActiveGeneration}
-                  size="large"
-                >
-                  Generate Content
-                </Button>
+                <Box paddingBlockStart="200" paddingBlockEnd="0">
+                  <div style={{ width: '100%' }}>
+                    <Button
+                      variant="primary"
+                      fullWidth
+                      onClick={handleGenerate}
+                      disabled={!isConnected || !uploadedFile || isUploading || hasActiveGeneration}
+                      size="large"
+                      style={{
+                        backgroundColor: '#000',
+                        color: '#fff',
+                        padding: '14px 24px',
+                        fontSize: '16px',
+                        textAlign: 'center',
+                        fontWeight: 600,
+                      }}
+                    >
+                      Generate Content
+                    </Button>
+                  </div>
+                </Box>
               </BlockStack>
 
               {/* Right Side */}

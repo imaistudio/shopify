@@ -17,7 +17,7 @@ import {
   RadioButton,
   Icon,
 } from "@shopify/polaris";
-import { ImageIcon, CheckCircleIcon, XCircleIcon, ClockIcon } from "@shopify/polaris-icons";
+import { ImageIcon, CheckCircleIcon, XCircleIcon, ClockIcon, PlusIcon } from "@shopify/polaris-icons";
 
 interface Generation {
   id: string;
@@ -548,11 +548,12 @@ export function GeneratePanel({ onGenerationComplete, shop, balance }: GenerateP
             <TextField
               label="What do you want to generate?"
               multiline={4}
-              placeholder="e.g. Generate 3 lifestyle shots on a clean white background..."
+              placeholder="Describe your ideal images — e.g. “4 lifestyle shots on a white background” or “hero banner with model wearing the product”"
               value={prompt}
               onChange={setPrompt}
               autoComplete="off"
               disabled={hasActiveGeneration}
+              helpText="Be specific: number of images, style, background, and mood for best results."
             />
 
             <BlockStack gap="200">
@@ -573,15 +574,25 @@ export function GeneratePanel({ onGenerationComplete, shop, balance }: GenerateP
                       alignItems: 'center', 
                       justifyContent: 'center', 
                       minHeight: '200px',
-                      width: '100%'
+                      width: '100%',
+                      padding: '16px'
                     }}
                   >
-                    <BlockStack gap="200" align="center">
-                      <Icon source={ImageIcon} tone="subdued" />
-                      <Text as="p" alignment="center" tone="subdued">
-                        Drop an image here or click to upload
-                      </Text>
-                    </BlockStack>
+                    <div
+                      style={{
+                        display: 'inline-flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '4px',
+                        margin: 0,
+                        padding: 0,
+                      }}
+                    >
+                      <Icon source={PlusIcon} tone="subdued" />
+                      <span style={{ fontSize: '13px', color: 'var(--p-color-text-subdued)', margin: 0, lineHeight: 1.3 }}>
+                        Drop or click to upload
+                      </span>
+                    </div>
                   </div>
                 </DropZone>
               ) : (
@@ -603,20 +614,31 @@ export function GeneratePanel({ onGenerationComplete, shop, balance }: GenerateP
 
             {balance !== null && (
               <Text as="p" tone="subdued">
-                Credits: {Math.round(balance)}
+                Credits remaining: {Math.round(balance)}
               </Text>
             )}
 
-            <InlineStack gap="300" blockAlign="center">
-              <Button
-                variant="primary"
-                size="large"
-                disabled={!prompt.trim() || !uploadedFile || isUploading || hasActiveGeneration}
-                onClick={handleGenerate}
-              >
-                Generate
-              </Button>
-            </InlineStack>
+            <Box paddingBlockStart="200" paddingBlockEnd="0">
+              <div style={{ width: '100%' }}>
+                <Button
+                  variant="primary"
+                  size="large"
+                  fullWidth
+                  disabled={!prompt.trim() || !uploadedFile || isUploading || hasActiveGeneration}
+                  onClick={handleGenerate}
+                  style={{
+                    backgroundColor: '#000',
+                    color: '#fff',
+                    padding: '14px 24px',
+                    fontSize: '16px',
+                    textAlign: 'center',
+                    fontWeight: 600,
+                  }}
+                >
+                  Generate
+                </Button>
+              </div>
+            </Box>
 
             {error && (
               <div style={{ textAlign: 'center', padding: '20px' }}>
