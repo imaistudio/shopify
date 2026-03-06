@@ -133,14 +133,19 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       return { error: "failed to connect to IMAI.Studio" };
     }
 
+    // Prefer offline session: that token is a long-lived Admin API token usable from anywhere
+    // (background jobs, external services). Online/session tokens are short-lived and user-bound.
+    // See: https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/offline-access-tokens
     const offlineSessionId = `offline_${session.shop}`;
     const offlineSession = await sessionStorage.loadSession(offlineSessionId);
     const sourceSession = offlineSession ?? session;
+    const isOfflineToken = Boolean(offlineSession);
     console.log("[IMAI_SYNC] Session resolution", {
       shop: session.shop,
       offlineSessionId,
       foundOfflineSession: Boolean(offlineSession),
-      usingOfflineSession: Boolean(offlineSession),
+      usingOfflineSession: isOfflineToken,
+      adminApiTokenUsableFromAnywhere: isOfflineToken,
       hasSourceAccessToken: Boolean(sourceSession?.accessToken),
       sourceScope: sourceSession?.scope ?? null,
     });
@@ -168,10 +173,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     console.log("[IMAI_SYNC] Prepared payload", {
       endpoint: "https://www.imai.studio/api/v1/oauth",
       shop: session.shop,
-      payloadPreview: {
-        ...requestPayload,
-        token: `${requestPayload.token.slice(0, 6)}...${requestPayload.token.slice(-4)}`,
-      },
+      tokenType: isOfflineToken
+        ? "offline (Admin API token — usable from anywhere)"
+        : "online/session (short-lived, user-bound)",
+      payloadPreview: requestPayload,
       tokenLength: requestPayload.token.length,
       hasScope: Boolean(scope?.length),
       scopeCount: scope?.length ?? 0,

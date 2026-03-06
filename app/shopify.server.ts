@@ -17,8 +17,10 @@ const shopify = shopifyApp({
   authPathPrefix: "/auth",
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
+  // Use non-expiring offline tokens so the Admin API token is long-lived and usable from anywhere
+  // without refresh. See: https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/offline-access-tokens
   future: {
-    expiringOfflineAccessTokens: true,
+    expiringOfflineAccessTokens: false,
   },
   webhooks: {
     APP_UNINSTALLED: {
