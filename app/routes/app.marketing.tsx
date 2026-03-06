@@ -62,6 +62,11 @@ export default function MarketingPage() {
   return (
     <Page title="Media Studio" primaryAction={primaryAction}>
       <BlockStack gap="400">
+        <Box paddingBlockEnd="200" style={{ marginTop: '-20px' }}>
+          <Text as="p" tone="subdued">
+            Generate eye-catching photos for your social media in seconds. Upload a reference image or describe your idea and let AI create ready-to-post visuals.
+          </Text>
+        </Box>
         {/* First Banner - Top of Page */}
         <Card>
           <Box padding="400">
@@ -93,19 +98,20 @@ export default function MarketingPage() {
         <Card>
           <Box padding="400">
             {isConnected ? (
-              <GeneratePanel 
-                onGenerationComplete={handleGenerationComplete}
-                shop={shop}
-                defaultMode="marketing"
-                balance={balance}
-              />
-            ) : (
-              <BlockStack gap="400" align="center">
-                <Text as="p" tone="subdued" alignment="center">
-                  Connect your API key to generate marketing images
-                </Text>
-              </BlockStack>
-            )}
+                <GeneratePanel 
+                  onGenerationComplete={handleGenerationComplete}
+                  shop={shop}
+                  defaultMode="marketing"
+                  balance={balance}
+                  promptPlaceholder='e.g. "Instagram lifestyle photo with soft lighting" or "Modern product post with pastel background"'
+                />
+              ) : (
+                <BlockStack gap="400" align="center">
+                  <Text as="p" tone="subdued" alignment="center">
+                    Connect your API key to generate marketing images
+                  </Text>
+                </BlockStack>
+              )}
           </Box>
         </Card>
 

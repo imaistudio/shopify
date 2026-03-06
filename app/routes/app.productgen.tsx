@@ -539,14 +539,19 @@ export default function ProductGenPage() {
 
   return (
     <>
-      <Page title="Product Gen" primaryAction={primaryAction}>
+      <Page title="Product Studio" primaryAction={primaryAction}>
       <BlockStack gap="400">
+        <Box paddingBlockEnd="200" style={{ marginTop: '-20px' }}>
+          <Text as="p" tone="subdued">
+            Create professional product photos for your store. Turn any product image into clean catalogue shots, lifestyle scenes, or marketing visuals.
+          </Text>
+        </Box>
         {/* First Banner - Top of Page */}
         <Card>
           <Box padding="400">
             <img 
               src="/productgen.png" 
-              alt="Product Generation Banner"
+              alt="Product Studio Banner"
               style={{ 
                 width: "100%", 
                 height: "auto", 
@@ -632,10 +637,10 @@ export default function ProductGenPage() {
                   label="Custom Prompt (Optional)"
                   value={prompt}
                   onChange={setPrompt}
-                  placeholder="E.g. “Premium leather goods on marble” or “Minimal flat lay with natural lighting” — leave blank for auto-generated content."
+                  placeholder='e.g. "Clean white background ecommerce shot" or "Luxury product on marble surface"'
                   multiline={3}
                   autoComplete="off"
-                  helpText="Optional. Add details like style, mood, or product focus to guide the AI."
+                  helpText="Add style, mood, or background ideas to guide the AI."
                 />
 
                 {balance !== null && (

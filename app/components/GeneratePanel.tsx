@@ -36,6 +36,10 @@ interface GeneratePanelProps {
   onGenerationComplete: () => void;
   shop: string;
   balance: number | null;
+  /** Optional placeholder for the prompt field (e.g. Media Studio vs default). */
+  promptPlaceholder?: string;
+  /** Optional help text below the prompt field. */
+  promptHelpText?: string;
 }
 
 // Constants for polling and timeouts
@@ -45,7 +49,10 @@ const POLL_INTERVAL_MS = 120000; // 2 minutes between polls
 const MAX_POLL_COUNT = 4; // Max 4 polling attempts
 const CANCEL_BUTTON_TIMEOUT_MS = 60000; // 1 minute before showing cancel button
 
-export function GeneratePanel({ onGenerationComplete, shop, balance }: GeneratePanelProps) {
+const DEFAULT_PROMPT_PLACEHOLDER = "Describe your ideal images — e.g. “4 lifestyle shots on a white background” or “hero banner with model wearing the product”";
+const DEFAULT_PROMPT_HELP = "Be specific: number of images, style, background, and mood for best results.";
+
+export function GeneratePanel({ onGenerationComplete, shop, balance, promptPlaceholder, promptHelpText }: GeneratePanelProps) {
   const [prompt, setPrompt] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -548,12 +555,12 @@ export function GeneratePanel({ onGenerationComplete, shop, balance }: GenerateP
             <TextField
               label="What do you want to generate?"
               multiline={4}
-              placeholder="Describe your ideal images — e.g. “4 lifestyle shots on a white background” or “hero banner with model wearing the product”"
+              placeholder={promptPlaceholder ?? DEFAULT_PROMPT_PLACEHOLDER}
               value={prompt}
               onChange={setPrompt}
               autoComplete="off"
               disabled={hasActiveGeneration}
-              helpText="Be specific: number of images, style, background, and mood for best results."
+              helpText={promptHelpText ?? DEFAULT_PROMPT_HELP}
             />
 
             <BlockStack gap="200">
