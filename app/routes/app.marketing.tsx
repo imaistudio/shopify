@@ -71,7 +71,7 @@ export default function MarketingPage() {
         <Card>
           <Box padding="400">
             <img 
-              src="/marketing.png" 
+              src="/media/marketing.webp" 
               alt="Marketing Generation Banner"
               style={{ 
                 width: "100%", 
@@ -119,7 +119,7 @@ export default function MarketingPage() {
         <Card>
           <Box padding="400">
             <img 
-              src="/marketing2.png" 
+              src="/media/marketing2.webp" 
               alt="Marketing History Banner"
               style={{ 
                 width: "100%", 

@@ -550,7 +550,7 @@ export default function ProductGenPage() {
         <Card>
           <Box padding="400">
             <img 
-              src="/productgen.png" 
+              src="/product/productgen.webp" 
               alt="Product Studio Banner"
               style={{ 
                 width: "100%", 
@@ -940,7 +940,7 @@ export default function ProductGenPage() {
         <Card>
           <Box padding="400">
             <img 
-              src="/productgen2.png" 
+              src="/product/productgen2.webp" 
               alt="Product History Banner"
               style={{ 
                 width: "100%", 
