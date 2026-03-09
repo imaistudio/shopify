@@ -105,9 +105,39 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           balance: creditsData.balance || 0,
         },
       });
-      
-      return { 
-        success: true, 
+
+      // Automatically connect store to IMAI after key is verified
+      const offlineSessionId = `offline_${session.shop}`;
+      const offlineSession = await sessionStorage.loadSession(offlineSessionId);
+      const sourceSession = offlineSession ?? session;
+      if (sourceSession?.accessToken) {
+        try {
+          const connectResp = await fetch("https://www.imai.studio/api/v1/oauth", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              platform: "shopify",
+              platformUserId: session.shop,
+              token: sourceSession.accessToken,
+              scope: sourceSession.scope
+                ? sourceSession.scope.split(",").map((s) => s.trim()).filter(Boolean)
+                : undefined,
+              domain: session.shop,
+            }),
+          });
+          if (connectResp.ok) {
+            console.log("[IMAI_SYNC] Auto-connected store after key save", { shop: session.shop });
+          }
+        } catch (e) {
+          console.warn("[IMAI_SYNC] Auto-connect after key save failed", { shop: session.shop, e });
+        }
+      }
+
+      return {
+        success: true,
         maskedKey,
         balance: creditsData.balance || 0,
         message: "IMAI API key connected successfully",
@@ -225,7 +255,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   }
 
   if (intent === "removeKey") {
-    // Delete the key from database
+    // Clean all IMAI data for this shop so adding a new key starts fresh
+    await prisma.imaiJob.deleteMany({ where: { shop: session.shop } });
     await prisma.apiKey.delete({
       where: { shop: session.shop },
     });
@@ -257,18 +288,8 @@ export default function SettingsPage() {
     );
   }, [fetcher]);
 
-  const connectStoreToImai = useCallback(() => {
-    fetcher.submit(
-      { intent: "connectStoreToImai" },
-      { method: "post" }
-    );
-  }, [fetcher]);
-
   const error = fetcher.data?.error;
   const successMessage = fetcher.data?.success ? fetcher.data?.message : null;
-  const isConnectingStore =
-    fetcher.state === "submitting" &&
-    fetcher.formData?.get("intent") === "connectStoreToImai";
   const isRemovingKey =
     fetcher.state === "submitting" &&
     fetcher.formData?.get("intent") === "removeKey";
@@ -305,77 +326,52 @@ export default function SettingsPage() {
             }}
             className="settings-grid"
           >
-            <BlockStack gap="400">
-              <Card>
-                <Box padding="400">
-                  {isConnected ? (
-                    <BlockStack gap="300">
-                      <InlineStack gap="200" blockAlign="center">
-                        <Badge tone="success">Connected</Badge>
-                      </InlineStack>
-
-                      <InlineStack gap="200" blockAlign="center">
-                        <Text as="span" variant="bodyMd" tone="subdued">
-                          API Key
-                        </Text>
-                        <Text
-                          as="span"
-                          variant="headingLg"
-                          fontWeight="medium"
-                        >
-                          {maskedKey}
-                        </Text>
-                      </InlineStack>
-
-                      <div>
-                        <Button
-                          onClick={removeKey}
-                          loading={isRemovingKey}
-                          variant="primary"
-                          tone="critical"
-                        >
-                          Remove Key
-                        </Button>
-                      </div>
-                    </BlockStack>
-                  ) : (
-                    <SettingsBlock
-                      isConnected={isConnected}
-                      maskedKey={maskedKey}
-                      balance={balance}
-                      onSaveKey={saveKey}
-                      onRemoveKey={removeKey}
-                      isLoading={fetcher.state === "submitting"}
-                      error={fetcher.data?.error}
-                      onKeySaved={handleKeySaved}
-                    />
-                  )}
-                </Box>
-              </Card>
-
-              <Card>
-                <Box padding="400">
+            <Card>
+              <Box padding="400">
+                {isConnected ? (
                   <BlockStack gap="300">
-                    <Text as="h2" variant="headingMd">
-                      Sync Products to IMAI.STUDIO
-                    </Text>
-                    <Text as="p" tone="subdued">
-                      Sync all the products in your store to IMAI.STUDIO so your catalog stays connected and ready for generation.
-                    </Text>
-                    <InlineStack>
-                      <Button
-                        onClick={connectStoreToImai}
-                        loading={isConnectingStore}
-                        disabled={!isConnected}
-                        variant="primary"
-                      >
-                        Connect Store to IMAI
-                      </Button>
+                    <InlineStack gap="200" blockAlign="center">
+                      <Badge tone="success">Connected</Badge>
                     </InlineStack>
+
+                    <InlineStack gap="200" blockAlign="center">
+                      <Text as="span" variant="bodyMd" tone="subdued">
+                        API Key
+                      </Text>
+                      <Text
+                        as="span"
+                        variant="headingLg"
+                        fontWeight="medium"
+                      >
+                        {maskedKey}
+                      </Text>
+                    </InlineStack>
+
+                    <div>
+                      <Button
+                        onClick={removeKey}
+                        loading={isRemovingKey}
+                        variant="primary"
+                        tone="critical"
+                      >
+                        Remove Key
+                      </Button>
+                    </div>
                   </BlockStack>
-                </Box>
-              </Card>
-            </BlockStack>
+                ) : (
+                  <SettingsBlock
+                    isConnected={isConnected}
+                    maskedKey={maskedKey}
+                    balance={balance}
+                    onSaveKey={saveKey}
+                    onRemoveKey={removeKey}
+                    isLoading={fetcher.state === "submitting"}
+                    error={fetcher.data?.error}
+                    onKeySaved={handleKeySaved}
+                  />
+                )}
+              </Box>
+            </Card>
 
             <Card>
               <Box padding="400">
