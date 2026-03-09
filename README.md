@@ -1,34 +1,67 @@
-# Shopify App Template - React Router
+# IMAI Studio – Shopify App
 
-This is a template for building a [Shopify app](https://shopify.dev/docs/apps/getting-started) using [React Router](https://reactrouter.com/). It was forked from the [Shopify Remix app template](https://github.com/Shopify/shopify-app-template-remix) and converted to React Router.
+An **embedded Shopify app** that brings [IMAI Studio](https://www.imai.studio) AI into your store. Merchants can generate product images and marketing content, manage an asset library, and sync with IMAI Studio using an API key—all inside Shopify Admin.
 
-Rather than cloning this repo, follow the [Quick Start steps](https://github.com/Shopify/shopify-app-template-react-router#quick-start).
+**What this plugin does:**
 
-Visit the [`shopify.dev` documentation](https://shopify.dev/docs/api/shopify-app-react-router) for more details on the React Router app package.
+- **Product generation** – AI-generated product images and e‑commerce content (titles, descriptions, specs) from prompts or reference images
+- **Library** – Browse and use assets from your IMAI Studio library in the app
+- **Marketing** – Create marketing content with IMAI Studio
+- **Settings** – Connect your store to IMAI Studio via API key; credits and connection status shown in-app
+
+Built with [React Router](https://reactrouter.com/) and the [Shopify App React Router](https://shopify.dev/docs/api/shopify-app-react-router) template.
+
+---
+
+## Developer setup (run and test locally)
+
+1. **Clone the repo** and go into the app directory:
+   ```bash
+   git clone <your-repo-url>
+   cd shopify
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm i
+   ```
+
+3. **Run and test the app** using the simple-start script (starts an ngrok tunnel and Shopify dev server):
+   ```bash
+   ./simple-start.sh
+   ```
+   Make sure the script is executable: `chmod +x simple-start.sh` if needed.  
+   When prompted, install the app on your dev store and open it from Shopify Admin to test.
+
+For environment variables and IMAI API key setup, see [INSTRUCTIONS.md](./INSTRUCTIONS.md).
+
+---
+
+## Deploying to a Shopify store
+
+To host this app and make it available on a store (dev or production), see **[deployment.md](./deployment.md)** for step-by-step instructions to deploy and install the plugin.
 
 ## Upgrading from Remix
 
-If you have an existing Remix app that you want to upgrade to React Router, please follow the [upgrade guide](https://github.com/Shopify/shopify-app-template-react-router/wiki/Upgrading-from-Remix). Otherwise, please follow the quick start guide below.
+If you have an existing Remix app that you want to upgrade to React Router, please follow the [upgrade guide](https://github.com/Shopify/shopify-app-template-react-router/wiki/Upgrading-from-Remix).
 
-## Quick start
+## Quick start (alternative: CLI)
 
-### Prerequisites
+**Prerequisites:** [Install the Shopify CLI](https://shopify.dev/docs/apps/tools/cli/getting-started).
 
-Before you begin, you'll need to [download and install the Shopify CLI](https://shopify.dev/docs/apps/tools/cli/getting-started) if you haven't already.
-
-### Setup
+To create a new app from the template instead of cloning this repo:
 
 ```shell
 shopify app init --template=https://github.com/Shopify/shopify-app-template-react-router
 ```
 
-### Local Development
+For **local development** without the tunnel script, from the app directory run:
 
 ```shell
 shopify app dev
 ```
 
-Press P to open the URL to your app. Once you click install, you can start development.
+Press **P** to open the app URL and install on your dev store.
 
 Local development is powered by [the Shopify CLI](https://shopify.dev/docs/apps/tools/cli). It logs into your account, connects to an app, provides environment variables, updates remote config, creates a tunnel and provides commands to generate extensions.
 
