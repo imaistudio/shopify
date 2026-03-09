@@ -133,11 +133,13 @@ export default function HomePage() {
             title="PRODUCT STUDIO"
             description="Create professional product photos for your store."
             images={[
-              "https://picsum.photos/400/350",
-              "https://picsum.photos/400/260",
-              "https://picsum.photos/400/420",
-              "https://picsum.photos/400/300",
-              "https://picsum.photos/400/380",
+             "/block2/1.webp",
+              "/block2/2.webp",
+              "/block2/3.webp",
+              "/block2/4.webp",
+              "/block2/5.webp",
+              "/block2/6.webp",
+              "/block2/7.webp",
             ]}
           />
         </BlockStack>
