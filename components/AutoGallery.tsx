@@ -2,11 +2,11 @@ import { useState } from "react";
 import { Box } from "@shopify/polaris";
 
 const MEDIA: string[] = [
-  "https://assets.imai.studio/global/video/0bb62b1c-47c0-4dde-a285-4e6d849d5d61.mp4",
-  "https://www.imai.studio/_next/image?url=https%3A%2F%2Fassets.imai.studio%2Fglobal%2Fimage%2Fa6cb8f51-3aaf-456b-8a7d-010b78374b45.jpg&w=640&q=75",
-  "https://www.imai.studio/_next/image?url=https%3A%2F%2Fassets.imai.studio%2Fglobal%2Fimage%2F9677b934-5960-49f2-ae38-290bd4cf66f7.jpg&w=640&q=75",
-  "https://www.imai.studio/_next/image?url=https%3A%2F%2Fassets.imai.studio%2Fglobal%2Fimage%2F598ba541-b03f-44cd-8d39-028613693b13.png&w=640&q=75",
-  "https://www.imai.studio/_next/image?url=https%3A%2F%2Fassets.imai.studio%2Fglobal%2Fimage%2F0821a66f-a1f5-4d37-a7bb-dfaf84ac8293.jpg&w=640&q=75",
+  "/autogallery/1.mp4",
+  "/autogallery/2.webp",
+  "/autogallery/5.webp",
+  "/autogallery/4.webp",
+  "/autogallery/3.webp",
 ];
 
 function isVideo(url: string): boolean {
@@ -22,7 +22,16 @@ function MediaItem({ url }: { url: string }) {
   };
 
   if (isVideo(url)) {
-    return <video src={url} autoPlay muted loop playsInline style={style} />;
+    return (
+      <video
+        src={url}
+        autoPlay
+        muted
+        loop
+        playsInline
+        style={style}
+      />
+    );
   }
 
   return <img src={url} alt="" style={style} />;
@@ -77,7 +86,7 @@ export function AutoGallery() {
       <div className="ag-root">
         {/* HERO */}
         <div className="ag-hero">
-          <MediaItem url={hero} />
+          <MediaItem key={hero} url={hero} />
         </div>
 
         {/* THUMBNAILS (exclude hero) */}

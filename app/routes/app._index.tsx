@@ -117,13 +117,13 @@ export default function HomePage() {
           title="MEDIA STUDIO"
             description="Generate eye-catching photos for your store in seconds."
             images={[
-              "/block1/1.png",
-              "/block1/2.png",
-              "/block1/3.png",
-              "/block1/4.png",
-              "/block1/5.png",
-              "/block1/6.png",
-              "/block1/7.png",
+              "/block1/1.webp",
+              "/block1/2.webp",
+              "/block1/3.webp",
+              "/block1/4.webp",
+              "/block1/5.webp",
+              "/block1/6.webp",
+              "/block1/7.webp",
             ]}
           />
 
