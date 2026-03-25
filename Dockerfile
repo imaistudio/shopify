@@ -9,6 +9,7 @@ ENV NODE_ENV=production
 ENV DATABASE_URL=file:/var/data/prod.sqlite
 
 COPY package.json package-lock.json* ./
+COPY prisma ./prisma
 
 RUN mkdir -p /var/data
 
