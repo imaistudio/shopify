@@ -1,33 +1,52 @@
 # IMAI Studio - Environment Setup
 
-## Required Environment Variables
+This file reflects the code that is currently in this repo.
 
-Add these to your `.env` file:
+## Required environment variables
+
+### Local development
+
+Add these to your local `.env` file:
 
 ```bash
-# Shopify App
 SHOPIFY_API_KEY=your_shopify_api_key
 SHOPIFY_API_SECRET=your_shopify_api_secret
-SHOPIFY_APP_URL=https://your-ngrok-or-production-url.ngrok-free.app
+SHOPIFY_APP_URL=https://your-ngrok-or-localhost-url
 SCOPES=write_metaobject_definitions,write_metaobjects,write_products,write_files
-
-# IMAI API
-IMAI_API_KEY=your_imai_api_key
-IMAI_WEBHOOK_SECRET=your_imai_webhook_secret
-IMAI_BASE_URL=https://www.imai.studio
-
-# App secrets
-ENCRYPTION_KEY=use-a-random-32-plus-character-secret
-
-# Cloudflare R2 Storage
-R2_BASE_URL=https://your-r2-bucket.your-account.r2.cloudflarestorage.com
-
-# Database
 DATABASE_URL=file:./dev.sqlite
-
-# Optional: Image Upload CDN
-IMAGE_UPLOAD_CDN_URL=https://your-cdn.com
+ENCRYPTION_KEY=use-a-random-32-plus-character-secret
+IMAI_WEBHOOK_SECRET=your_imai_webhook_secret
 ```
+
+### Production
+
+For Railway or any other Docker host, use:
+
+```bash
+NODE_ENV=production
+SHOPIFY_API_KEY=your_shopify_api_key
+SHOPIFY_API_SECRET=your_shopify_api_secret
+SHOPIFY_APP_URL=https://your-production-domain
+SCOPES=write_metaobject_definitions,write_metaobjects,write_products,write_files
+DATABASE_URL=file:/var/data/prod.sqlite
+ENCRYPTION_KEY=use-a-random-32-plus-character-secret
+IMAI_WEBHOOK_SECRET=your_imai_webhook_secret
+```
+
+## Variables this repo does not currently use
+
+Do not add these expecting the app to read them:
+
+- `IMAI_API_KEY`
+- `IMAI_BASE_URL`
+- `R2_BASE_URL`
+- `IMAGE_UPLOAD_CDN_URL`
+
+Why:
+
+- merchants enter their own IMAI API key inside the app, and the app stores it encrypted per shop
+- IMAI endpoints are hardcoded to `https://www.imai.studio`
+- uploads currently use `tempfile.org`, not your own R2 bucket or CDN
 
 ## Testing Locally
 
@@ -50,6 +69,7 @@ IMAGE_UPLOAD_CDN_URL=https://your-cdn.com
    - Open the IMAI Studio app in Shopify Admin
    - Go to Settings tab
    - Paste your IMAI API key and click Connect
+   - The key is stored encrypted in the app database for that shop
 
 5. **Generate Images**
    - Go to Generate tab
@@ -60,7 +80,9 @@ IMAGE_UPLOAD_CDN_URL=https://your-cdn.com
 ## Production Checklist
 
 - [ ] Set `ENCRYPTION_KEY` in production
-- [ ] Use a persistent production database path or move to PostgreSQL
+- [ ] Mount persistent storage at `/var/data`
+- [ ] Set `DATABASE_URL=file:/var/data/prod.sqlite`
+- [ ] Run a single app instance
 - [ ] Configure webhook endpoint to public URL
 - [ ] Set `IMAI_WEBHOOK_SECRET` for webhook verification
 - [ ] Run `shopify app deploy` after updating production URLs

@@ -214,6 +214,19 @@ Recommended host settings:
 - health check path: `/api/health`
 - instance count: `1`
 
+### 3A. Railway settings
+
+If you deploy this repo on Railway, configure it like this:
+
+1. Create a web service from the repo and let Railway build the included `Dockerfile`.
+2. Add a volume and mount it at `/var/data`.
+3. Run only one replica for this service.
+4. Set the service domain or custom domain first, then set `SHOPIFY_APP_URL` to that exact HTTPS URL.
+5. Set `DATABASE_URL=file:/var/data/prod.sqlite`.
+6. Use `/api/health` as the health check path if you configure health checks manually.
+
+Railway is a good fit for the current repo because it supports Docker plus persistent volumes. The app is still single-instance by design because of SQLite and in-memory SSE.
+
 ### 4. Set environment variables
 
 At minimum, set:

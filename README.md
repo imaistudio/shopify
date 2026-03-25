@@ -39,12 +39,13 @@ For environment variables and IMAI API key setup, see [INSTRUCTIONS.md](./INSTRU
 
 ## Deploying to a Shopify store
 
-The easiest production path for this repo is now documented as:
+The current repo is designed to run best on a Docker host with:
 
-- Render web service
-- Docker runtime
-- persistent disk-backed SQLite
+- one long-lived web service
+- a persistent disk-backed SQLite database
 - Shopify config sync via `shopify app deploy`
+
+Railway is a valid fit for this shape if you mount a volume at `/var/data` and run a single instance.
 
 See **[deployment.md](./deployment.md)** for the full deployment and Shopify review checklist.
 
