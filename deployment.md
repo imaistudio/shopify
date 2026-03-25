@@ -1,328 +1,425 @@
-# Deploying the IMAI Studio app to Vercel
+# Deploying IMAI Studio and publishing it as a public Shopify app
 
-This guide walks you through deploying this Shopify app **on Vercel** from start to finish: preparing the project, setting up the database, configuring Vercel, updating Shopify, and letting users install the app.
+Last verified against Shopify docs on March 16, 2026.
 
-References: [Shopify – Deploy to a hosting service](https://shopify.dev/docs/apps/launch/deployment/deploy-to-hosting-service), [Vercel – React Router](https://vercel.com/docs/frameworks/frontend/react-router), [Prisma – Deploy to Vercel](https://www.prisma.io/docs/orm/prisma-client/deployment/serverless/deploy-to-vercel).
+This guide is specific to this repository. It covers:
 
----
+- how to host the app
+- how the database works in production
+- how to test the full install-to-webhook flow
+- what Shopify currently requires before a public App Store submission
 
-## What you’ll do
+## What "any user can download and use it" means on Shopify
 
-1. **Prepare the app** – Switch to PostgreSQL, add Vercel’s React Router preset, and ensure the build runs on Vercel.
-2. **Create a production database** – PostgreSQL (e.g. Vercel Postgres or Neon) with a connection URL for serverless.
-3. **Deploy to Vercel** – Connect the repo, set environment variables, and deploy.
-4. **Point Shopify at Vercel** – Set `application_url` and redirect URLs in `shopify.app.toml`, then run `shopify app deploy`.
-5. **Install and test** – Install the app in a dev store and (optionally) distribute to other merchants.
+If you want merchants outside your own clients to install this app, this must be a **public app** with **public distribution**.
 
-**URL / subdomain:** Shopify does not require a specific subdomain. You can use your Vercel URL (e.g. `https://your-app.vercel.app`) or a [custom domain](https://vercel.com/docs/projects/domains) (e.g. `https://app.yourdomain.com`).
+- **Custom distribution** is for specific merchants only. It is not the path for a general App Store release.
+- **Public distribution** is the path that lets you submit the app for Shopify review and publish an App Store listing.
+- Shopify says the app's distribution method can't be changed later, so use the correct production app before you invest more setup time.
 
----
+Useful Shopify docs:
 
-## Prerequisites
+- [Distribution methods](https://shopify.dev/docs/apps/launch/distribution)
+- [Create an App Store listing](https://shopify.dev/docs/apps/launch/app-store-review/app-listing)
+- [Submit your app for review](https://shopify.dev/docs/apps/launch/app-store-review/submit-app-for-review)
 
-- [Shopify CLI](https://shopify.dev/docs/apps/tools/cli/getting-started) installed and logged in (`shopify auth login`).
-- A [Shopify Partners](https://partners.shopify.com) account and an app created in the dashboard.
-- A [Vercel](https://vercel.com) account (GitHub/GitLab/Bitbucket connected).
-- Your app working locally (e.g. with `./simple-start.sh` and ngrok) so you have credentials and scopes.
+## Recommended production architecture for this repo
 
----
+The lowest-friction production setup for this codebase today is:
 
-## Step 1: Get your Shopify app credentials
+1. Host the app as a **Docker web service** on Render or another long-lived container host.
+2. Use a **persistent disk** and keep Prisma on **SQLite** for the first release.
+3. Point Shopify at the production HTTPS URL.
+4. Run `shopify app deploy` to sync Shopify-side config, scopes, and webhooks.
+5. Submit the app from the Shopify Partner Dashboard.
 
-From the project root:
+Why this is the best fit for the current repo:
 
-```bash
-shopify app config link   # if you don’t already have an app linked
-shopify app env show
-```
+- The app already has a production [`Dockerfile`](./Dockerfile).
+- The server runs as a long-lived Node process using `react-router-serve`.
+- The app uses in-memory server-sent events in [`app/routes/api.imai.events.ts`](./app/routes/api.imai.events.ts), which is a poor fit for serverless hosting.
+- Prisma is already wired up for a file-backed SQLite database in [`prisma/schema.prisma`](./prisma/schema.prisma).
+- The production build already runs `prisma migrate deploy` through `npm run build` and `npm run setup`.
 
-Note:
+If you expect high volume, multiple app instances, or want remote SQL access, SQLite will stop being convenient. For the first hosted version it is fine; for scale, plan a move to managed Postgres before you add multiple replicas.
 
-- **SHOPIFY_API_KEY** (Client ID)
-- **SHOPIFY_API_SECRET** (Client secret)
-- **SCOPES** (comma‑separated; should match `shopify.app.toml`)
+## Current Shopify items to take care of before submission
 
-You’ll add these in Vercel later. See [Shopify: Create an app configuration file](https://shopify.dev/docs/apps/launch/deployment/deploy-to-hosting-service#step-1-create-an-app-configuration-file).
+These are the Shopify-specific items that matter for this repo right now:
 
----
+- Use a **public production URL** with valid HTTPS.
+- Keep the app **embedded** inside Shopify Admin.
+- Keep using Shopify's embedded auth flow and session-token approach through the official React Router package already in this repo.
+- Register the mandatory **privacy compliance webhooks**.
+- Provide reviewer instructions, test credentials, and a working test store in the submission form.
+- Add the app listing details Shopify asks for, such as app name, icon, support contact, and privacy-related information.
 
-## Step 2: Switch the app to PostgreSQL
+Important current review note: Shopify's docs say to configure compliance webhooks using `compliance_topics`. This repo's `shopify.app.toml` has been updated accordingly.
 
-Vercel runs your app as serverless functions. SQLite is not suitable (no persistent filesystem). Use **PostgreSQL** and a **pooled** connection URL for serverless.
+References:
 
-### 2.1 Create a PostgreSQL database
+- [Pass app review](https://shopify.dev/docs/apps/launch/app-store-review/pass-app-review)
+- [Privacy law compliance](https://shopify.dev/docs/apps/build/compliance/privacy-law-compliance)
+- [Embedded apps](https://shopify.dev/docs/apps/build/authentication-authorization/session-tokens)
 
-Use one of:
+## Before you deploy
 
-- **[Vercel Postgres](https://vercel.com/docs/storage/vercel-postgres)** – Project → Storage → Create Database → Postgres. Vercel will add `POSTGRES_URL` (or similar) to the project.
-- **[Neon](https://neon.tech)** – Create a project and copy the connection string. Prefer the **pooled** (e.g. “pooler”) URL if shown.
-- **[Prisma Postgres](https://www.prisma.io/docs/guides/postgres/vercel)** – Via Vercel integration; provides a pooled URL.
+You need all of the following:
 
-For serverless, use a **connection pooler** (e.g. URL with `?pgbouncer=true` or a “pooler” host). See [Prisma: Connection pooling](https://www.prisma.io/docs/orm/prisma-client/setup-and-configuration/databases-connections#connection-pooling).
+- a Shopify Partner account
+- a Shopify app created for production
+- the app set up for **public distribution**
+- at least one dev store for testing installs
+- a Render account or another Docker-capable host
+- a GitHub or GitLab repo connected to that host
+- working IMAI credentials for reviewer testing
 
-### 2.2 Update Prisma schema
+## How the production database works
 
-Edit `prisma/schema.prisma` so the datasource uses PostgreSQL and an env var:
+This repo currently uses Prisma with SQLite:
 
 ```prisma
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 ```
 
-Keep all existing models (e.g. `Session`, `ApiKey`, `ImaiJob`) as they are.
+That means the app connects to its production database entirely through `DATABASE_URL`.
 
-### 2.3 Run migrations and generate client (locally)
+### The simple hosted setup
 
-Set `DATABASE_URL` in `.env` to your **production** Postgres URL (or a copy of it), then:
+For this repo, the easiest production database setup is:
 
-```bash
-npx prisma migrate deploy
-npx prisma generate
-```
-
-If you haven’t created migrations yet:
+- attach a persistent disk to the web service
+- mount it at `/var/data`
+- set:
 
 ```bash
-npx prisma migrate dev --name init
+DATABASE_URL=file:/var/data/prod.sqlite
 ```
 
-Then run `prisma migrate deploy` against the production DB when ready.
+That is all the app needs. Prisma reads `DATABASE_URL`, and the startup scripts run migrations automatically.
 
-### 2.4 Ensure Prisma runs at build time on Vercel
+### What gets stored there
 
-In `package.json`, add a `postinstall` so Prisma Client is generated on every deploy:
+The current Prisma models show that the database stores:
 
-```json
-"scripts": {
-  "postinstall": "prisma generate",
-  "build": "prisma generate && prisma migrate deploy && react-router build",
-  ...
-}
-```
+- Shopify sessions in `Session`
+- encrypted merchant IMAI keys in `ApiKey`
+- generation jobs in `ImaiJob`
 
-If you prefer to run migrations outside Vercel (e.g. in CI), you can use:
+See [`prisma/schema.prisma`](./prisma/schema.prisma).
 
-```json
-"build": "prisma generate && react-router build",
-```
+### Important limitation
 
-and run `prisma migrate deploy` in your own pipeline before or after deploy.
+With SQLite on a mounted disk:
 
----
+- the app can persist data across deploys
+- the app does **not** connect to a separate database server
+- you should run only one primary app instance
+- remote SQL access is awkward compared with Postgres
 
-## Step 3: Add Vercel’s React Router preset (recommended)
+If you later want easier backups, remote query access, or horizontal scaling, migrate to a managed Postgres database and update the Prisma datasource before scaling the app further.
 
-Vercel can deploy React Router with zero config, but the preset improves bundle splitting and deployment behavior.
+## Production environment variables
 
-### 3.1 Install the package
+Set these on the host:
 
-```bash
-npm i @vercel/react-router
-```
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `NODE_ENV` | yes | set to `production` |
+| `DATABASE_URL` | yes | use `file:/var/data/prod.sqlite` for the current SQLite setup |
+| `SHOPIFY_APP_URL` | yes | exact public HTTPS URL of the hosted app |
+| `SHOPIFY_API_KEY` | yes | from the Shopify app environment |
+| `SHOPIFY_API_SECRET` | yes | from the Shopify app environment |
+| `SCOPES` | yes | keep in sync with `shopify.app.toml` |
+| `ENCRYPTION_KEY` | yes | must be at least 32 bytes; production boot fails without it |
+| `IMAI_WEBHOOK_SECRET` | recommended | if set, the app enforces HMAC verification on IMAI callbacks |
+| `IMAI_BASE_URL` | recommended | set to the live IMAI API base if you use it in production |
+| `R2_BASE_URL` | optional | only if your deployment uses it |
+| `IMAGE_UPLOAD_CDN_URL` | optional | only if your deployment uses it |
 
-### 3.2 Create or update React Router config
+Notes:
 
-If your project does **not** have a `react-router.config.ts` in the root, create it. If it does, add the preset there.
+- `SHOPIFY_APP_URL` is used when building the callback URL for [`app/routes/api.imai.webhook.ts`](./app/routes/api.imai.webhook.ts).
+- `ENCRYPTION_KEY` is enforced in production by [`app/lib/encryption.server.ts`](./app/lib/encryption.server.ts).
+- `SHOPIFY_API_KEY` and `SHOPIFY_API_SECRET` can be checked with `shopify app env show`.
 
-Create **`react-router.config.ts`** in the project root:
+## Step-by-step deployment
 
-```ts
-import type { Config } from "@react-router/dev/config";
-import { vercelPreset } from "@vercel/react-router/vite";
+### 1. Prepare Shopify config
 
-export default {
-  ssr: true,
-  presets: [vercelPreset()],
-} satisfies Config;
-```
+Shopify recommends keeping a separate app config for development and production so local tunnel changes do not leak into the live app. If you keep a single `shopify.app.toml`, be disciplined about changing it back before local work.
 
-If you already have other options (e.g. `appDirectory`, `buildDirectory`), keep them and only add `presets: [vercelPreset()]` and ensure `ssr: true` if you need SSR.
-
-See [Vercel: React Router Preset](https://vercel.com/docs/frameworks/frontend/react-router#vercel-react-router-preset).
-
----
-
-## Step 4: Create the Vercel project and set env vars
-
-### 4.1 Import the project on Vercel
-
-1. Go to [Vercel Dashboard](https://vercel.com/dashboard).
-2. **Add New** → **Project**.
-3. Import the Git repository that contains this app (e.g. GitHub).
-4. Select the repo and leave **Root Directory** as `.` unless the app lives in a subdirectory.
-
-### 4.2 Configure build and output
-
-- **Framework Preset:** Vercel should detect **React Router** (or Remix). If not, you can leave as “Other” and rely on the build command.
-- **Build Command:**  
-  `npm run build`  
-  (This uses the `build` script that includes `prisma generate` and optionally `prisma migrate deploy`.)
-- **Output Directory:** Leave default (Vercel uses the React Router build output when the preset is used).
-- **Install Command:** `npm ci` or `npm install`.
-
-Do **not** set a custom “Start” or “Run” command; Vercel will run the app as serverless functions.
-
-### 4.3 Environment variables
-
-In the project: **Settings → Environment Variables**. Add these for **Production** (and optionally Preview, with separate values if needed):
-
-| Name | Value | Notes |
-|------|--------|--------|
-| `NODE_ENV` | `production` | |
-| `SHOPIFY_APP_URL` | `https://your-app.vercel.app` | Your Vercel production URL; no trailing slash. Use your real project URL after first deploy. |
-| `SHOPIFY_API_KEY` | *(from Step 1)* | Client ID from Partners. |
-| `SHOPIFY_API_SECRET` | *(from Step 1)* | Client secret; keep secret. |
-| `SCOPES` | *(from Step 1)* | Same as in `shopify.app.toml`, e.g. `write_metaobject_definitions,write_metaobjects,write_products,write_files`. |
-| `DATABASE_URL` | *(your Postgres URL)* | Pooled connection string from Step 2. |
-
-**IMAI Studio–specific** (see [INSTRUCTIONS.md](./INSTRUCTIONS.md)):
-
-- `IMAI_API_KEY`, `IMAI_WEBHOOK_SECRET`, `IMAI_BASE_URL`
-- `R2_BASE_URL` (if you use Cloudflare R2)
-- Any other keys your app reads from `process.env`
-
-**Important:** Set `SHOPIFY_APP_URL` to the **exact** URL where the app will be loaded (e.g. `https://your-project.vercel.app`). After the first deploy you can confirm the URL in Vercel and update this if you use a custom domain later.
-
----
-
-## Step 5: First deploy on Vercel
-
-1. Save all settings and trigger a deploy (e.g. **Deploy** from the project page, or push a commit).
-2. Wait for the build to finish. Fix any errors (e.g. missing env var, Prisma migration failure).
-3. Copy the **production URL** (e.g. `https://your-app.vercel.app`).
-
-If you had set `SHOPIFY_APP_URL` to a placeholder, update it in **Settings → Environment Variables** to this URL and redeploy once.
-
----
-
-## Step 6: Point Shopify at your Vercel URL
-
-Shopify must know your app’s public URL and where to redirect after OAuth.
-
-### 6.1 Update `shopify.app.toml`
-
-Set `application_url` and `redirect_urls` to your **Vercel URL** (same as `SHOPIFY_APP_URL`). This app uses `/api/auth` for the auth callback:
+Update [`shopify.app.toml`](./shopify.app.toml) so it points to the production URL:
 
 ```toml
-application_url = "https://your-app.vercel.app"
+application_url = "https://your-app.onrender.com"
 
 [auth]
-redirect_urls = [ "https://your-app.vercel.app/api/auth" ]
+redirect_urls = ["https://your-app.onrender.com/auth/callback"]
 ```
 
-Replace `https://your-app.vercel.app` with your real Vercel URL (or custom domain). No trailing slash.
+This repo already defines:
 
-### 6.2 Deploy app config and extensions to Shopify
+- `app/uninstalled`
+- `app/scopes_update`
+- the required privacy compliance webhooks at `/webhooks/compliance`
 
-From the **app directory** (project root):
+Keep `webhooks.api_version` on a current stable version. This repo now uses `2026-01`; `2026-04` does not become the stable April release until April 1, 2026.
+
+### 2. Create the host service
+
+On Render:
+
+1. Create a new **Web Service** from the repo.
+2. Choose **Docker** runtime.
+3. Add a persistent disk.
+4. Mount the disk at `/var/data`.
+5. Set the health check path to `/api/health`.
+
+Any equivalent host is fine as long as it supports:
+
+- a long-lived container
+- a writable persistent disk
+- inbound HTTPS
+
+### 3. Set the environment variables
+
+Use the variables listed above. For the current database setup, the critical one is:
 
 ```bash
-shopify app config use   # select the app you’re deploying
+DATABASE_URL=file:/var/data/prod.sqlite
+```
+
+That is the full "database connection" for this repo in production. There is no separate DB hostname for the current SQLite deployment.
+
+### 4. Deploy the app
+
+Push your branch and let the host build the image.
+
+This repo's Docker flow already runs:
+
+```bash
+npm run build
+```
+
+and then on container start:
+
+```bash
+npm run docker-start
+```
+
+That includes Prisma generate plus `prisma migrate deploy`.
+
+### 5. Verify the first deployment
+
+After the first successful deploy, verify all of these:
+
+- `https://your-app.onrender.com/api/health` returns `{"ok":true}`
+- the service logs show Prisma migrations applied successfully
+- the app opens in a browser without server errors
+- the OAuth flow finishes and lands in Shopify Admin
+
+## Sync the hosted URL back to Shopify
+
+Shopify's `deploy` command does **not** deploy your web server. It only syncs Shopify-side configuration.
+
+After the host URL is live:
+
+1. update [`shopify.app.toml`](./shopify.app.toml)
+2. run:
+
+```bash
 shopify app deploy
 ```
 
-This pushes your app configuration and extensions to Shopify and creates a new app version. See [Shopify: Deploy your configuration](https://shopify.dev/docs/apps/launch/deployment/deploy-to-hosting-service#step-5-deploy-your-configuration).
+This syncs:
 
-To create a version without releasing it yet:
+- app config
+- scopes
+- app-specific webhooks
+- app extensions
+
+Reference:
+
+- [Deploy to a hosting service](https://shopify.dev/docs/apps/launch/deployment/deploy-to-hosting-service)
+
+## How to connect to the database once the app is hosted
+
+There are two different meanings here, and Shopify builders usually mix them together:
+
+### 1. How the app connects to the database
+
+That is automatic. Set:
 
 ```bash
-shopify app deploy --no-release
+DATABASE_URL=file:/var/data/prod.sqlite
 ```
 
-To release an existing version later:
+Prisma reads it on boot and the app uses it through [`app/db.server.ts`](./app/db.server.ts). No extra code change is needed.
 
-```bash
-shopify app release --version=VERSION
-```
+### 2. How you inspect the database yourself later
 
----
+With the current SQLite-on-disk setup, there is no public database endpoint to connect to from a desktop SQL client.
 
-## Step 7: Install and test the app
+Your realistic options are:
 
-### 7.1 Install on a development store
+- use your host's shell access and inspect the file on disk
+- copy/download the SQLite file from the persistent disk snapshot workflow your host provides
+- migrate to managed Postgres if you want normal remote DB access
 
-1. In the [Partners Dashboard](https://partners.shopify.com), open your app.
-2. Go to **Apps** → your app → **Test your app** (or use the install link from the CLI).
-3. Choose a development store and install.
-4. Open the app from the store’s admin. It should load from your Vercel URL (embedded in the admin).
+If you know you want regular database inspection, analytics, or multiple app instances, skip the SQLite convenience path and plan a Postgres migration before broad rollout.
 
-If something fails (e.g. redirect, session), check:
+## Full test plan before submission
 
-- `SHOPIFY_APP_URL` in Vercel matches `application_url` and has no trailing slash.
-- `redirect_urls` in `shopify.app.toml` is exactly `https://<your-vercel-url>/api/auth`.
-- You ran `shopify app deploy` after changing URLs.
+Do not submit after only checking that the app loads. Run the full flow on the actual hosted URL.
 
-### 7.2 Let other users install the app
+### Install and auth
 
-- **Custom install link:** In Partners → your app → **Distribution** (or **App setup**), copy the install link and share it with merchants.
-- **App Store:** Submit the app for listing so merchants can find it in the Shopify App Store.
-- **Direct:** Merchants can also install from your app’s page in the Partners dashboard if you share the install URL.
+1. Install the app into a dev store from the production app configuration.
+2. Confirm the app opens embedded inside Shopify Admin.
+3. Confirm there are no OAuth loops and no blank iframe loads.
+4. Refresh the page and confirm the session still works.
 
-Once installed, the app runs from your Vercel deployment; no ngrok or local URL is needed.
+### Settings and database persistence
 
----
+1. Open **Settings**.
+2. Save a real IMAI API key.
+3. Reload the app.
+4. Confirm the masked key still appears.
+5. Confirm credit balance loads again after reload.
 
-## Step 8: Optional – custom domain and re-deploys
+This validates:
 
-### Custom domain
+- session persistence
+- encryption setup
+- database writes to `ApiKey`
 
-1. In Vercel: **Project → Settings → Domains**, add a domain (e.g. `app.yourdomain.com`).
-2. Set `SHOPIFY_APP_URL` to that URL (e.g. `https://app.yourdomain.com`).
-3. In `shopify.app.toml`, set `application_url` and `redirect_urls` to the same URL (e.g. `https://app.yourdomain.com`, `https://app.yourdomain.com/api/auth`).
-4. Run `shopify app deploy` again.
-5. Redeploy on Vercel (or let the next Git push deploy).
+### Generation flows
 
-### Re-deploying after changes
+Run every merchant-facing flow that matters:
 
-**Code/config that affects Shopify (URLs, extensions, scopes):**
+1. Design generation
+2. Marketing generation
+3. Product or e-commerce generation
+4. Library view
+5. History view
 
-1. Update `shopify.app.toml` if needed.
-2. Run:
-   ```bash
-   shopify app config use
-   shopify app deploy
-   ```
+For each one, confirm:
 
-**Code-only changes:**
+- the request is accepted
+- a job row is stored
+- the final result is visible in the UI
+- failures show useful errors instead of hanging forever
 
-- Push to Git; Vercel will build and deploy. No need to run `shopify app deploy` unless you changed app config or extensions.
+### Webhook and live-update flow
 
-**Switching back to local development:**
+This matters because the repo relies on asynchronous job completion.
 
-- Run `shopify app config use` and select your development app so local/ngrok URLs are used again for that config.
+Test that:
 
----
+1. a generation request creates an `ImaiJob`
+2. IMAI calls back to `/api/imai/webhook`
+3. the webhook updates the job status
+4. the UI reflects the completed or failed state
+5. repeat deliveries do not corrupt the record
 
-## Environment variables reference (Vercel)
+Because this app uses server-sent events in memory, this test should be run on the same kind of long-lived host you plan to use in production, not on a serverless preview.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `NODE_ENV` | Yes | `production` |
-| `SHOPIFY_APP_URL` | Yes | Full app URL (e.g. `https://your-app.vercel.app`). Must match `application_url` in `shopify.app.toml`. |
-| `SHOPIFY_API_KEY` | Yes | Partners → your app → Client ID. |
-| `SHOPIFY_API_SECRET` | Yes | Partners → your app → Client secret. |
-| `SCOPES` | Yes* | Same as in `shopify.app.toml` (*optional if using Shopify-managed installation). |
-| `DATABASE_URL` | Yes | PostgreSQL connection string (prefer pooled for serverless). |
+### Uninstall and reinstall
 
-Plus any IMAI/R2/other keys your app uses (see [INSTRUCTIONS.md](./INSTRUCTIONS.md)).
+1. Uninstall the app from the test store.
+2. Confirm the `app/uninstalled` webhook fires.
+3. Reinstall the app.
+4. Confirm OAuth still works and the app can be used again.
 
----
+### Compliance webhook check
 
-## Summary checklist
+Before submission, confirm the required compliance webhook subscription exists after `shopify app deploy`.
 
-- [ ] **Step 1:** Run `shopify app env show` and note `SHOPIFY_API_KEY`, `SHOPIFY_API_SECRET`, `SCOPES`.
-- [ ] **Step 2:** Create PostgreSQL DB (e.g. Vercel Postgres or Neon). Update `prisma/schema.prisma` to `provider = "postgresql"` and `url = env("DATABASE_URL")`. Run `prisma migrate deploy` and add `postinstall` / `build` scripts for Prisma.
-- [ ] **Step 3:** Install `@vercel/react-router` and add `react-router.config.ts` with `vercelPreset()` and `ssr: true`.
-- [ ] **Step 4:** Create Vercel project, set build command to `npm run build`, add all env vars (including `SHOPIFY_APP_URL` = your Vercel URL and `DATABASE_URL`).
-- [ ] **Step 5:** Deploy on Vercel and copy the production URL.
-- [ ] **Step 6:** Set `application_url` and `redirect_urls` in `shopify.app.toml` to that URL (redirect = `.../api/auth`). Run `shopify app deploy`.
-- [ ] **Step 7:** Install the app on a dev store from the Partners dashboard and test; share install link or submit to the App Store for other users.
+The handler in this repo is:
 
-**References**
+- [`app/routes/webhooks.compliance.tsx`](./app/routes/webhooks.compliance.tsx)
+
+Current behavior:
+
+- `shop/redact` deletes stored shop data
+- customer privacy topics return `200` and log the payload because this app stores shop-scoped configuration and job metadata rather than customer records
+
+### Failure-path checks
+
+Also test the ugly cases, because reviewers will:
+
+- invalid IMAI API key
+- unreachable IMAI API
+- invalid webhook signature when `IMAI_WEBHOOK_SECRET` is set
+- empty prompt or missing required URL fields
+- expired or missing Shopify session
+
+## Public App Store submission checklist
+
+Before you press submit in the Partner Dashboard, make sure all of this is true:
+
+- the app is using **public distribution**
+- the production URL is stable and HTTPS
+- the app installs into a fresh dev store without manual hacks
+- compliance webhooks are configured
+- support and contact information is filled in
+- an emergency developer contact is configured in the Partner Dashboard
+- privacy policy and required listing content are filled in
+- reviewer steps are clear and reproducible
+- any required external credentials are included
+- your test store is usable and not half-configured
+
+Shopify's current review docs also call out a few items that are easy to miss:
+
+- include a **screencast** for apps that require guided setup
+- include **test credentials** if the reviewer needs them
+- use currently supported Shopify APIs
+- pass the automated app checks before submission
+
+References:
+
+- [App Store requirements](https://shopify.dev/docs/apps/launch/shopify-app-store/app-store-requirements)
+- [Pass app review](https://shopify.dev/docs/apps/launch/app-store-review/pass-app-review)
+
+## What to put in the reviewer notes
+
+Keep the reviewer notes short and testable.
+
+Example:
+
+1. Install the app into the provided dev store.
+2. Open the embedded app from Shopify Admin.
+3. Go to **Settings** and use the provided IMAI API key.
+4. Run one design generation and one marketing generation.
+5. Open **History** and confirm both jobs complete.
+6. Uninstall and reinstall the app to confirm cleanup and re-auth.
+
+Also include:
+
+- the test store URL
+- collaborator access or store-owner login instructions
+- any IMAI credential needed for testing
+- anything the reviewer must wait for, such as async generation time
+
+## Release updates after the app is approved
+
+For later releases:
+
+1. deploy the new web app version to your host
+2. update `shopify.app.toml` if URLs, scopes, or webhooks changed
+3. run `shopify app deploy`
+4. regression-test install, settings, generation, history, and uninstall
+
+## Source links used for this guide
 
 - [Shopify: Deploy to a hosting service](https://shopify.dev/docs/apps/launch/deployment/deploy-to-hosting-service)
-- [Shopify: About deployment](https://shopify.dev/docs/apps/launch/deployment)
-- [Vercel: React Router](https://vercel.com/docs/frameworks/frontend/react-router)
-- [Prisma: Deploy to Vercel](https://www.prisma.io/docs/orm/prisma-client/deployment/serverless/deploy-to-vercel)
+- [Shopify: Distribution methods](https://shopify.dev/docs/apps/launch/distribution)
+- [Shopify: Submit your app for review](https://shopify.dev/docs/apps/launch/app-store-review/submit-app-for-review)
+- [Shopify: Pass app review](https://shopify.dev/docs/apps/launch/app-store-review/pass-app-review)
+- [Shopify: App Store requirements](https://shopify.dev/docs/apps/launch/shopify-app-store/app-store-requirements)
+- [Shopify: Privacy law compliance](https://shopify.dev/docs/apps/build/compliance/privacy-law-compliance)
+- [Shopify: Session tokens for embedded apps](https://shopify.dev/docs/apps/build/authentication-authorization/session-tokens)

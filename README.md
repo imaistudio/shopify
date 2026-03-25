@@ -39,7 +39,14 @@ For environment variables and IMAI API key setup, see [INSTRUCTIONS.md](./INSTRU
 
 ## Deploying to a Shopify store
 
-To host this app and make it available on a store (dev or production), see **[deployment.md](./deployment.md)** for step-by-step instructions to deploy and install the plugin.
+The easiest production path for this repo is now documented as:
+
+- Render web service
+- Docker runtime
+- persistent disk-backed SQLite
+- Shopify config sync via `shopify app deploy`
+
+See **[deployment.md](./deployment.md)** for the full deployment and Shopify review checklist.
 
 ## Upgrading from Remix
 

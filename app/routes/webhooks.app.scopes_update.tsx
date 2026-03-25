@@ -25,6 +25,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         
         return new Response("OK", { status: 200 });
     } catch (error) {
+        if (error instanceof Response) {
+            return error;
+        }
         console.error("❌ Webhook processing error:", error);
         return new Response("Error", { status: 500 });
     }

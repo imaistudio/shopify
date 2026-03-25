@@ -3,5 +3,5 @@ roles = ["frontend", "backend"]
 webhooks_path = "/webhooks/app/uninstalled"
 
 [commands]
-predev = "npx prisma generate"
-dev = "npx prisma migrate deploy && npm exec react-router dev"
+predev = "env DATABASE_URL=file:./dev.sqlite npx prisma generate"
+dev = "env DATABASE_URL=file:./dev.sqlite npx prisma migrate deploy && env DATABASE_URL=file:./dev.sqlite npm exec react-router dev"

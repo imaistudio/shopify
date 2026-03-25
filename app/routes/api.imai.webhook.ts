@@ -1,7 +1,5 @@
 import type { ActionFunctionArgs } from "react-router";
-import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
-import { decrypt } from "../lib/encryption.server";
 import crypto from "crypto";
 import { sendEventToShop } from './api.imai.events';
 
@@ -25,10 +23,13 @@ export async function action({ request }: ActionFunctionArgs) {
 
   if (process.env.IMAI_WEBHOOK_SECRET) {
     const expected = `sha256=${hmacSha256(process.env.IMAI_WEBHOOK_SECRET, rawBody)}`;
-    if (signature !== expected) {
+    if (
+      !signature ||
+      signature.length !== expected.length ||
+      !crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
+    ) {
       console.log("Signature mismatch. Expected:", expected, "Received:", signature);
-      // For debugging, continue processing instead of returning 401
-      // return new Response("Unauthorized", { status: 401 });
+      return new Response("Unauthorized", { status: 401 });
     }
   }
 
@@ -55,7 +56,7 @@ export async function action({ request }: ActionFunctionArgs) {
     const shop = existingJob?.shop || 'unknown';
 
     // Update job status in database
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       status: payload.status,
       updatedAt: new Date(),
     };

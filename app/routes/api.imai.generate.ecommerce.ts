@@ -48,8 +48,11 @@ export async function action({ request }: ActionFunctionArgs) {
   
   console.log("Using endpoint:", endpoint);
   
+  const requestUrl = new URL(request.url);
+  const webhookUrl = `${process.env.SHOPIFY_APP_URL || requestUrl.protocol + '//' + requestUrl.host}/api/imai/webhook`;
+
   // Prepare request body for e-commerce API
-  const requestBody: any = {
+  const requestBody: Record<string, unknown> = {
     url: url.trim(),
     platforms: ["shopify"],
     includeImages: true,
@@ -57,8 +60,12 @@ export async function action({ request }: ActionFunctionArgs) {
     includeTitles: true,
     includeSpecs: true,
     async: true,
-    webhookUrl: `${process.env.SHOPIFY_APP_URL}/api/imai/webhook`,
+    webhookUrl,
   };
+
+  if (process.env.IMAI_WEBHOOK_SECRET) {
+    requestBody.webhookSecret = process.env.IMAI_WEBHOOK_SECRET;
+  }
 
   if (prompt && prompt.trim()) {
     requestBody.prompt = prompt.trim();

@@ -51,17 +51,17 @@ export async function action({ request }: ActionFunctionArgs) {
   console.log("Using endpoint:", endpoint);
   
   // Prepare request body based on API documentation
-  const requestBody: any = {
+  const requestBody: Record<string, unknown> = {
     prompt: prompt.trim(),
     async: true, // Always use async for proper polling behavior
   };
 
   const requestUrl = new URL(request.url);
   const webhookUrl = `${process.env.SHOPIFY_APP_URL || requestUrl.protocol + '//' + requestUrl.host}/api/imai/webhook`;
-  const webhookSecret = process.env.IMAI_WEBHOOK_SECRET || 'default-secret';
-
   requestBody.webhookUrl = webhookUrl;
-  requestBody.webhookSecret = webhookSecret;
+  if (process.env.IMAI_WEBHOOK_SECRET) {
+    requestBody.webhookSecret = process.env.IMAI_WEBHOOK_SECRET;
+  }
 
   // Add URL if provided (required for marketing, optional for design)
   if (url) {

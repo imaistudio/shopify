@@ -1,12 +1,22 @@
 import crypto from 'crypto';
 
-const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'your-32-character-encryption-key-here';
+const DEFAULT_ENCRYPTION_KEY = 'your-32-character-encryption-key-here';
+const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || DEFAULT_ENCRYPTION_KEY;
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 16;
+const KEY_BYTES = Buffer.from(ENCRYPTION_KEY).subarray(0, 32);
+
+if (process.env.NODE_ENV === "production" && ENCRYPTION_KEY === DEFAULT_ENCRYPTION_KEY) {
+  throw new Error("ENCRYPTION_KEY must be set in production");
+}
+
+if (KEY_BYTES.length !== 32) {
+  throw new Error("ENCRYPTION_KEY must be at least 32 bytes");
+}
 
 export function encrypt(text: string): string {
   const iv = crypto.randomBytes(IV_LENGTH);
-  const cipher = crypto.createCipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY).slice(0, 32), iv);
+  const cipher = crypto.createCipheriv(ALGORITHM, KEY_BYTES, iv);
   
   let encrypted = cipher.update(text, 'utf8', 'hex');
   encrypted += cipher.final('hex');
@@ -21,7 +31,7 @@ export function decrypt(encryptedData: string): string {
   const authTag = Buffer.from(parts[1], 'hex');
   const encrypted = parts[2];
   
-  const decipher = crypto.createDecipheriv(ALGORITHM, Buffer.from(ENCRYPTION_KEY).slice(0, 32), iv);
+  const decipher = crypto.createDecipheriv(ALGORITHM, KEY_BYTES, iv);
   decipher.setAuthTag(authTag);
   
   let decrypted = decipher.update(encrypted, 'hex', 'utf8');
