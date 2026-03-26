@@ -2,7 +2,7 @@
 
 client_id = "459fae02689e6372969153f15758d58b"
 name = "IMAI.STUDIO"
-application_url = "https://shopify-production-a52d.up.railway.app"
+application_url = "https://imai.up.railway.app"
 embedded = true
 
 [build]
@@ -29,7 +29,7 @@ api_version = "2026-01"
 scopes = "write_metaobject_definitions,write_metaobjects,write_products,write_files"
 
 [auth]
-redirect_urls = [ "https://shopify-production-a52d.up.railway.app/auth/callback" ]
+redirect_urls = [ "https://imai.up.railway.app/auth/callback" ]
 
 [product.metafields.app.demo_info]
 type = "single_line_text_field"
