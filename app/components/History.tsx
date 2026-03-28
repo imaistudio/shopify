@@ -8,14 +8,12 @@ import {
   Modal,
   Toast,
   Frame,
-  Button,
-  Spinner,
 } from "@shopify/polaris";
 
 interface HistoryItem {
   id: string;
   prompt: string;
-  results: string[] | null;
+  results: string[];
   error?: string | null;
   response?: any; // For product generation responses
 }
@@ -28,10 +26,19 @@ interface SelectedImage {
 
 interface HistoryProps {
   shop: string;
+  endpoint: "marketing" | "ecommerce";
   refreshTrigger?: number;
+  onHasVisibleHistoryChange?: (hasVisibleHistory: boolean) => void;
+  showLoadingState?: boolean;
 }
 
-export function History({ shop, refreshTrigger }: HistoryProps) {
+export function History({
+  shop,
+  endpoint,
+  refreshTrigger,
+  onHasVisibleHistoryChange,
+  showLoadingState = false,
+}: HistoryProps) {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<SelectedImage | null>(null);
@@ -51,14 +58,14 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
   const loadHistory = async () => {
     try {
       setLoading(true);
-      const resp = await fetch('/api/imai/history');
+      const resp = await fetch(`/api/imai/history?endpoint=${encodeURIComponent(endpoint)}`);
       if (resp.ok) {
         const data = await resp.json();
         setBrokenImageUrls(new Set());
         setHistory(data.map((h: any) => ({
           id: `history-${h.id}`,
           prompt: h.prompt,
-          results: h.results || null,
+          results: Array.isArray(h.results) ? h.results : [],
           response: h.response || null,
           error: null,
         })));
@@ -106,7 +113,7 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
   // Initial load and when shop changes
   useEffect(() => {
     loadHistory();
-  }, [shop]);
+  }, [shop, endpoint]);
 
   // Listen for SSE events to auto-refresh
   useEffect(() => {
@@ -133,7 +140,7 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
     return () => {
       eventSource.close();
     };
-  }, [shop]);
+  }, [shop, endpoint]);
 
   // Also refresh when refreshTrigger changes
   useEffect(() => {
@@ -142,7 +149,21 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
     }
   }, [refreshTrigger]);
 
-  if (loading) {
+  const validHistoryItems = history.filter((item) => {
+    if (item.error) return false;
+
+    return item.results.some((url) => !brokenImageUrls.has(url));
+  });
+
+  useEffect(() => {
+    onHasVisibleHistoryChange?.(validHistoryItems.length > 0);
+  }, [onHasVisibleHistoryChange, validHistoryItems.length]);
+
+  if (loading && history.length === 0) {
+    if (!showLoadingState) {
+      return null;
+    }
+
     return (
       <Card>
         <Box padding="400">
@@ -154,41 +175,8 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
     );
   }
 
-  if (history.length === 0) {
-    return (
-      <Card>
-        <Box padding="400">
-          <Text as="p" alignment="center" tone="subdued">
-            No generation history yet
-          </Text>
-        </Box>
-      </Card>
-    );
-  }
-
-  // Filter out items that have no images or have errors
-  const validHistoryItems = history.filter(item => {
-    // Check if item has error
-    if (item.error) return false;
-
-    const regularUrls = (item.results || []).filter((url) => !brokenImageUrls.has(url));
-    if (regularUrls.length > 0) return true;
-
-    const responseUrls = (item.response?.urls || item.response?.images?.urls || [])
-      .filter((url: string) => !brokenImageUrls.has(url));
-    return responseUrls.length > 0;
-  });
-
   if (validHistoryItems.length === 0) {
-    return (
-      <Card>
-        <Box padding="400">
-          <Text as="p" alignment="center" tone="subdued">
-            No generation history yet
-          </Text>
-        </Box>
-      </Card>
-    );
+    return null;
   }
 
   return (
@@ -201,8 +189,7 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
               {validHistoryItems.map((item) => (
                 <Box key={item.id} padding="300" background="bg-fill-secondary" borderRadius="200">
                   <BlockStack gap="200">
-                    {/* Handle regular image results */}
-                    {item.results && item.results.filter((url) => !brokenImageUrls.has(url)).length > 0 && (
+                    {item.results.filter((url) => !brokenImageUrls.has(url)).length > 0 && (
                       <InlineGrid columns={{ xs: 2 }} gap="200">
                         {item.results
                           .filter((url) => !brokenImageUrls.has(url))
@@ -231,48 +218,11 @@ export function History({ shop, refreshTrigger }: HistoryProps) {
                         ))}
                       </InlineGrid>
                     )}
-                    
-                    {/* Handle product generation responses */}
-                    {item.response && (
-                      <BlockStack gap="200">
-                        {(item.response.urls || item.response.images?.urls)
-                          ?.filter((url: string) => !brokenImageUrls.has(url))
-                          .length > 0 && (
-                          <InlineGrid columns={{ xs: 2 }} gap="200">
-                            {(item.response.urls || item.response.images?.urls)
-                              .filter((url: string) => !brokenImageUrls.has(url))
-                              .map((url: string, index: number) => (
-                              <div 
-                                key={index} 
-                                onClick={() => handleImageClick(url, index, item.prompt)}
-                                style={{ cursor: "pointer" }}
-                              >
-                                <div 
-                                  style={{ 
-                                    borderRadius: "8px", 
-                                    overflow: "hidden", 
-                                    aspectRatio: "1",
-                                    width: "100%"
-                                  }}
-                                >
-                                  <img
-                                    src={url}
-                                    onError={() => markImageAsBroken(url)}
-                                    style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                                    alt={`Generated ${index + 1}`}
-                                  />
-                                </div>
-                              </div>
-                            ))}
-                          </InlineGrid>
-                        )}
-                        
-                        {item.response.details?.title && (
-                          <Text as="p" variant="headingSm" tone="subdued">
-                            {item.response.details.title}
-                          </Text>
-                        )}
-                      </BlockStack>
+
+                    {item.response?.details?.title && (
+                      <Text as="p" variant="headingSm" tone="subdued">
+                        {item.response.details.title}
+                      </Text>
                     )}
                   </BlockStack>
                 </Box>

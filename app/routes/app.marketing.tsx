@@ -42,6 +42,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
   
   let balance = null;
+  let hasHistory = false;
   if (storedKey) {
     try {
       const apiKey = decrypt(storedKey.encryptedKey);
@@ -55,21 +56,43 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     } catch (error) {
       console.error("Failed to fetch balance:", error);
     }
+
+    const existingHistory = await prisma.imaiJob.findFirst({
+      where: {
+        shop: session.shop,
+        status: "completed",
+        endpoint: "marketing",
+      },
+      select: { id: true },
+    });
+
+    hasHistory = !!existingHistory;
   }
   
   return { 
     shop: session.shop,
     isConnected: !!storedKey,
     balance,
+    hasHistory,
   };
 };
 
 export default function MarketingPage() {
-  const { shop, isConnected, balance } = useLoaderData<typeof loader>();
+  const {
+    shop,
+    isConnected,
+    balance,
+    hasHistory: initialHasHistory,
+  } = useLoaderData<typeof loader>();
   const [libraryRefreshTrigger, setLibraryRefreshTrigger] = useState(0);
+  const [hasPageHistory, setHasPageHistory] = useState(initialHasHistory);
 
   const handleGenerationComplete = useCallback(() => {
     setLibraryRefreshTrigger((prev) => prev + 1);
+  }, []);
+
+  const handleHistoryVisibilityChange = useCallback((hasVisibleHistory: boolean) => {
+    setHasPageHistory(hasVisibleHistory);
   }, []);
 
   const primaryAction = undefined;
@@ -164,31 +187,35 @@ export default function MarketingPage() {
           </Box>
         </Card>
 
-        {/* Second Banner - Above History */}
-        <Card>
-          <Box padding="400">
-            <div className="marketing-masonry">
-              {marketingMasonryColumns.map((column, columnIndex) => (
-                <div className="marketing-masonry-column" key={`marketing-column-${columnIndex}`}>
-                  {column.map((image) => (
-                    <img
-                      key={image.src}
-                      className="marketing-masonry-image"
-                      src={image.src}
-                      alt={image.alt}
-                      loading="lazy"
-                    />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </Box>
-        </Card>
+        {(!isConnected || !hasPageHistory) && (
+          <Card>
+            <Box padding="400">
+              <div className="marketing-masonry">
+                {marketingMasonryColumns.map((column, columnIndex) => (
+                  <div className="marketing-masonry-column" key={`marketing-column-${columnIndex}`}>
+                    {column.map((image) => (
+                      <img
+                        key={image.src}
+                        className="marketing-masonry-image"
+                        src={image.src}
+                        alt={image.alt}
+                        loading="lazy"
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </Box>
+          </Card>
+        )}
 
         {isConnected && (
           <History 
             shop={shop} 
+            endpoint="marketing"
             refreshTrigger={libraryRefreshTrigger}
+            onHasVisibleHistoryChange={handleHistoryVisibilityChange}
+            showLoadingState={hasPageHistory}
           />
         )}
       </BlockStack>

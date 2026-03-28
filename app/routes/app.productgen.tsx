@@ -34,6 +34,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   });
   
   let balance = null;
+  let hasHistory = false;
   if (storedKey) {
     try {
       const apiKey = decrypt(storedKey.encryptedKey);
@@ -47,12 +48,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     } catch (error) {
       console.error("Failed to fetch balance:", error);
     }
+
+    const existingHistory = await prisma.imaiJob.findFirst({
+      where: {
+        shop: session.shop,
+        status: "completed",
+        endpoint: "ecommerce",
+      },
+      select: { id: true },
+    });
+
+    hasHistory = !!existingHistory;
   }
   
   return { 
     shop: session.shop,
     isConnected: !!storedKey,
     balance,
+    hasHistory,
   };
 };
 
@@ -116,7 +129,13 @@ const productMasonryColumns = [
 ] as const;
 
 export default function ProductGenPage() {
-  const { shop, isConnected, balance } = useLoaderData<typeof loader>();
+  const {
+    shop,
+    isConnected,
+    balance,
+    hasHistory: initialHasHistory,
+  } = useLoaderData<typeof loader>();
+  const [hasPageHistory, setHasPageHistory] = useState(initialHasHistory);
   
   // Use refs to track polling state without causing re-renders
   const pollStartTimeRef = useRef<number>(0);
@@ -548,6 +567,10 @@ export default function ProductGenPage() {
     setShowCancelButton(false);
     activeJobIdsRef.current.delete(activeGeneration.jobId);
   }, [generations, shop]);
+
+  const handleHistoryVisibilityChange = useCallback((hasVisibleHistory: boolean) => {
+    setHasPageHistory(hasVisibleHistory);
+  }, []);
 
   const primaryAction = undefined;
 
@@ -983,30 +1006,34 @@ export default function ProductGenPage() {
           </Box>
         </Card>
 
-        {/* Second Banner - Above History */}
-        <Card>
-          <Box padding="400">
-            <div className="product-masonry">
-              {productMasonryColumns.map((column, columnIndex) => (
-                <div className="product-masonry-column" key={`product-column-${columnIndex}`}>
-                  {column.map((image) => (
-                    <img
-                      key={image.src}
-                      className="product-masonry-image"
-                      src={image.src}
-                      alt={image.alt}
-                      loading="lazy"
-                    />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </Box>
-        </Card>
+        {(!isConnected || !hasPageHistory) && (
+          <Card>
+            <Box padding="400">
+              <div className="product-masonry">
+                {productMasonryColumns.map((column, columnIndex) => (
+                  <div className="product-masonry-column" key={`product-column-${columnIndex}`}>
+                    {column.map((image) => (
+                      <img
+                        key={image.src}
+                        className="product-masonry-image"
+                        src={image.src}
+                        alt={image.alt}
+                        loading="lazy"
+                      />
+                    ))}
+                  </div>
+                ))}
+              </div>
+            </Box>
+          </Card>
+        )}
 
         {isConnected && (
           <History 
             shop={shop} 
+            endpoint="ecommerce"
+            onHasVisibleHistoryChange={handleHistoryVisibilityChange}
+            showLoadingState={hasPageHistory}
           />
         )}
       </BlockStack>
