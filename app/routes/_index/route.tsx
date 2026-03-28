@@ -18,7 +18,7 @@ const featureItems = [
   {
     title: "Campaign Ready Visuals",
     subtitle: "Media Studio Agent",
-    renderIcon: () => <Smartphone size={22} strokeWidth={2.1} />,
+    renderIcon: () => <Smartphone size={20} strokeWidth={2.1} />,
   },
   {
     title: "One Click Catalogue Generation",
@@ -26,7 +26,7 @@ const featureItems = [
   },
   {
     title: "Sync Store With Studio",
-    renderIcon: () => <RefreshCcw size={22} strokeWidth={2.1} />,
+    renderIcon: () => <RefreshCcw size={20} strokeWidth={2.1} />,
   },
 ];
 
