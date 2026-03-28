@@ -94,7 +94,7 @@
 
 .copyBlock {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.55rem;
 }
 
 .heading {
@@ -199,8 +199,8 @@
   top: 50%;
   right: 0.35rem;
   transform: translateY(-50%);
-  width: 3.45rem;
-  height: 3.45rem;
+  width: 3.2rem;
+  height: 3.2rem;
   display: grid;
   place-items: center;
   border: 0;
@@ -308,8 +308,8 @@
   }
 
   .button {
-    width: 3rem;
-    height: 3rem;
+    width: 2.8rem;
+    height: 2.8rem;
   }
 }
 

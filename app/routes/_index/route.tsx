@@ -1,10 +1,9 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { redirect, Form, useLoaderData } from "react-router";
 import {
-  ArrowRight,
   RefreshCcw,
+  Sparkles,
   Smartphone,
-  SquarePlus,
 } from "lucide-react";
 
 import { login } from "../../shopify.server";
@@ -24,7 +23,7 @@ const featureItems = [
   },
   {
     title: "One Click Catalogue Generation",
-    Icon: SquarePlus,
+    Icon: Sparkles,
   },
   {
     title: "Sync Store With Studio",
@@ -151,7 +150,7 @@ export default function App() {
                     type="submit"
                     aria-label="Go to app"
                   >
-                    <ArrowRight size={18} strokeWidth={2.4} />
+                    <Sparkles size={14} strokeWidth={2.25} fill="currentColor" />
                   </button>
                 </div>
               </Form>
