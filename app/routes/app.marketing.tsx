@@ -10,10 +10,10 @@ import {
   Box,
   BlockStack,
   Text,
-  Banner,
 } from "@shopify/polaris";
 
 // Components
+import { ApiKeyEmptyState } from "../components/ApiKeyEmptyState";
 import { GeneratePanel } from "../components/GeneratePanel";
 import { History } from "../components/History";
 
@@ -96,6 +96,17 @@ export default function MarketingPage() {
 
   const primaryAction = undefined;
 
+  if (!isConnected) {
+    return (
+      <Page title="Media Agent" primaryAction={primaryAction}>
+        <ApiKeyEmptyState
+          bannerText="Connect your API key in the Settings tab to start generating marketing images."
+          emptyText="Connect your API key to view Media Agent content"
+        />
+      </Page>
+    );
+  }
+
   return (
     <Page title="Media Agent" primaryAction={primaryAction}>
       <style>{`
@@ -155,38 +166,18 @@ export default function MarketingPage() {
           </Box>
         </Card>
 
-        {!isConnected && (
-          <Banner tone="info" title="Connect your IMAI Studio API key">
-            <Text as="p">
-              Connect your API key in the Settings tab to start generating marketing images.
-              Get your key at{" "}
-              <a href="https://www.imai.studio" target="_blank" rel="noopener noreferrer">
-                www.imai.studio
-              </a>
-            </Text>
-          </Banner>
-        )}
-
         <Card>
           <Box padding="400">
-            {isConnected ? (
-                <GeneratePanel 
-                  onGenerationComplete={handleGenerationComplete}
-                  balance={balance}
-                  promptPlaceholder='e.g. "Instagram lifestyle photo with soft lighting" or "Modern product post with pastel background"'
-                  promptHelpText="Give the Media Agent the channel, visual style, and mood so it can steer the output with less guesswork."
-                />
-              ) : (
-                <BlockStack gap="400" align="center">
-                  <Text as="p" tone="subdued" alignment="center">
-                    Connect your API key to run the Media Agent
-                  </Text>
-                </BlockStack>
-              )}
+            <GeneratePanel 
+              onGenerationComplete={handleGenerationComplete}
+              balance={balance}
+              promptPlaceholder='e.g. "Instagram lifestyle photo with soft lighting" or "Modern product post with pastel background"'
+              promptHelpText="Give the Media Agent the channel, visual style, and mood so it can steer the output with less guesswork."
+            />
           </Box>
         </Card>
 
-        {(!isConnected || !hasPageHistory) && (
+        {!hasPageHistory && (
           <Card>
             <Box padding="400">
               <div className="marketing-masonry">
@@ -208,14 +199,12 @@ export default function MarketingPage() {
           </Card>
         )}
 
-        {isConnected && (
-          <History 
-            endpoint="marketing"
-            refreshTrigger={libraryRefreshTrigger}
-            onHasVisibleHistoryChange={handleHistoryVisibilityChange}
-            showLoadingState={hasPageHistory}
-          />
-        )}
+        <History 
+          endpoint="marketing"
+          refreshTrigger={libraryRefreshTrigger}
+          onHasVisibleHistoryChange={handleHistoryVisibilityChange}
+          showLoadingState={hasPageHistory}
+        />
       </BlockStack>
     </Page>
   );

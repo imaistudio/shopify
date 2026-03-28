@@ -81,9 +81,6 @@ export function LaunchHero() {
             <div className={styles.copyBlock}>
               <h1 className={styles.heading}>Transform your Store</h1>
               <p className={styles.subtitle}>IMAI.STUDIO</p>
-              <p className={styles.subtitle}>
-                Open the app from Shopify Admin to continue.
-              </p>
             </div>
 
             <ul className={styles.featureList}>

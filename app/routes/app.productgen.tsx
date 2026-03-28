@@ -5,7 +5,6 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { decrypt } from "../lib/encryption.server";
 import {
-  Banner,
   BlockStack,
   Box,
   Button,
@@ -21,6 +20,7 @@ import {
   Thumbnail,
 } from "@shopify/polaris";
 import { ImageIcon, PlusIcon, XCircleIcon } from "@shopify/polaris-icons";
+import { ApiKeyEmptyState } from "../components/ApiKeyEmptyState";
 import { History } from "../components/History";
 
 type ProductDetails = {
@@ -516,6 +516,17 @@ export default function ProductGenPage() {
     setHasPageHistory(hasVisibleHistory);
   }, []);
 
+  if (!isConnected) {
+    return (
+      <Page title="Product Agent">
+        <ApiKeyEmptyState
+          bannerText="Connect your API key in the Settings tab to start generating product content with the Product Agent."
+          emptyText="Connect your API key to view Product Agent content"
+        />
+      </Page>
+    );
+  }
+
   return (
     <Page title="Product Agent">
       <style>{`
@@ -575,17 +586,6 @@ export default function ProductGenPage() {
             />
           </Box>
         </Card>
-
-        {!isConnected ? (
-          <Banner tone="info" title="Connect your IMAI Studio API key">
-            <Text as="p">
-              Connect your API key in the Settings tab to start generating product content with the Product Agent. Get your key at{" "}
-              <a href="https://www.imai.studio" target="_blank" rel="noopener noreferrer">
-                www.imai.studio
-              </a>
-            </Text>
-          </Banner>
-        ) : null}
 
         {error ? (
           <Card>
@@ -675,7 +675,7 @@ export default function ProductGenPage() {
                   variant="primary"
                   size="large"
                   fullWidth
-                  disabled={!isConnected || !uploadedFile || isUploading || hasActiveGeneration}
+                  disabled={!uploadedFile || isUploading || hasActiveGeneration}
                   onClick={handleGenerate}
                 >
                   Run Product Agent
@@ -889,7 +889,7 @@ export default function ProductGenPage() {
           </Box>
         </Card>
 
-        {!isConnected || !hasPageHistory ? (
+        {!hasPageHistory ? (
           <Card>
             <Box padding="400">
               <div className="product-masonry">
@@ -911,13 +911,11 @@ export default function ProductGenPage() {
           </Card>
         ) : null}
 
-        {isConnected ? (
-          <History
-            endpoint="ecommerce"
-            onHasVisibleHistoryChange={handleHistoryVisibilityChange}
-            showLoadingState={hasPageHistory}
-          />
-        ) : null}
+        <History
+          endpoint="ecommerce"
+          onHasVisibleHistoryChange={handleHistoryVisibilityChange}
+          showLoadingState={hasPageHistory}
+        />
       </BlockStack>
     </Page>
   );

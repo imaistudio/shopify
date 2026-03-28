@@ -7,12 +7,10 @@ import {
   Page,
   Card,
   Box,
-  BlockStack,
-  Text,
-  Banner,
 } from "@shopify/polaris";
 
 // Components
+import { ApiKeyEmptyState } from "../components/ApiKeyEmptyState";
 import { LibraryGrid } from "../components/LibraryGrid";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -36,33 +34,18 @@ export default function LibraryPage() {
 
   return (
     <Page title="Library">
-      <BlockStack gap="400">
-        {!isConnected && (
-          <Banner tone="info" title="Connect your IMAI Studio API key">
-            <Text as="p">
-              Connect your API key in the Settings tab to start viewing your library.
-              Get your key at{" "}
-              <a href="https://www.imai.studio" target="_blank" rel="noopener noreferrer">
-                www.imai.studio
-              </a>
-            </Text>
-          </Banner>
-        )}
-
+      {isConnected ? (
         <Card>
           <Box padding="400">
-            {isConnected ? (
-              <LibraryGrid refreshTrigger={libraryRefreshTrigger} />
-            ) : (
-              <BlockStack gap="400">
-                <Text as="p" tone="subdued" alignment="center">
-                  Connect your API key to view your library
-                </Text>
-              </BlockStack>
-            )}
+            <LibraryGrid refreshTrigger={libraryRefreshTrigger} />
           </Box>
         </Card>
-      </BlockStack>
+      ) : (
+        <ApiKeyEmptyState
+          bannerText="Connect your API key in the Settings tab to start viewing your library."
+          emptyText="Connect your API key to view your library"
+        />
+      )}
     </Page>
   );
 }
