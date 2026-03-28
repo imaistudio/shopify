@@ -12,7 +12,7 @@ Add these to your local `.env` file:
 SHOPIFY_API_KEY=your_shopify_api_key
 SHOPIFY_API_SECRET=your_shopify_api_secret
 SHOPIFY_APP_URL=https://your-ngrok-or-localhost-url
-SCOPES=write_metaobject_definitions,write_metaobjects,write_products,write_files
+SCOPES=write_files
 DATABASE_URL=file:./dev.sqlite
 ENCRYPTION_KEY=use-a-random-32-plus-character-secret
 IMAI_WEBHOOK_SECRET=your_imai_webhook_secret
@@ -26,8 +26,8 @@ For Railway or any other Docker host, use:
 NODE_ENV=production
 SHOPIFY_API_KEY=your_shopify_api_key
 SHOPIFY_API_SECRET=your_shopify_api_secret
-SHOPIFY_APP_URL=https://your-production-domain
-SCOPES=write_metaobject_definitions,write_metaobjects,write_products,write_files
+SHOPIFY_APP_URL=https://imai.up.railway.app
+SCOPES=write_files
 DATABASE_URL=file:/var/data/prod.sqlite
 ENCRYPTION_KEY=use-a-random-32-plus-character-secret
 IMAI_WEBHOOK_SECRET=your_imai_webhook_secret

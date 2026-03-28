@@ -192,10 +192,10 @@ If you want merchants outside your own stores to install it, use public distribu
 Change [`shopify.app.toml`](./shopify.app.toml) from the local ngrok URL to your production URL:
 
 ```toml
-application_url = "https://your-app.example.com"
+application_url = "https://imai.up.railway.app"
 
 [auth]
-redirect_urls = ["https://your-app.example.com/auth/callback"]
+redirect_urls = ["https://imai.up.railway.app/auth/callback"]
 ```
 
 ### 3. Create the host service
@@ -234,10 +234,10 @@ At minimum, set:
 ```bash
 NODE_ENV=production
 DATABASE_URL=file:/var/data/prod.sqlite
-SHOPIFY_APP_URL=https://your-app.example.com
+SHOPIFY_APP_URL=https://imai.up.railway.app
 SHOPIFY_API_KEY=...
 SHOPIFY_API_SECRET=...
-SCOPES=write_metaobject_definitions,write_metaobjects,write_products,write_files
+SCOPES=write_files
 ENCRYPTION_KEY=use-a-random-secret-at-least-32-bytes-long
 ```
 
@@ -276,7 +276,7 @@ Use this step whenever you change:
 
 Check all of these:
 
-- `https://your-app.example.com/api/health` returns `{"ok":true}`
+- `https://imai.up.railway.app/api/health` returns `{"ok":true}`
 - the container logs show Prisma migrations completed
 - the app installs into a dev store
 - embedded auth completes and lands inside Shopify Admin

@@ -6,6 +6,7 @@ EXPOSE 3000
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV SHOPIFY_APP_URL=https://imai.up.railway.app
 ENV DATABASE_URL=file:/var/data/prod.sqlite
 
 COPY package.json package-lock.json* ./

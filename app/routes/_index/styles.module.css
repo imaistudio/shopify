@@ -1,73 +1,339 @@
-.index {
-  align-items: center;
-  display: flex;
-  justify-content: center;
-  height: 100%;
-  width: 100%;
-  text-align: center;
-  padding: 1rem;
+.page {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top left, rgba(227, 179, 60, 0.18), transparent 28rem),
+    radial-gradient(circle at bottom right, rgba(17, 88, 76, 0.2), transparent 32rem),
+    linear-gradient(180deg, #f8f4ec 0%, #f2ede2 54%, #ece4d6 100%);
+  color: #171412;
 }
 
-.heading,
-.text {
-  padding: 0;
-  margin: 0;
+.backdrop {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(23, 20, 18, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(23, 20, 18, 0.04) 1px, transparent 1px);
+  background-size: 3rem 3rem;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent 90%);
+  pointer-events: none;
 }
 
-.text {
-  font-size: 1.2rem;
-  padding-bottom: 2rem;
-}
-
-.content {
-  display: grid;
-  gap: 2rem;
-}
-
-.form {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
+.shell {
+  position: relative;
+  z-index: 1;
+  max-width: 1200px;
   margin: 0 auto;
+  padding: 4rem 1.5rem 5rem;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 2rem;
+  align-items: stretch;
+}
+
+.copy,
+.loginPanel,
+.featureCard {
+  border: 1px solid rgba(23, 20, 18, 0.1);
+  background: rgba(255, 250, 244, 0.82);
+  box-shadow: 0 24px 70px rgba(53, 40, 25, 0.08);
+  backdrop-filter: blur(14px);
+}
+
+.copy {
+  border-radius: 2rem;
+  padding: 3rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.kicker,
+.panelEyebrow,
+.sectionKicker,
+.featureTitle {
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #7f4d1d;
+}
+
+.heading {
+  margin: 0;
+  max-width: 12ch;
+  font-size: clamp(3.4rem, 7vw, 6.1rem);
+  line-height: 0.92;
+  letter-spacing: -0.08em;
+  font-weight: 800;
+}
+
+.text {
+  margin: 0;
+  max-width: 34rem;
+  font-size: 1.15rem;
+  line-height: 1.7;
+  color: rgba(23, 20, 18, 0.78);
+}
+
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1rem;
 }
 
-.label {
+.statCard {
   display: grid;
   gap: 0.2rem;
-  max-width: 20rem;
-  text-align: left;
-  font-size: 1rem;
+  padding: 1rem 1.1rem;
+  border-radius: 1.2rem;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(23, 20, 18, 0.08);
+}
+
+.statValue {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.statLabel {
+  color: rgba(23, 20, 18, 0.72);
+  font-size: 0.92rem;
+}
+
+.loginPanel {
+  border-radius: 1.75rem;
+  padding: 2rem;
+  display: grid;
+  gap: 1.5rem;
+  align-self: center;
+}
+
+.loginHeader {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.loginHeader h2 {
+  margin: 0;
+  font-size: 1.75rem;
+  line-height: 1.1;
+}
+
+.loginHeader p {
+  margin: 0;
+  color: rgba(23, 20, 18, 0.72);
+  line-height: 1.6;
+}
+
+.loginHeader code {
+  font-family: "SFMono-Regular", ui-monospace, monospace;
+  font-size: 0.92em;
+  color: #0e564a;
+}
+
+.form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.label {
+  font-weight: 700;
+  font-size: 0.95rem;
 }
 
 .input {
-  padding: 0.4rem;
+  width: 100%;
+  border-radius: 1rem;
+  border: 1px solid rgba(23, 20, 18, 0.14);
+  padding: 0.95rem 1rem;
+  font-size: 1rem;
+  background: rgba(255, 255, 255, 0.84);
+  color: #171412;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #0e564a;
+  box-shadow: 0 0 0 4px rgba(14, 86, 74, 0.12);
+  transform: translateY(-1px);
 }
 
 .button {
-  padding: 0.4rem;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.95rem 1.2rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff9f1;
+  background: linear-gradient(135deg, #171412 0%, #0e564a 100%);
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
+  box-shadow: 0 16px 35px rgba(14, 86, 74, 0.2);
 }
 
-.list {
-  list-style: none;
-  padding: 0;
-  padding-top: 3rem;
+.button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px rgba(14, 86, 74, 0.25);
+}
+
+.button:active {
+  transform: translateY(0);
+}
+
+.hint {
   margin: 0;
-  display: flex;
-  gap: 2rem;
+  color: rgba(23, 20, 18, 0.65);
+  font-size: 0.92rem;
 }
 
-.list > li {
-  max-width: 20rem;
-  text-align: left;
+.hint span {
+  color: #171412;
+  font-weight: 600;
 }
 
-@media only screen and (max-width: 50rem) {
-  .list {
-    display: block;
+.workflow {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.workflow li {
+  position: relative;
+  padding-left: 1.3rem;
+  color: rgba(23, 20, 18, 0.74);
+  line-height: 1.55;
+}
+
+.workflow li::before {
+  content: "";
+  position: absolute;
+  top: 0.6rem;
+  left: 0;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #7f4d1d 0%, #0e564a 100%);
+}
+
+.gallerySection {
+  margin-top: 2rem;
+  display: grid;
+  gap: 1.5rem;
+}
+
+.galleryLead {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.galleryLead h2 {
+  margin: 0;
+  max-width: 16ch;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+
+.galleryGrid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr 0.85fr;
+  gap: 1rem;
+}
+
+.tile {
+  width: 100%;
+  height: 100%;
+  min-height: 16rem;
+  object-fit: cover;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(23, 20, 18, 0.08);
+  box-shadow: 0 22px 50px rgba(53, 40, 25, 0.12);
+}
+
+.tileTall {
+  grid-row: span 2;
+  min-height: 34rem;
+}
+
+.tileWide {
+  grid-column: span 2;
+}
+
+.features {
+  margin-top: 2rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.featureCard {
+  border-radius: 1.5rem;
+  padding: 1.6rem;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.featureBody {
+  margin: 0;
+  color: rgba(23, 20, 18, 0.76);
+  line-height: 1.65;
+}
+
+@media only screen and (max-width: 64rem) {
+  .hero,
+  .galleryGrid,
+  .features,
+  .statRow {
+    grid-template-columns: 1fr;
   }
 
-  .list > li {
-    padding-bottom: 1rem;
+  .copy,
+  .loginPanel {
+    padding: 2rem;
+  }
+
+  .heading {
+    max-width: none;
+  }
+
+  .galleryLead h2 {
+    max-width: none;
+  }
+
+  .tileTall,
+  .tileWide {
+    grid-row: auto;
+    grid-column: auto;
+    min-height: 18rem;
+  }
+}
+
+@media only screen and (max-width: 40rem) {
+  .shell {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .copy,
+  .loginPanel,
+  .featureCard {
+    border-radius: 1.25rem;
+  }
+
+  .heading {
+    font-size: 2.9rem;
   }
 }
