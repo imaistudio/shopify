@@ -8,7 +8,6 @@ import {
   BlockStack,
   InlineStack,
   Divider,
-  Button,
 } from "@shopify/polaris";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -70,13 +69,15 @@ export default function ExploreIMAI() {
       <Layout>
         {/* Hero */}
         <Layout.Section>
-          <BlockStack gap="300" align="center">
-            <Text variant="heading2xl" as="h1" alignment="center">
-              From Concept to Commerce
+          <BlockStack gap="200">
+            <Text variant="heading2xl" as="h1" alignment="start">
+              Physical Product Creation Agents
             </Text>
-            <Text variant="bodyLg" as="p" alignment="center" tone="subdued">
-              Design, visualize, cost, & generate lifestyle content — all
-              On IMAI.Studio
+            <Text variant="headingLg" as="p" alignment="start" tone="subdued">
+              That Learn Brand-Specific Design, Technical & Marketing Skills
+            </Text>
+            <Text variant="bodySm" as="p" alignment="start" tone="subdued">
+              And Generate Collection Designs, Product Variations, Techpacks, and Campaign-Ready Visuals
             </Text>
           </BlockStack>
         </Layout.Section>
