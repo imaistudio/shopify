@@ -1,339 +1,329 @@
 .page {
-  position: relative;
-  min-height: 100vh;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
   overflow: hidden;
-  background:
-    radial-gradient(circle at top left, rgba(227, 179, 60, 0.18), transparent 28rem),
-    radial-gradient(circle at bottom right, rgba(17, 88, 76, 0.2), transparent 32rem),
-    linear-gradient(180deg, #f8f4ec 0%, #f2ede2 54%, #ece4d6 100%);
-  color: #171412;
-}
-
-.backdrop {
-  position: absolute;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(23, 20, 18, 0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(23, 20, 18, 0.04) 1px, transparent 1px);
-  background-size: 3rem 3rem;
-  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.6), transparent 90%);
-  pointer-events: none;
+  background: #f7f7f4;
+  color: #0f0f0f;
 }
 
 .shell {
-  position: relative;
-  z-index: 1;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 4rem 1.5rem 5rem;
+  width: 100%;
+  height: 100%;
+  padding: clamp(1.25rem, 2vw, 2rem);
 }
 
 .hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
-  gap: 2rem;
-  align-items: stretch;
+  grid-template-columns: minmax(0, 55fr) minmax(360px, 45fr);
+  gap: clamp(2rem, 4vw, 4.5rem);
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
 }
 
-.copy,
-.loginPanel,
-.featureCard {
-  border: 1px solid rgba(23, 20, 18, 0.1);
-  background: rgba(255, 250, 244, 0.82);
-  box-shadow: 0 24px 70px rgba(53, 40, 25, 0.08);
-  backdrop-filter: blur(14px);
-}
-
-.copy {
+.visualPanel {
+  position: relative;
+  align-self: end;
+  height: 100%;
+  min-height: 0;
   border-radius: 2rem;
-  padding: 3rem;
-  display: grid;
-  gap: 1.5rem;
+  overflow: hidden;
+  background: #ecece7;
+  box-shadow: 0 20px 56px rgba(24, 24, 24, 0.08);
 }
 
-.kicker,
-.panelEyebrow,
-.sectionKicker,
-.featureTitle {
-  margin: 0;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  font-size: 0.78rem;
-  font-weight: 700;
-  color: #7f4d1d;
+.visualPanel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 34%,
+    rgba(15, 15, 15, 0.08) 100%
+  );
+}
+
+.heroImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center bottom;
+}
+
+.contentPanel {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  gap: clamp(1.1rem, 2vh, 1.9rem);
+  align-content: center;
+  padding: clamp(0.25rem, 1vh, 1rem) 0;
+}
+
+.brandCluster {
+  position: relative;
+  width: fit-content;
+}
+
+.shopifyCard {
+  width: clamp(5.5rem, 6vw, 6.4rem);
+  height: clamp(5.5rem, 6vw, 6.4rem);
+  display: grid;
+  place-items: center;
+  border-radius: 1.5rem;
+  background: #ffffff;
+  border: 1px solid rgba(15, 15, 15, 0.08);
+  box-shadow: 0 20px 40px rgba(15, 15, 15, 0.08);
+}
+
+.shopifyMark {
+  width: clamp(3.1rem, 4vw, 3.8rem);
+  height: auto;
+}
+
+.logoBadge {
+  position: absolute;
+  right: -0.9rem;
+  bottom: -0.9rem;
+  width: 2.75rem;
+  height: 2.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: #111111;
+  border: 4px solid #f7f7f4;
+  overflow: hidden;
+}
+
+.logoImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.copyBlock {
+  display: grid;
+  gap: 0.55rem;
 }
 
 .heading {
   margin: 0;
-  max-width: 12ch;
-  font-size: clamp(3.4rem, 7vw, 6.1rem);
-  line-height: 0.92;
+  max-width: 8ch;
+  font-size: clamp(3.6rem, 6.2vw, 6rem);
+  line-height: 0.9;
   letter-spacing: -0.08em;
-  font-weight: 800;
-}
-
-.text {
-  margin: 0;
-  max-width: 34rem;
-  font-size: 1.15rem;
-  line-height: 1.7;
-  color: rgba(23, 20, 18, 0.78);
-}
-
-.statRow {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
-}
-
-.statCard {
-  display: grid;
-  gap: 0.2rem;
-  padding: 1rem 1.1rem;
-  border-radius: 1.2rem;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1px solid rgba(23, 20, 18, 0.08);
-}
-
-.statValue {
-  font-size: 1.1rem;
   font-weight: 700;
 }
 
-.statLabel {
-  color: rgba(23, 20, 18, 0.72);
-  font-size: 0.92rem;
-}
-
-.loginPanel {
-  border-radius: 1.75rem;
-  padding: 2rem;
-  display: grid;
-  gap: 1.5rem;
-  align-self: center;
-}
-
-.loginHeader {
-  display: grid;
-  gap: 0.6rem;
-}
-
-.loginHeader h2 {
+.subtitle {
   margin: 0;
-  font-size: 1.75rem;
-  line-height: 1.1;
+  color: rgba(15, 15, 15, 0.52);
+  letter-spacing: 0.02em;
+  font-size: clamp(1.1rem, 2vw, 1.55rem);
+  font-weight: 500;
 }
 
-.loginHeader p {
-  margin: 0;
-  color: rgba(23, 20, 18, 0.72);
-  line-height: 1.6;
-}
-
-.loginHeader code {
-  font-family: "SFMono-Regular", ui-monospace, monospace;
-  font-size: 0.92em;
-  color: #0e564a;
-}
-
-.form {
-  display: grid;
-  gap: 0.85rem;
-}
-
-.label {
-  font-weight: 700;
-  font-size: 0.95rem;
-}
-
-.input {
-  width: 100%;
-  border-radius: 1rem;
-  border: 1px solid rgba(23, 20, 18, 0.14);
-  padding: 0.95rem 1rem;
-  font-size: 1rem;
-  background: rgba(255, 255, 255, 0.84);
-  color: #171412;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    transform 0.2s ease;
-}
-
-.input:focus {
-  outline: none;
-  border-color: #0e564a;
-  box-shadow: 0 0 0 4px rgba(14, 86, 74, 0.12);
-  transform: translateY(-1px);
-}
-
-.button {
-  border: 0;
-  border-radius: 999px;
-  padding: 0.95rem 1.2rem;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #fff9f1;
-  background: linear-gradient(135deg, #171412 0%, #0e564a 100%);
-  cursor: pointer;
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    opacity 0.2s ease;
-  box-shadow: 0 16px 35px rgba(14, 86, 74, 0.2);
-}
-
-.button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 20px 40px rgba(14, 86, 74, 0.25);
-}
-
-.button:active {
-  transform: translateY(0);
-}
-
-.hint {
-  margin: 0;
-  color: rgba(23, 20, 18, 0.65);
-  font-size: 0.92rem;
-}
-
-.hint span {
-  color: #171412;
-  font-weight: 600;
-}
-
-.workflow {
+.featureList {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 0.85rem;
+  gap: clamp(0.8rem, 1.2vh, 1rem);
 }
 
-.workflow li {
-  position: relative;
-  padding-left: 1.3rem;
-  color: rgba(23, 20, 18, 0.74);
-  line-height: 1.55;
-}
-
-.workflow li::before {
-  content: "";
-  position: absolute;
-  top: 0.6rem;
-  left: 0;
-  width: 0.55rem;
-  height: 0.55rem;
-  border-radius: 999px;
-  background: linear-gradient(135deg, #7f4d1d 0%, #0e564a 100%);
-}
-
-.gallerySection {
-  margin-top: 2rem;
+.featureItem {
   display: grid;
-  gap: 1.5rem;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  gap: 0.95rem;
+  align-items: center;
 }
 
-.galleryLead {
+.iconWrap {
+  width: 4rem;
+  height: 4rem;
   display: grid;
-  gap: 0.4rem;
+  place-items: center;
+  border-radius: 1.15rem;
+  border: 1px solid rgba(122, 128, 149, 0.18);
+  background: #ffffff;
+  color: #6f6a87;
+  box-shadow: 0 16px 30px rgba(15, 15, 15, 0.04);
 }
 
-.galleryLead h2 {
-  margin: 0;
-  max-width: 16ch;
-  font-size: clamp(2rem, 4vw, 3rem);
-  line-height: 1;
-  letter-spacing: -0.05em;
+.featureText {
+  font-size: clamp(1rem, 1.55vw, 1.7rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.04em;
 }
 
-.galleryGrid {
+.form {
+  margin-top: 0.5rem;
+}
+
+.inputRow {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr 0.85fr;
-  gap: 1rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  align-items: center;
+  max-width: 30rem;
 }
 
-.tile {
+.input {
   width: 100%;
-  height: 100%;
-  min-height: 16rem;
-  object-fit: cover;
-  border-radius: 1.5rem;
-  border: 1px solid rgba(23, 20, 18, 0.08);
-  box-shadow: 0 22px 50px rgba(53, 40, 25, 0.12);
+  border: 1px solid rgba(15, 15, 15, 0.1);
+  border-radius: 999px;
+  padding: 1rem 1.25rem;
+  background: #ffffff;
+  font-size: 0.98rem;
+  color: #0f0f0f;
+  box-shadow: 0 14px 28px rgba(15, 15, 15, 0.04);
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
-.tileTall {
-  grid-row: span 2;
-  min-height: 34rem;
+.input::placeholder {
+  color: rgba(15, 15, 15, 0.42);
 }
 
-.tileWide {
-  grid-column: span 2;
+.input:focus {
+  outline: none;
+  border-color: rgba(36, 83, 173, 0.48);
+  box-shadow: 0 0 0 4px rgba(82, 113, 255, 0.08);
 }
 
-.features {
-  margin-top: 2rem;
+.button {
+  width: 3.45rem;
+  height: 3.45rem;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1rem;
+  place-items: center;
+  border: 0;
+  border-radius: 999px;
+  background: #111111;
+  color: #ffffff;
+  cursor: pointer;
+  box-shadow: 0 16px 30px rgba(15, 15, 15, 0.16);
+  transition:
+    transform 0.2s ease,
+    opacity 0.2s ease;
 }
 
-.featureCard {
-  border-radius: 1.5rem;
-  padding: 1.6rem;
-  display: grid;
-  gap: 0.85rem;
+.button:hover {
+  transform: translateY(-1px);
 }
 
-.featureBody {
-  margin: 0;
-  color: rgba(23, 20, 18, 0.76);
-  line-height: 1.65;
+.button:focus-visible {
+  outline: 3px solid rgba(82, 113, 255, 0.22);
+  outline-offset: 3px;
 }
 
-@media only screen and (max-width: 64rem) {
-  .hero,
-  .galleryGrid,
-  .features,
-  .statRow {
-    grid-template-columns: 1fr;
-  }
-
-  .copy,
-  .loginPanel {
-    padding: 2rem;
-  }
-
-  .heading {
-    max-width: none;
-  }
-
-  .galleryLead h2 {
-    max-width: none;
-  }
-
-  .tileTall,
-  .tileWide {
-    grid-row: auto;
-    grid-column: auto;
-    min-height: 18rem;
-  }
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
-@media only screen and (max-width: 40rem) {
+@media only screen and (max-width: 1024px) {
   .shell {
-    padding: 1.5rem 1rem 3rem;
+    padding: 1.25rem;
   }
 
-  .copy,
-  .loginPanel,
-  .featureCard {
-    border-radius: 1.25rem;
+  .hero {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.95fr);
+  }
+
+  .visualPanel {
+    height: 100%;
+  }
+}
+
+@media only screen and (max-width: 768px) {
+  .shell {
+    padding: 0.9rem;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(0, 60fr) minmax(0, 40fr);
+    gap: 0.85rem;
+  }
+
+  .visualPanel {
+    height: 100%;
+    border-radius: 1.35rem;
+  }
+
+  .contentPanel {
+    align-content: center;
+    padding: 0;
+    gap: 0.9rem;
   }
 
   .heading {
-    font-size: 2.9rem;
+    max-width: 7ch;
+    font-size: clamp(2.35rem, 9vw, 3.4rem);
+  }
+
+  .featureItem {
+    grid-template-columns: 3rem minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .iconWrap {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.95rem;
+  }
+
+  .featureText {
+    font-size: 0.96rem;
+  }
+
+  .inputRow {
+    max-width: none;
+    gap: 0.6rem;
+  }
+
+  .input {
+    padding: 0.9rem 1rem;
+  }
+
+  .button {
+    width: 3rem;
+    height: 3rem;
+  }
+}
+
+@media only screen and (max-width: 480px) {
+  .shell {
+    padding: 0.75rem;
+  }
+
+  .logoBadge {
+    right: -0.45rem;
+    bottom: -0.45rem;
+    width: 2.35rem;
+    height: 2.35rem;
+  }
+
+  .shopifyCard {
+    border-radius: 1.2rem;
+  }
+
+  .subtitle {
+    font-size: 1rem;
+  }
+
+  .featureList {
+    gap: 0.7rem;
   }
 }
