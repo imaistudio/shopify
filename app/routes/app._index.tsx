@@ -8,7 +8,7 @@ export const meta = () => {
     {
       name: "description",
       content:
-        "Transform your store with campaign-ready visuals, catalogue generation, and studio sync powered by IMAI.",
+        "Transform your store with campaign-ready visuals, catalogue generation, and agent-powered workflows from IMAI.",
     },
   ];
 };

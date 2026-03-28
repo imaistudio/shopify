@@ -19,18 +19,18 @@ import { History } from "../components/History";
 
 const marketingMasonryColumns = [
   [
-    { src: "/block1/1.webp", alt: "Media Studio sample 1" },
-    { src: "/block1/5.webp", alt: "Media Studio sample 5" },
+    { src: "/block1/1.webp", alt: "Media Agent sample 1" },
+    { src: "/block1/5.webp", alt: "Media Agent sample 5" },
   ],
   [
-    { src: "/block1/2.webp", alt: "Media Studio sample 2" },
-    { src: "/block1/6.webp", alt: "Media Studio sample 6" },
+    { src: "/block1/2.webp", alt: "Media Agent sample 2" },
+    { src: "/block1/6.webp", alt: "Media Agent sample 6" },
   ],
   [
-    { src: "/block1/3.webp", alt: "Media Studio sample 3" },
-    { src: "/block1/7.webp", alt: "Media Studio sample 7" },
+    { src: "/block1/3.webp", alt: "Media Agent sample 3" },
+    { src: "/block1/7.webp", alt: "Media Agent sample 7" },
   ],
-  [{ src: "/block1/4.webp", alt: "Media Studio sample 4" }],
+  [{ src: "/block1/4.webp", alt: "Media Agent sample 4" }],
 ] as const;
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -75,7 +75,7 @@ export default function MarketingPage() {
   const primaryAction = undefined;
 
   return (
-    <Page title="Media Studio" primaryAction={primaryAction}>
+    <Page title="Media Agent" primaryAction={primaryAction}>
       <style>{`
         .marketing-masonry {
           display: grid;
@@ -112,7 +112,7 @@ export default function MarketingPage() {
       <BlockStack gap="400">
         <Box paddingBlockEnd="200" style={{ marginTop: '-20px' }}>
           <Text as="p" tone="subdued">
-            Generate eye-catching photos for your social media in seconds. Upload a reference image or describe your idea and let AI create ready-to-post visuals.
+            Use the Media Agent to generate campaign-ready visuals for social, ads, and storefront placements. Upload a reference image or describe the outcome, and let the agent produce ready-to-publish variations.
           </Text>
         </Box>
         {/* First Banner - Top of Page */}
@@ -120,7 +120,7 @@ export default function MarketingPage() {
           <Box padding="400">
             <img 
               src="/media/marketing.webp" 
-              alt="Marketing Generation Banner"
+              alt="Media Agent banner"
               style={{ 
                 width: "100%", 
                 height: "auto", 
@@ -152,11 +152,12 @@ export default function MarketingPage() {
                   defaultMode="marketing"
                   balance={balance}
                   promptPlaceholder='e.g. "Instagram lifestyle photo with soft lighting" or "Modern product post with pastel background"'
+                  promptHelpText="Give the Media Agent the channel, visual style, and mood so it can steer the output with less guesswork."
                 />
               ) : (
                 <BlockStack gap="400" align="center">
                   <Text as="p" tone="subdued" alignment="center">
-                    Connect your API key to generate marketing images
+                    Connect your API key to run the Media Agent
                   </Text>
                 </BlockStack>
               )}

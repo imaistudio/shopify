@@ -36,7 +36,7 @@ interface GeneratePanelProps {
   onGenerationComplete: () => void;
   shop: string;
   balance: number | null;
-  /** Optional placeholder for the prompt field (e.g. Media Studio vs default). */
+  /** Optional placeholder for the prompt field (e.g. Media Agent vs default). */
   promptPlaceholder?: string;
   /** Optional help text below the prompt field. */
   promptHelpText?: string;

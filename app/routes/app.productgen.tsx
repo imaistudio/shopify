@@ -101,18 +101,18 @@ const CANCEL_BUTTON_TIMEOUT_MS = 60000; // 1 minute before showing cancel button
 
 const productMasonryColumns = [
   [
-    { src: "/block2/1.webp", alt: "Product Studio sample 1" },
-    { src: "/block2/5.webp", alt: "Product Studio sample 5" },
+    { src: "/block2/1.webp", alt: "Product Agent sample 1" },
+    { src: "/block2/5.webp", alt: "Product Agent sample 5" },
   ],
   [
-    { src: "/block2/2.webp", alt: "Product Studio sample 2" },
-    { src: "/block2/6.webp", alt: "Product Studio sample 6" },
+    { src: "/block2/2.webp", alt: "Product Agent sample 2" },
+    { src: "/block2/6.webp", alt: "Product Agent sample 6" },
   ],
   [
-    { src: "/block2/3.webp", alt: "Product Studio sample 3" },
-    { src: "/block2/7.webp", alt: "Product Studio sample 7" },
+    { src: "/block2/3.webp", alt: "Product Agent sample 3" },
+    { src: "/block2/7.webp", alt: "Product Agent sample 7" },
   ],
-  [{ src: "/block2/4.webp", alt: "Product Studio sample 4" }],
+  [{ src: "/block2/4.webp", alt: "Product Agent sample 4" }],
 ] as const;
 
 export default function ProductGenPage() {
@@ -553,7 +553,7 @@ export default function ProductGenPage() {
 
   return (
     <>
-      <Page title="Product Studio" primaryAction={primaryAction}>
+      <Page title="Product Agent" primaryAction={primaryAction}>
       <style>{`
         .product-masonry {
           display: grid;
@@ -590,7 +590,7 @@ export default function ProductGenPage() {
       <BlockStack gap="400">
         <Box paddingBlockEnd="200" style={{ marginTop: '-20px' }}>
           <Text as="p" tone="subdued">
-            Create professional product photos for your store. Turn any product image into clean catalogue shots.
+            Use the Product Agent to turn a reference image into clean catalogue shots and richer product content for your store.
           </Text>
         </Box>
         {/* First Banner - Top of Page */}
@@ -598,7 +598,7 @@ export default function ProductGenPage() {
           <Box padding="400">
             <img 
               src="/product/productgen2.webp" 
-              alt="Product Studio Banner"
+              alt="Product Agent banner"
               style={{ 
                 width: "100%", 
                 height: "auto", 
@@ -612,7 +612,7 @@ export default function ProductGenPage() {
         {!isConnected && (
           <Banner tone="info" title="Connect your IMAI Studio API key">
             <Text as="p">
-              Connect your API key in the Settings tab to start generating product content.
+              Connect your API key in the Settings tab to start generating product content with the Product Agent.
               Get your key at{" "}
               <a href="https://www.imai.studio" target="_blank" rel="noopener noreferrer">
                 www.imai.studio
@@ -681,13 +681,13 @@ export default function ProductGenPage() {
                 </BlockStack>
 
                 <TextField
-                  label="Custom Prompt (Optional)"
+                  label="Agent Brief (Optional)"
                   value={prompt}
                   onChange={setPrompt}
                   placeholder='e.g. "Clean white background ecommerce shot" or "Luxury product on marble surface"'
                   multiline={3}
                   autoComplete="off"
-                  helpText="Add style, mood, or background ideas to guide the AI."
+                  helpText="Add style, mood, or background ideas to guide the Product Agent."
                 />
 
                 {balance !== null && (
@@ -713,7 +713,7 @@ export default function ProductGenPage() {
                         fontWeight: 600,
                       }}
                     >
-                      Generate Content
+                      Run Product Agent
                     </Button>
                   </div>
                 </Box>
@@ -744,7 +744,7 @@ export default function ProductGenPage() {
                           <BlockStack gap="200" align="center">
                             <Spinner size="large" />
                             <Text as="p" alignment="center" tone="subdued">
-                              Generating your content...
+                              Product Agent is generating your content...
                             </Text>
                             {showCancelButton && (
                               <Button

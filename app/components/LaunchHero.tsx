@@ -12,17 +12,19 @@ const COMPANY_LOGO_SRC = "/launch/logo.webp";
 const featureItems = [
   {
     title: "Campaign Ready Visuals",
-    subtitle: "Media Studio Agent",
+    subtitle: "Media Agent",
     renderIcon: () => <Icon icon="bi:phone-fill" width={25} height={25} />,
   },
   {
     title: "One Click Catalogue Generation",
+    subtitle: "Product Agent",
     renderIcon: () => (
       <Icon icon="fluent:collections-20-filled" width={25} height={25} />
     ),
   },
   {
-    title: "Sync Store With Studio",
+    title: "Sync Store With Agents",
+    subtitle: "Store-aware workflows",
     renderIcon: () => <RefreshCcw size={20} strokeWidth={2.1} />,
   },
 ];
