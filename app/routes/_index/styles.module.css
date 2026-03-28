@@ -1,15 +1,15 @@
 .page {
-  width: 100vw;
-  height: 100vh;
-  height: 100dvh;
-  overflow: hidden;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
   background: #f7f7f4;
   color: #0f0f0f;
 }
 
 .shell {
   width: 100%;
-  height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
   padding: clamp(1.25rem, 2vw, 2rem);
 }
 
@@ -19,37 +19,26 @@
   gap: clamp(2rem, 4vw, 4.5rem);
   align-items: center;
   width: 100%;
-  height: 100%;
-  overflow: hidden;
+  min-height: calc(100vh - (2 * clamp(1.25rem, 2vw, 2rem)));
+  min-height: calc(100dvh - (2 * clamp(1.25rem, 2vw, 2rem)));
 }
 
 .visualPanel {
-  position: relative;
+  display: flex;
+  align-items: flex-end;
   align-self: end;
   height: 100%;
   min-height: 0;
-  border-radius: 2rem;
-  overflow: hidden;
-  background: #ecece7;
-  box-shadow: 0 20px 56px rgba(24, 24, 24, 0.08);
-}
-
-.visualPanel::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0) 34%,
-    rgba(15, 15, 15, 0.08) 100%
-  );
+  min-width: 0;
 }
 
 .heroImage {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  max-height: 100%;
+  object-fit: contain;
   object-position: center bottom;
+  display: block;
 }
 
 .contentPanel {
@@ -105,7 +94,7 @@
 
 .copyBlock {
   display: grid;
-  gap: 0.55rem;
+  gap: 0.2rem;
 }
 
 .heading {
@@ -123,6 +112,7 @@
   letter-spacing: 0.02em;
   font-size: clamp(1.1rem, 2vw, 1.55rem);
   font-weight: 500;
+  line-height: 1;
 }
 
 .featureList {
@@ -152,11 +142,23 @@
   box-shadow: 0 16px 30px rgba(15, 15, 15, 0.04);
 }
 
+.featureCopy {
+  display: grid;
+  gap: 0.05rem;
+}
+
 .featureText {
   font-size: clamp(1rem, 1.55vw, 1.7rem);
   font-weight: 700;
-  line-height: 1.15;
+  line-height: 1.05;
   letter-spacing: -0.04em;
+}
+
+.featureSubtext {
+  color: #7b61ff;
+  font-size: clamp(0.95rem, 1.35vw, 1.35rem);
+  font-weight: 500;
+  line-height: 1.05;
 }
 
 .form {
@@ -164,10 +166,7 @@
 }
 
 .inputRow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.75rem;
-  align-items: center;
+  position: relative;
   max-width: 30rem;
 }
 
@@ -175,7 +174,7 @@
   width: 100%;
   border: 1px solid rgba(15, 15, 15, 0.1);
   border-radius: 999px;
-  padding: 1rem 1.25rem;
+  padding: 1rem 4.75rem 1rem 1.25rem;
   background: #ffffff;
   font-size: 0.98rem;
   color: #0f0f0f;
@@ -196,6 +195,10 @@
 }
 
 .button {
+  position: absolute;
+  top: 50%;
+  right: 0.35rem;
+  transform: translateY(-50%);
   width: 3.45rem;
   height: 3.45rem;
   display: grid;
@@ -207,12 +210,13 @@
   cursor: pointer;
   box-shadow: 0 16px 30px rgba(15, 15, 15, 0.16);
   transition:
-    transform 0.2s ease,
+    opacity 0.2s ease,
+    box-shadow 0.2s ease,
     opacity 0.2s ease;
 }
 
 .button:hover {
-  transform: translateY(-1px);
+  box-shadow: 0 20px 34px rgba(15, 15, 15, 0.2);
 }
 
 .button:focus-visible {
@@ -239,6 +243,8 @@
 
   .hero {
     grid-template-columns: minmax(0, 1fr) minmax(320px, 0.95fr);
+    min-height: calc(100vh - 2.5rem);
+    min-height: calc(100dvh - 2.5rem);
   }
 
   .visualPanel {
@@ -255,11 +261,12 @@
     grid-template-columns: 1fr;
     grid-template-rows: minmax(0, 60fr) minmax(0, 40fr);
     gap: 0.85rem;
+    min-height: calc(100vh - 1.8rem);
+    min-height: calc(100dvh - 1.8rem);
   }
 
   .visualPanel {
     height: 100%;
-    border-radius: 1.35rem;
   }
 
   .contentPanel {
@@ -288,13 +295,16 @@
     font-size: 0.96rem;
   }
 
+  .featureSubtext {
+    font-size: 0.92rem;
+  }
+
   .inputRow {
     max-width: none;
-    gap: 0.6rem;
   }
 
   .input {
-    padding: 0.9rem 1rem;
+    padding: 0.9rem 4rem 0.9rem 1rem;
   }
 
   .button {
@@ -325,5 +335,9 @@
 
   .featureList {
     gap: 0.7rem;
+  }
+
+  .button {
+    right: 0.3rem;
   }
 }
