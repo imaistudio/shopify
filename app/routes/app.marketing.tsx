@@ -79,7 +79,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export default function MarketingPage() {
   const {
-    shop,
     isConnected,
     balance,
     hasHistory: initialHasHistory,
@@ -133,11 +132,13 @@ export default function MarketingPage() {
         }
       `}</style>
       <BlockStack gap="400">
-        <Box paddingBlockEnd="200" style={{ marginTop: '-20px' }}>
-          <Text as="p" tone="subdued">
-            Use the Media Agent to generate campaign-ready visuals for social, ads, and storefront placements. Upload a reference image or describe the outcome, and let the agent produce ready-to-publish variations.
-          </Text>
-        </Box>
+        <div style={{ marginTop: "-20px" }}>
+          <Box paddingBlockEnd="200">
+            <Text as="p" tone="subdued">
+              Use the Media Agent to generate campaign-ready visuals for social, ads, and storefront placements. Upload a reference image or describe the outcome, and let the agent produce ready-to-publish variations.
+            </Text>
+          </Box>
+        </div>
         {/* First Banner - Top of Page */}
         <Card>
           <Box padding="400">
@@ -171,8 +172,6 @@ export default function MarketingPage() {
             {isConnected ? (
                 <GeneratePanel 
                   onGenerationComplete={handleGenerationComplete}
-                  shop={shop}
-                  defaultMode="marketing"
                   balance={balance}
                   promptPlaceholder='e.g. "Instagram lifestyle photo with soft lighting" or "Modern product post with pastel background"'
                   promptHelpText="Give the Media Agent the channel, visual style, and mood so it can steer the output with less guesswork."
@@ -211,7 +210,6 @@ export default function MarketingPage() {
 
         {isConnected && (
           <History 
-            shop={shop} 
             endpoint="marketing"
             refreshTrigger={libraryRefreshTrigger}
             onHasVisibleHistoryChange={handleHistoryVisibilityChange}

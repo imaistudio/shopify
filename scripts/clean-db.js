@@ -1,3 +1,5 @@
+/* eslint-env node */
+
 /**
  * Cleans app-specific data from the database (ApiKey, ImaiJob).
  * Session data is preserved so shops stay authenticated.

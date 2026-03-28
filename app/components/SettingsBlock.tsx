@@ -56,25 +56,25 @@ export function SettingsBlock({
       <BlockStack gap="400">
         <InlineStack gap="200" blockAlign="center">
           <Badge tone="success">Connected</Badge>
-          <Text variant="headingMd">Connected to IMAI Studio</Text>
+          <Text as="span" variant="headingMd">Connected to IMAI Studio</Text>
         </InlineStack>
 
         <BlockStack gap="200">
           <InlineStack gap="200">
-            <Text variant="bodyMd" tone="subdued">
+            <Text as="span" variant="bodyMd" tone="subdued">
               API Key
             </Text>
-            <Text variant="bodyMd" fontWeight="medium">
+            <Text as="span" variant="bodyMd" fontWeight="medium">
               {maskedKey}
             </Text>
           </InlineStack>
 
           <InlineStack gap="200">
-            <Text variant="bodyMd" tone="subdued">
+            <Text as="span" variant="bodyMd" tone="subdued">
               Credits
             </Text>
-            <Text variant="bodyMd" fontWeight="medium">
-              {balance?.toLocaleString()} remaining
+            <Text as="span" variant="bodyMd" fontWeight="medium">
+              {balance === null ? "Unavailable" : `${balance.toLocaleString()} remaining`}
             </Text>
           </InlineStack>
         </BlockStack>
@@ -89,7 +89,7 @@ export function SettingsBlock({
           title="Remove API Key?"
           primaryAction={{
             content: "Remove Key",
-            tone: "critical",
+            destructive: true,
             onAction: confirmRemove,
           }}
           secondaryActions={[
@@ -100,7 +100,7 @@ export function SettingsBlock({
           ]}
         >
           <Modal.Section>
-            <Text>
+            <Text as="p">
               This will disconnect your IMAI Studio account. You will need to
               reconnect to generate images again.
             </Text>
@@ -112,17 +112,17 @@ export function SettingsBlock({
 
   return (
     <BlockStack gap="400">
-      <Text variant="headingMd">Connect Your Store to IMAI.STUDIO</Text>
+      <Text as="h2" variant="headingMd">Connect Your Store to IMAI.STUDIO</Text>
 
-      <Text variant="bodyMd">
+      <Text as="p" variant="bodyMd">
         To start generating high-quality product visuals and marketing images, connect your Shopify store to IMAI.STUDIO using your API key.
       </Text>
 
       <BlockStack gap="200">
-        <Text variant="bodyMd">How to get your API key:</Text>
+        <Text as="p" variant="bodyMd">How to get your API key:</Text>
         <ul style={{ paddingLeft: "20px", margin: 0 }}>
           <li>
-            <Text variant="bodyMd">
+            <Text as="span" variant="bodyMd">
               Log in to{" "}
               <Link url="https://www.imai.studio" target="_blank">
                 imai.studio
@@ -131,13 +131,13 @@ export function SettingsBlock({
             </Text>
           </li>
           <li>
-            <Text variant="bodyMd">
+            <Text as="span" variant="bodyMd">
               Open your <strong>Profile → Extensions → Shopify</strong> and click{" "}
               <strong>Generate API Key</strong>.
             </Text>
           </li>
           <li>
-            <Text variant="bodyMd">
+            <Text as="span" variant="bodyMd">
               Copy the key and paste it below.
             </Text>
           </li>
@@ -153,7 +153,7 @@ export function SettingsBlock({
       {isLoading ? (
         <InlineStack gap="200" blockAlign="center">
           <Spinner size="small" />
-          <Text>Validating key...</Text>
+          <Text as="span">Validating key...</Text>
         </InlineStack>
       ) : (
         <>

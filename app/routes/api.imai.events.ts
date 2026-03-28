@@ -2,18 +2,30 @@ import type { LoaderFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 
 // Store active SSE connections per shop
-const activeStreams = new Map<string, Array<{ id: string; controller: ReadableStreamDefaultController }>>();
+type StreamController = ReadableStreamDefaultController<Uint8Array>;
+type StreamConnection = { id: string; controller: StreamController };
+type RealtimeEvent = {
+  type: string;
+  jobId?: string;
+  status?: string;
+  result?: unknown;
+  error?: string;
+};
+
+const activeStreams = new Map<string, StreamConnection[]>();
 
 /**
  * GET /api/imai/events
  * Server-Sent Events endpoint for real-time job updates
  */
 export async function loader({ request }: LoaderFunctionArgs) {
+  const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
-  const shop = url.searchParams.get('shop');
+  const requestedShop = url.searchParams.get('shop');
+  const shop = session.shop;
   
-  if (!shop) {
-    return new Response('Shop parameter required', { status: 400 });
+  if (requestedShop && requestedShop !== shop) {
+    return new Response("Forbidden", { status: 403 });
   }
 
   // Create a unique ID for this connection
@@ -66,8 +78,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Cache-Control',
     },
   });
 }
@@ -75,7 +85,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
 /**
  * Send event to all active connections for a shop
  */
-export function sendEventToShop(shop: string, event: any) {
+export function sendEventToShop(shop: string, event: RealtimeEvent) {
   const connections = activeStreams.get(shop);
   
   if (connections) {

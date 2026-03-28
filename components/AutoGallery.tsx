@@ -95,13 +95,15 @@ export function AutoGallery() {
             if (index === activeIndex) return null;
 
             return (
-              <div
+              <button
+                type="button"
                 key={index}
                 className="ag-thumb"
                 onClick={() => setActiveIndex(index)}
+                style={{ padding: 0, background: "transparent" }}
               >
                 <MediaItem url={url} />
-              </div>
+              </button>
             );
           })}
         </div>

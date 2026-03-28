@@ -12,7 +12,6 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
   
-  const type = url.searchParams.get("type") || "";
   const limit = parseInt(url.searchParams.get("limit") || "24", 10);
   const offset = parseInt(url.searchParams.get("offset") || "0", 10);
 

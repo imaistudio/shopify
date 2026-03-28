@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useFetcher, useLoaderData } from "react-router";
-import { authenticate, sessionStorage } from "../shopify.server";
+import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { encrypt, decrypt, maskApiKey } from "../lib/encryption.server";
 import {
@@ -106,36 +106,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
       });
 
-      // Automatically connect store to IMAI after key is verified
-      const offlineSessionId = `offline_${session.shop}`;
-      const offlineSession = await sessionStorage.loadSession(offlineSessionId);
-      const sourceSession = offlineSession ?? session;
-      if (sourceSession?.accessToken) {
-        try {
-          const connectResp = await fetch("https://www.imai.studio/api/v1/oauth", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              platform: "shopify",
-              platformUserId: session.shop,
-              token: sourceSession.accessToken,
-              scope: sourceSession.scope
-                ? sourceSession.scope.split(",").map((s) => s.trim()).filter(Boolean)
-                : undefined,
-              domain: session.shop,
-            }),
-          });
-          if (connectResp.ok) {
-            console.log("[IMAI_SYNC] Auto-connected store after key save", { shop: session.shop });
-          }
-        } catch (e) {
-          console.warn("[IMAI_SYNC] Auto-connect after key save failed", { shop: session.shop, e });
-        }
-      }
-
       return {
         success: true,
         maskedKey,
@@ -144,113 +114,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       };
     } catch (err) {
       return { error: "Network error. Could not reach IMAI Studio." };
-    }
-  }
-
-  if (intent === "connectStoreToImai") {
-    console.log("[IMAI_SYNC] Start connectStoreToImai", {
-      shop: session.shop,
-      hasOnlineAccessToken: Boolean(session.accessToken),
-      sessionScope: session.scope ?? null,
-    });
-
-    const apiKeyRecord = await prisma.apiKey.findUnique({
-      where: { shop: session.shop },
-    });
-
-    if (!apiKeyRecord) {
-      console.error("[IMAI_SYNC] Missing IMAI API key for shop", { shop: session.shop });
-      return { error: "failed to connect to IMAI.Studio" };
-    }
-
-    // Prefer offline session: that token is a long-lived Admin API token usable from anywhere
-    // (background jobs, external services). Online/session tokens are short-lived and user-bound.
-    // See: https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/offline-access-tokens
-    const offlineSessionId = `offline_${session.shop}`;
-    const offlineSession = await sessionStorage.loadSession(offlineSessionId);
-    const sourceSession = offlineSession ?? session;
-    const isOfflineToken = Boolean(offlineSession);
-    console.log("[IMAI_SYNC] Session resolution", {
-      shop: session.shop,
-      offlineSessionId,
-      foundOfflineSession: Boolean(offlineSession),
-      usingOfflineSession: isOfflineToken,
-      adminApiTokenUsableFromAnywhere: isOfflineToken,
-      hasSourceAccessToken: Boolean(sourceSession?.accessToken),
-      sourceScope: sourceSession?.scope ?? null,
-    });
-
-    if (!sourceSession?.accessToken) {
-      console.error("[IMAI_SYNC] No Shopify access token found", {
-        shop: session.shop,
-        usedOfflineSession: Boolean(offlineSession),
-      });
-      return { error: "failed to connect to IMAI.Studio" };
-    }
-
-    const apiKey = decrypt(apiKeyRecord.encryptedKey);
-    const scope = sourceSession.scope
-      ? sourceSession.scope.split(",").map((value) => value.trim()).filter(Boolean)
-      : undefined;
-    const requestPayload = {
-      platform: "shopify",
-      platformUserId: session.shop,
-      token: sourceSession.accessToken,
-      scope,
-      domain: session.shop,
-    };
-
-    console.log("[IMAI_SYNC] Prepared payload", {
-      endpoint: "https://www.imai.studio/api/v1/oauth",
-      shop: session.shop,
-      tokenType: isOfflineToken
-        ? "offline (Admin API token — usable from anywhere)"
-        : "online/session (short-lived, user-bound)",
-      payloadPreview: requestPayload,
-      tokenLength: requestPayload.token.length,
-      hasScope: Boolean(scope?.length),
-      scopeCount: scope?.length ?? 0,
-    });
-
-    try {
-      const response = await fetch("https://www.imai.studio/api/v1/oauth", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestPayload),
-      });
-
-      const data = await response.json().catch(() => ({}));
-      console.log("[IMAI_SYNC] IMAI response received", {
-        shop: session.shop,
-        status: response.status,
-        ok: response.ok,
-        responseBody: data,
-      });
-
-      if (!response.ok) {
-        console.error("[IMAI_SYNC] IMAI sync failed", {
-          shop: session.shop,
-          status: response.status,
-          responseBody: data,
-        });
-        return { error: "failed to connect to IMAI.Studio" };
-      }
-
-      console.log("[IMAI_SYNC] IMAI sync success", {
-        shop: session.shop,
-        tokenId: data?.tokenId ?? null,
-      });
-      return {
-        success: true,
-        tokenId: data?.tokenId ?? null,
-        message: "Store token connected to IMAI successfully",
-      };
-    } catch (error) {
-      console.error("[IMAI_SYNC] Network error", { shop: session.shop, error });
-      return { error: "failed to connect to IMAI.Studio" };
     }
   }
 

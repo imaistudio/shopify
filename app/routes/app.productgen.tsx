@@ -1,40 +1,139 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { decrypt } from "../lib/encryption.server";
 import {
-  Page,
-  Card,
-  Box,
-  BlockStack,
-  Text,
   Banner,
-  TextField,
+  BlockStack,
+  Box,
   Button,
+  Card,
   DropZone,
-  Thumbnail,
-  InlineStack,
-  Spinner,
-  InlineGrid,
   Icon,
+  InlineGrid,
+  InlineStack,
+  Page,
+  Spinner,
+  Text,
+  TextField,
+  Thumbnail,
 } from "@shopify/polaris";
-import { ImageIcon, XCircleIcon, PlusIcon } from "@shopify/polaris-icons";
-
-// Components
+import { ImageIcon, PlusIcon, XCircleIcon } from "@shopify/polaris-icons";
 import { History } from "../components/History";
+
+type ProductDetails = {
+  title?: string;
+  description?: string;
+  features?: string[];
+  specifications?: Record<string, string | number | boolean>;
+  platforms?: Record<
+    string,
+    {
+      title?: string;
+      description?: string;
+      metadata?: {
+        features?: string[];
+      };
+    }
+  >;
+};
+
+type EcommerceResponse = {
+  urls?: string[];
+  text?: string;
+  details?: ProductDetails;
+  images?: {
+    urls?: string[];
+  };
+} & Record<string, unknown>;
+
+interface ProductGeneration {
+  id: string;
+  prompt: string;
+  uploadedFile: File | null;
+  previewUrl: string | null;
+  isGenerating: boolean;
+  jobId: string | null;
+  response: EcommerceResponse | null;
+  error: string | null;
+  status: "queued" | "processing" | "completed" | "failed" | "cancelled";
+  createdAt: number;
+}
+
+type ActiveJobsResponse = {
+  jobs?: Array<{
+    jobId: string;
+    prompt: string;
+    status: "queued" | "running" | "processing" | "completed" | "failed" | "cancelled";
+    createdAt?: string;
+    error?: string | null;
+  }>;
+};
+
+type StatusResponse = {
+  status?: "queued" | "running" | "processing" | "completed" | "failed" | "cancelled";
+  error?: string;
+  result?: EcommerceResponse;
+  job?: {
+    status?: "queued" | "running" | "processing" | "completed" | "failed" | "cancelled";
+    error?: string;
+    result?: EcommerceResponse;
+  };
+};
+
+const POLL_INTERVAL_MS = 5000;
+const MAX_POLL_ATTEMPTS = 180;
+const CANCEL_BUTTON_TIMEOUT_MS = 60000;
+
+const productMasonryColumns = [
+  [
+    { src: "/block2/1.webp", alt: "Product Agent sample 1" },
+    { src: "/block2/5.webp", alt: "Product Agent sample 5" },
+  ],
+  [
+    { src: "/block2/2.webp", alt: "Product Agent sample 2" },
+    { src: "/block2/6.webp", alt: "Product Agent sample 6" },
+  ],
+  [
+    { src: "/block2/3.webp", alt: "Product Agent sample 3" },
+    { src: "/block2/7.webp", alt: "Product Agent sample 7" },
+  ],
+  [{ src: "/block2/4.webp", alt: "Product Agent sample 4" }],
+] as const;
+
+function normalizeStatus(
+  status: "queued" | "running" | "processing" | "completed" | "failed" | "cancelled",
+): ProductGeneration["status"] {
+  return status === "running" ? "processing" : status;
+}
+
+function parseResponse(data: StatusResponse): EcommerceResponse | null {
+  return data.result ?? data.job?.result ?? null;
+}
+
+function parseTextDetails(response: EcommerceResponse | null): ProductDetails | null {
+  if (response?.details) return response.details;
+  if (!response?.text) return null;
+
+  try {
+    return JSON.parse(response.text) as ProductDetails;
+  } catch {
+    return { description: response.text };
+  }
+}
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  
-  // Check if shop has a stored API key
+
   const storedKey = await prisma.apiKey.findUnique({
     where: { shop: session.shop },
   });
-  
+
   let balance = null;
   let hasHistory = false;
+
   if (storedKey) {
     try {
       const apiKey = decrypt(storedKey.encryptedKey);
@@ -60,523 +159,365 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     hasHistory = !!existingHistory;
   }
-  
-  return { 
-    shop: session.shop,
+
+  return {
     isConnected: !!storedKey,
     balance,
     hasHistory,
   };
 };
 
-interface EcommerceResponse {
-  success: boolean;
-  versionId?: string;
-  accepted?: boolean;
-  jobId?: string;
-  status?: string;
-  statusEndpoint?: string;
-  urls?: string[];
-  text?: string;
-  details?: {
-    title?: string;
-    description?: string;
-    features?: string[];
-    specifications?: Record<string, string>;
-    platforms?: Record<string, any>;
-  };
-  images?: {
-    urls: string[];
-  };
-  error?: string;
-  message?: string;
-}
-
-interface ProductGeneration {
-  id: string;
-  prompt: string;
-  uploadedFile: File | null;
-  previewUrl: string | null;
-  isGenerating: boolean;
-  jobId: string | null;
-  response: EcommerceResponse | null;
-  error: string | null;
-  status: 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled';
-  createdAt: number;
-}
-
-// Constants for polling and timeouts
-const INITIAL_WAIT_MS = 120000; // 2 minutes initial wait
-const WEBHOOK_GRACE_PERIOD_MS = 210000; // 3.5 minutes to wait for webhook
-const POLL_INTERVAL_MS = 120000; // 2 minutes between polls
-const MAX_POLL_COUNT = 4; // Max 4 polling attempts
-const CANCEL_BUTTON_TIMEOUT_MS = 60000; // 1 minute before showing cancel button
-
-const productMasonryColumns = [
-  [
-    { src: "/block2/1.webp", alt: "Product Agent sample 1" },
-    { src: "/block2/5.webp", alt: "Product Agent sample 5" },
-  ],
-  [
-    { src: "/block2/2.webp", alt: "Product Agent sample 2" },
-    { src: "/block2/6.webp", alt: "Product Agent sample 6" },
-  ],
-  [
-    { src: "/block2/3.webp", alt: "Product Agent sample 3" },
-    { src: "/block2/7.webp", alt: "Product Agent sample 7" },
-  ],
-  [{ src: "/block2/4.webp", alt: "Product Agent sample 4" }],
-] as const;
-
 export default function ProductGenPage() {
   const {
-    shop,
     isConnected,
     balance,
     hasHistory: initialHasHistory,
   } = useLoaderData<typeof loader>();
-  const [hasPageHistory, setHasPageHistory] = useState(initialHasHistory);
-  
-  // Use refs to track polling state without causing re-renders
-  const pollStartTimeRef = useRef<number>(0);
-  const activeJobIdsRef = useRef<Set<string>>(new Set());
-  const pollCountRef = useRef<number>(0);
-  const initialWaitCompleteRef = useRef<boolean>(false);
-  
-  // Form state
+
   const [prompt, setPrompt] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [progress, setProgress] = useState(0);
-  
-  // Generation state
   const [generations, setGenerations] = useState<ProductGeneration[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [showCancelButton, setShowCancelButton] = useState(false);
-  
-  // Track if any generation is currently in progress
-  const hasActiveGeneration = generations.some(gen => gen.isGenerating);
+  const [hasPageHistory, setHasPageHistory] = useState(initialHasHistory);
 
-  const uploadUrlToTempFile = async (imageUrl: string): Promise<string> => {
-    try {
-      const resp = await fetch("https://tempfile.org/api/upload/url", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          url: imageUrl,
-          expiryHours: 24,
-        }),
-      });
+  const activeJobIdsRef = useRef<Set<string>>(new Set());
+  const pollCountRef = useRef(0);
 
-      if (!resp.ok) {
-        throw new Error("Failed to upload URL to temporary storage");
-      }
-
-      const data = await resp.json();
-      if (!data.success || !data.file?.url) {
-        throw new Error("Invalid response from TempFile API");
-      }
-
-      // Append /preview to make the URL directly accessible
-      const baseUrl = data.file.url;
-      return baseUrl.endsWith('/') ? `${baseUrl}preview` : `${baseUrl}/preview`;
-    } catch (error) {
-      console.error("TempFile URL upload error:", error);
-      throw error;
-    }
-  };
-
-  const handleDrop = async (files: File[]) => {
-    if (files.length > 0) {
-      const file = files[0];
-      if (file.size > 10 * 1024 * 1024) {
-        setError("File too large. Maximum size is 10MB.");
-        return;
-      }
-      
-      setUploadedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
-      setError(null);
-    }
-  };
-
-  const clearImage = () => {
-    setUploadedFile(null);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    setPreviewUrl(null);
-  };
-
-  const uploadImage = async (): Promise<string | null> => {
-    if (!uploadedFile) return null;
-
-    setIsUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("image", uploadedFile);
-      formData.append("shop", shop);
-
-      const resp = await fetch("/api/imai/upload", {
-        method: "POST",
-        body: formData,
-      });
-
-      if (!resp.ok) {
-        throw new Error("Upload failed");
-      }
-
-      const data = await resp.json();
-      return data.publicUrl;
-    } catch (err) {
-      setError("Image upload failed. Try a JPG or PNG under 10MB.");
-      return null;
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleGenerate = async () => {
-    if (!uploadedFile) {
-      setError("Please upload an image first");
-      return;
-    }
-    
-    // Prevent multiple concurrent generations
-    if (hasActiveGeneration) {
-      setError("Please wait for the current generation to complete");
-      return;
-    }
-
-    const generationId = Date.now().toString();
-    const newGeneration: ProductGeneration = {
-      id: generationId,
-      prompt: prompt.trim(),
-      uploadedFile,
-      previewUrl,
-      isGenerating: true,
-      jobId: null,
-      response: null,
-      error: null,
-      status: 'queued',
-      createdAt: Date.now(),
-    };
-
-    setGenerations(prev => [newGeneration, ...prev]);
-    setError(null);
-
-    try {
-      // Upload the image
-      const processedImageUrl = await uploadImage();
-      if (!processedImageUrl) {
-        setGenerations(prev => prev.map(gen =>
-          gen.id === generationId ? { ...gen, isGenerating: false, error: "Upload failed" } : gen
-        ));
-        return;
-      }
-
-      const resp = await fetch("/api/imai/generate/ecommerce", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: prompt.trim(),
-          url: processedImageUrl,
-          shop,
-        }),
-      });
-
-      if (!resp.ok) {
-        throw new Error("Generation request failed");
-      }
-
-      const data = await resp.json();
-      
-      if (data.jobId) {
-        setGenerations(prev => prev.map(gen =>
-          gen.id === generationId ? { ...gen, jobId: data.jobId, status: 'queued' } : gen
-        ));
-      } else if (data.success) {
-        // Synchronous response
-        setGenerations(prev => prev.map(gen =>
-          gen.id === generationId ? { ...gen, isGenerating: false, status: 'completed', response: data } : gen
-        ));
-      }
-    } catch (err) {
-      const errorMsg = "Failed to generate, please try again later.";
-      setError(errorMsg);
-      setGenerations(prev => prev.map(gen =>
-          gen.id === generationId ? { ...gen, isGenerating: false, error: errorMsg } : gen
-        ));
-    }
-
-    // Clear inputs after starting generation
-    setPrompt("");
-    setUploadedFile(null);
-  };
-
-  // Set up SSE event listening for webhook completion
   useEffect(() => {
-    if (!isConnected) return;
+    activeJobIdsRef.current = new Set(
+      generations.filter((generation) => generation.isGenerating && generation.jobId).map((generation) => generation.jobId!),
+    );
+  }, [generations]);
 
-    console.log("Setting up SSE connection for shop:", shop);
-    const eventSource = new EventSource(`/api/imai/events?shop=${shop}`);
-    let reconnectTimeout: NodeJS.Timeout;
+  const hasActiveGeneration = generations.some((generation) => generation.isGenerating);
 
-    eventSource.onopen = () => {
-      console.log("SSE connection opened successfully");
-    };
+  const updateGeneration = useCallback(
+    (match: { id?: string; jobId?: string }, updates: Partial<ProductGeneration>) => {
+      setGenerations((previous) =>
+        previous.map((generation) => {
+          const matchesId = match.id ? generation.id === match.id : false;
+          const matchesJobId = match.jobId ? generation.jobId === match.jobId : false;
+          return matchesId || matchesJobId ? { ...generation, ...updates } : generation;
+        }),
+      );
+    },
+    [],
+  );
 
-    eventSource.onmessage = (event) => {
+  useEffect(() => {
+    const loadActiveJobs = async () => {
       try {
-        const data = JSON.parse(event.data);
-        console.log("SSE event received:", data);
-        
-        if (data.type === 'job_update') {
-          const { jobId, status, result, error } = data;
+        const response = await fetch("/api/imai/active-jobs");
+        if (!response.ok) return;
 
-          // Use functional update to always get latest state
-          setGenerations(prev => {
-            const index = prev.findIndex(gen => gen.jobId === jobId);
-            console.log("Found generation index:", index, "for jobId:", jobId);
-            
-            if (index === -1) {
-              console.log("No generation found for jobId:", jobId);
-              return prev;
-            }
+        const data = (await response.json()) as ActiveJobsResponse;
+        const jobs = data.jobs ?? [];
+        if (!jobs.length) return;
 
-            const updated = [...prev];
-            
-            if (status === 'completed') {
-              console.log('Job completed via webhook:', jobId);
-              updated[index] = {
-                ...updated[index],
-                isGenerating: false,
-                status: 'completed',
-                response: result,
-                error: null,
-              };
-              // Update progress outside of render
-              setTimeout(() => {
-                setProgress(100);
-                setTimeout(() => setProgress(0), 2000);
-              }, 0);
-            } else if (status === 'failed') {
-              console.log('Job failed via webhook:', jobId, error);
-              updated[index] = {
-                ...updated[index],
-                isGenerating: false,
-                status: 'failed',
-                error: error || "Generation failed. Please try again.",
-                response: null,
-              };
-              setTimeout(() => setProgress(0), 0);
-            } else if (status === 'processing' || status === 'queued') {
-              updated[index] = {
-                ...updated[index],
-                status: status,
-              };
-            }
-            
-            return updated;
-          });
+        setGenerations((previous) => {
+          const existingJobIds = new Set(previous.map((generation) => generation.jobId));
+          const restored = jobs
+            .filter((job) => !existingJobIds.has(job.jobId))
+            .map<ProductGeneration>((job) => ({
+              id: `restored-${job.jobId}`,
+              prompt: job.prompt,
+              uploadedFile: null,
+              previewUrl: null,
+              isGenerating: job.status === "queued" || job.status === "running" || job.status === "processing",
+              jobId: job.jobId,
+              response: null,
+              error: job.error ?? null,
+              status: normalizeStatus(job.status),
+              createdAt: job.createdAt ? new Date(job.createdAt).getTime() : Date.now(),
+            }));
 
-          // Clear from active jobs and update UI state
-          if (status === 'completed' || status === 'failed') {
-            activeJobIdsRef.current.delete(jobId);
-            setShowCancelButton(false);
-          }
-        }
-      } catch (err) {
-        console.error("Error parsing SSE event:", err);
+          return [...restored, ...previous];
+        });
+      } catch (loadError) {
+        console.error("Failed to restore active product jobs:", loadError);
       }
     };
 
-    eventSource.onerror = (error) => {
-      console.error("SSE connection error:", error);
-      eventSource.close();
-      
-      // Auto-reconnect after 5 seconds
-      reconnectTimeout = setTimeout(() => {
-        console.log("Attempting SSE reconnection...");
-      }, 5000);
-    };
+    loadActiveJobs();
+  }, []);
 
-    return () => {
-      console.log("Closing SSE connection");
-      eventSource.close();
-      clearTimeout(reconnectTimeout);
-    };
-  }, [isConnected, shop]);
-
-  // Background polling - waits 2min, then 3.5min webhook grace, then 2min x4 polls
   useEffect(() => {
-    if (!isConnected || !hasActiveGeneration) {
-      pollStartTimeRef.current = 0;
+    if (!hasActiveGeneration) {
       pollCountRef.current = 0;
-      initialWaitCompleteRef.current = false;
       return;
     }
 
-    // Start polling timer
-    if (pollStartTimeRef.current === 0) {
-      pollStartTimeRef.current = Date.now();
-      console.log('Starting generation - initial 2min wait...');
-    }
-
-    const pollInterval = setInterval(async () => {
-      const elapsed = Date.now() - pollStartTimeRef.current;
+    const intervalId = setInterval(async () => {
       const activeJobIds = Array.from(activeJobIdsRef.current);
-      
-      if (activeJobIds.length === 0) {
-        clearInterval(pollInterval);
+      if (!activeJobIds.length) {
+        clearInterval(intervalId);
         return;
       }
 
-      // Phase 1: Initial 2 minute wait - do nothing
-      if (elapsed < INITIAL_WAIT_MS) {
-        console.log(`Initial wait: ${Math.round(elapsed / 1000)}s / ${INITIAL_WAIT_MS / 1000}s`);
-        return;
-      }
-
-      // Mark initial wait as complete
-      if (!initialWaitCompleteRef.current) {
-        initialWaitCompleteRef.current = true;
-        console.log('Initial 2min wait complete - entering webhook grace period (3.5min)');
-      }
-
-      // Phase 2: Webhook grace period (3.5 min) - light logging only
-      const gracePeriodElapsed = elapsed - INITIAL_WAIT_MS;
-      if (gracePeriodElapsed < WEBHOOK_GRACE_PERIOD_MS) {
-        console.log(`Webhook grace period: ${Math.round(gracePeriodElapsed / 1000)}s / ${WEBHOOK_GRACE_PERIOD_MS / 1000}s`);
-        return;
-      }
-
-      // Phase 3: Active polling - every 2 minutes, max 4 times
-      if (pollCountRef.current >= MAX_POLL_COUNT) {
-        console.log('Max polling attempts reached (4x), marking as failed');
-        // Mark remaining jobs as failed
-        setGenerations(prev => prev.map(gen => {
-          if (gen.isGenerating && gen.jobId) {
-            return { ...gen, isGenerating: false, status: 'failed', error: 'Generation timed out. Please try again.' };
-          }
-          return gen;
-        }));
-        setProgress(0);
+      if (pollCountRef.current >= MAX_POLL_ATTEMPTS) {
+        setGenerations((previous) =>
+          previous.map((generation) =>
+            generation.isGenerating
+              ? {
+                  ...generation,
+                  isGenerating: false,
+                  status: "failed",
+                  error: "Generation timed out. Please try again.",
+                }
+              : generation,
+          ),
+        );
         setShowCancelButton(false);
-        pollStartTimeRef.current = 0;
         pollCountRef.current = 0;
-        clearInterval(pollInterval);
+        clearInterval(intervalId);
         return;
       }
 
-      pollCountRef.current++;
-      console.log(`Polling attempt ${pollCountRef.current}/${MAX_POLL_COUNT} (${elapsed / 1000}s elapsed)`);
+      pollCountRef.current += 1;
 
       for (const jobId of activeJobIds) {
         try {
-          const resp = await fetch(`/api/imai/status?jobId=${jobId}`);
-          if (!resp.ok) continue;
+          const response = await fetch(`/api/imai/status?jobId=${jobId}`);
+          if (!response.ok) continue;
 
-          const data = await resp.json();
-          console.log(`Poll result for ${jobId}:`, data.status);
+          const data = (await response.json()) as StatusResponse;
+          const status = data.job?.status ?? data.status;
 
-          if (data.job?.status === 'completed' || data.status === 'completed') {
-            const result = data.job?.result ? JSON.parse(data.job.result) : data.result;
-            setGenerations(prev => {
-              const index = prev.findIndex(gen => gen.jobId === jobId);
-              if (index === -1) return prev;
-              const updated = [...prev];
-              updated[index] = {
-                ...updated[index],
+          if (status === "completed") {
+            updateGeneration(
+              { jobId },
+              {
                 isGenerating: false,
-                status: 'completed',
-                response: result,
+                status: "completed",
+                response: parseResponse(data),
                 error: null,
-              };
-              return updated;
-            });
-            setProgress(100);
-            setTimeout(() => setProgress(0), 2000);
+              },
+            );
             activeJobIdsRef.current.delete(jobId);
             setShowCancelButton(false);
-          } else if (data.job?.status === 'failed' || data.status === 'failed') {
-            setGenerations(prev => {
-              const index = prev.findIndex(gen => gen.jobId === jobId);
-              if (index === -1) return prev;
-              const updated = [...prev];
-              updated[index] = {
-                ...updated[index],
+          } else if (status === "failed" || status === "cancelled") {
+            updateGeneration(
+              { jobId },
+              {
                 isGenerating: false,
-                status: 'failed',
-                error: data.job?.error || data.error || 'Generation failed. Please try again.',
+                status,
                 response: null,
-              };
-              return updated;
-            });
-            setProgress(0);
+                error: data.job?.error ?? data.error ?? "Generation failed. Please try again.",
+              },
+            );
             activeJobIdsRef.current.delete(jobId);
             setShowCancelButton(false);
+          } else if (status === "running" || status === "processing") {
+            updateGeneration({ jobId }, { status: "processing" });
           }
-        } catch (error) {
-          console.error(`Failed to poll status for ${jobId}:`, error);
+        } catch (pollError) {
+          console.error(`Failed to poll product status for ${jobId}:`, pollError);
         }
       }
-    }, 5000); // Check every 5 seconds internally, but only poll after intervals
+    }, POLL_INTERVAL_MS);
 
-    return () => {
-      clearInterval(pollInterval);
-    };
-  }, [isConnected, hasActiveGeneration]);
-  // Show cancel button after timeout (user can cancel if webhook seems stuck)
+    return () => clearInterval(intervalId);
+  }, [hasActiveGeneration, updateGeneration]);
+
   useEffect(() => {
     if (!hasActiveGeneration) {
       setShowCancelButton(false);
       return;
     }
 
-    const timer = setTimeout(() => {
+    const timeoutId = setTimeout(() => {
       setShowCancelButton(true);
     }, CANCEL_BUTTON_TIMEOUT_MS);
 
-    return () => clearTimeout(timer);
+    return () => clearTimeout(timeoutId);
   }, [hasActiveGeneration]);
 
+  const handleDrop = useCallback((files: File[]) => {
+    const file = files[0];
+    if (!file) return;
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError("File too large. Maximum size is 10MB.");
+      return;
+    }
+
+    setUploadedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+    setError(null);
+  }, []);
+
+  const clearImage = useCallback(() => {
+    setUploadedFile(null);
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+  }, [previewUrl]);
+
+  const uploadImage = useCallback(async (): Promise<string | null> => {
+    if (!uploadedFile) return null;
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("image", uploadedFile);
+
+      const response = await fetch("/api/imai/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error("Upload failed");
+      }
+
+      const data = (await response.json()) as { publicUrl?: string };
+      return data.publicUrl ?? null;
+    } catch (uploadError) {
+      console.error("Product upload failed:", uploadError);
+      setError("Image upload failed. Try a JPG or PNG under 10MB.");
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  }, [uploadedFile]);
+
+  const handleGenerate = useCallback(async () => {
+    if (!uploadedFile) {
+      setError("Please upload an image first.");
+      return;
+    }
+    if (hasActiveGeneration) {
+      setError("Please wait for the current generation to complete.");
+      return;
+    }
+
+    const generationId = Date.now().toString();
+    setGenerations((previous) => [
+      {
+        id: generationId,
+        prompt: prompt.trim(),
+        uploadedFile,
+        previewUrl,
+        isGenerating: true,
+        jobId: null,
+        response: null,
+        error: null,
+        status: "queued",
+        createdAt: Date.now(),
+      },
+      ...previous,
+    ]);
+    setError(null);
+
+    try {
+      const imageUrl = await uploadImage();
+      if (!imageUrl) {
+        updateGeneration(
+          { id: generationId },
+          {
+            isGenerating: false,
+            status: "failed",
+            error: "Upload failed.",
+          },
+        );
+        return;
+      }
+
+      const response = await fetch("/api/imai/generate/ecommerce", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: prompt.trim(),
+          url: imageUrl,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Generation request failed");
+      }
+
+      const data = (await response.json()) as {
+        jobId?: string;
+        success?: boolean;
+      } & EcommerceResponse;
+
+      if (data.jobId) {
+        updateGeneration(
+          { id: generationId },
+          {
+            jobId: data.jobId,
+            status: "queued",
+          },
+        );
+      } else {
+        updateGeneration(
+          { id: generationId },
+          {
+            isGenerating: false,
+            status: "completed",
+            response: data,
+            error: null,
+          },
+        );
+      }
+    } catch (generationError) {
+      console.error("Product generation failed:", generationError);
+      updateGeneration(
+        { id: generationId },
+        {
+          isGenerating: false,
+          status: "failed",
+          error: "Failed to generate, please try again later.",
+        },
+      );
+      setError("Failed to generate, please try again later.");
+    } finally {
+      setPrompt("");
+      setUploadedFile(null);
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      setPreviewUrl(null);
+    }
+  }, [hasActiveGeneration, previewUrl, prompt, updateGeneration, uploadImage, uploadedFile]);
+
   const handleCancelGeneration = useCallback(async () => {
-    const activeGeneration = generations.find(gen => gen.isGenerating && gen.jobId);
+    const activeGeneration = generations.find((generation) => generation.isGenerating && generation.jobId);
     if (!activeGeneration?.jobId) return;
 
     try {
-      await fetch('/api/imai/cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          jobId: activeGeneration.jobId,
-          shop,
-        }),
+      await fetch("/api/imai/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jobId: activeGeneration.jobId }),
       });
-    } catch (error) {
-      console.error('Failed to cancel job in database:', error);
+    } catch (cancelError) {
+      console.error("Failed to cancel product generation:", cancelError);
     }
 
-    setGenerations(prev => prev.map(gen => 
-      gen.jobId === activeGeneration.jobId
-        ? { ...gen, isGenerating: false, status: 'cancelled', error: 'Generation was cancelled' }
-        : gen
-    ));
-    setShowCancelButton(false);
+    updateGeneration(
+      { jobId: activeGeneration.jobId },
+      {
+        isGenerating: false,
+        status: "cancelled",
+        response: null,
+        error: "Generation was cancelled.",
+      },
+    );
     activeJobIdsRef.current.delete(activeGeneration.jobId);
-  }, [generations, shop]);
+    setShowCancelButton(false);
+  }, [generations, updateGeneration]);
 
   const handleHistoryVisibilityChange = useCallback((hasVisibleHistory: boolean) => {
     setHasPageHistory(hasVisibleHistory);
   }, []);
 
-  const primaryAction = undefined;
-
   return (
-    <>
-      <Page title="Product Agent" primaryAction={primaryAction}>
+    <Page title="Product Agent">
       <style>{`
         .product-masonry {
           display: grid;
@@ -610,50 +551,61 @@ export default function ProductGenPage() {
           }
         }
       `}</style>
+
       <BlockStack gap="400">
-        <Box paddingBlockEnd="200" style={{ marginTop: '-20px' }}>
-          <Text as="p" tone="subdued">
-            Use the Product Agent to turn a reference image into clean catalogue shots and richer product content for your store.
-          </Text>
-        </Box>
-        {/* First Banner - Top of Page */}
+        <div style={{ marginTop: "-20px" }}>
+          <Box paddingBlockEnd="200">
+            <Text as="p" tone="subdued">
+              Use the Product Agent to turn a reference image into clean catalogue shots and richer product content for your store.
+            </Text>
+          </Box>
+        </div>
+
         <Card>
           <Box padding="400">
-            <img 
-              src="/product/productgen2.webp" 
+            <img
+              src="/product/productgen2.webp"
               alt="Product Agent banner"
-              style={{ 
-                width: "100%", 
-                height: "auto", 
+              style={{
+                width: "100%",
+                height: "auto",
                 borderRadius: "12px",
-                objectFit: "cover"
+                objectFit: "cover",
               }}
             />
           </Box>
         </Card>
 
-        {!isConnected && (
+        {!isConnected ? (
           <Banner tone="info" title="Connect your IMAI Studio API key">
             <Text as="p">
-              Connect your API key in the Settings tab to start generating product content with the Product Agent.
-              Get your key at{" "}
+              Connect your API key in the Settings tab to start generating product content with the Product Agent. Get your key at{" "}
               <a href="https://www.imai.studio" target="_blank" rel="noopener noreferrer">
                 www.imai.studio
               </a>
             </Text>
           </Banner>
-        )}
+        ) : null}
+
+        {error ? (
+          <Card>
+            <Box padding="300">
+              <Text as="p" tone="critical">
+                {error}
+              </Text>
+            </Box>
+          </Card>
+        ) : null}
 
         <Card>
           <Box padding="400">
             <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
-              {/* Left Side */}
               <BlockStack gap="400">
                 <BlockStack gap="200">
-                  <Text variant="bodyMd" as="p">
+                  <Text as="p" variant="bodyMd">
                     Reference Image
                   </Text>
-                  
+
                   {!uploadedFile ? (
                     <DropZone
                       accept=".webp,.png,.jpeg,.jpg"
@@ -661,28 +613,32 @@ export default function ProductGenPage() {
                       onDrop={handleDrop}
                       allowMultiple={false}
                     >
-                      <div 
-                        style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center', 
-                          minHeight: '200px',
-                          width: '100%',
-                          padding: '16px'
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          minHeight: "200px",
+                          width: "100%",
+                          padding: "16px",
                         }}
                       >
                         <div
                           style={{
-                            display: 'inline-flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            gap: '4px',
-                            margin: 0,
-                            padding: 0,
+                            display: "inline-flex",
+                            flexDirection: "column",
+                            alignItems: "center",
+                            gap: "4px",
                           }}
                         >
                           <Icon source={PlusIcon} tone="subdued" />
-                          <span style={{ fontSize: '13px', color: 'var(--p-color-text-subdued)', margin: 0, lineHeight: 1.3 }}>
+                          <span
+                            style={{
+                              fontSize: "13px",
+                              color: "var(--p-color-text-subdued)",
+                              lineHeight: 1.3,
+                            }}
+                          >
                             Drop or click to upload
                           </span>
                         </div>
@@ -692,11 +648,7 @@ export default function ProductGenPage() {
                     <InlineStack gap="200" blockAlign="center">
                       <Thumbnail source={previewUrl || ""} size="small" alt="Reference" />
                       <Text as="p">{uploadedFile.name}</Text>
-                      <Button
-                        variant="plain"
-                        tone="critical"
-                        onClick={clearImage}
-                      >
+                      <Button variant="plain" tone="critical" onClick={clearImage}>
                         Remove
                       </Button>
                     </InlineStack>
@@ -713,300 +665,231 @@ export default function ProductGenPage() {
                   helpText="Add style, mood, or background ideas to guide the Product Agent."
                 />
 
-                {balance !== null && (
+                {balance !== null ? (
                   <Text as="p" tone="subdued">
                     Credits remaining: {Math.round(balance)}
                   </Text>
-                )}
+                ) : null}
 
-                <Box paddingBlockStart="200" paddingBlockEnd="0">
-                  <div style={{ width: '100%' }}>
-                    <Button
-                      variant="primary"
-                      fullWidth
-                      onClick={handleGenerate}
-                      disabled={!isConnected || !uploadedFile || isUploading || hasActiveGeneration}
-                      size="large"
-                      style={{
-                        backgroundColor: '#000',
-                        color: '#fff',
-                        padding: '14px 24px',
-                        fontSize: '16px',
-                        textAlign: 'center',
-                        fontWeight: 600,
-                      }}
-                    >
-                      Run Product Agent
-                    </Button>
-                  </div>
-                </Box>
+                <Button
+                  variant="primary"
+                  size="large"
+                  fullWidth
+                  disabled={!isConnected || !uploadedFile || isUploading || hasActiveGeneration}
+                  onClick={handleGenerate}
+                >
+                  Run Product Agent
+                </Button>
               </BlockStack>
 
-              {/* Right Side */}
               <BlockStack gap="400">
-                {(() => {
-                  if (hasActiveGeneration) {
+                {hasActiveGeneration ? (
+                  <Box background="bg-fill-secondary" padding="800" borderRadius="200" minHeight="500px">
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minHeight: "400px",
+                        width: "100%",
+                        textAlign: "center",
+                      }}
+                    >
+                      <BlockStack gap="200" align="center">
+                        <Spinner size="large" />
+                        <Text as="p" alignment="center" tone="subdued">
+                          Product Agent is generating your content...
+                        </Text>
+                        {showCancelButton ? (
+                          <Button variant="plain" tone="critical" size="micro" onClick={handleCancelGeneration}>
+                            Cancel Generation
+                          </Button>
+                        ) : null}
+                      </BlockStack>
+                    </div>
+                  </Box>
+                ) : generations.length === 0 ? (
+                  <Box background="bg-fill-secondary" padding="800" borderRadius="200" minHeight="500px">
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minHeight: "400px",
+                        width: "100%",
+                      }}
+                    >
+                      <BlockStack gap="200" align="center">
+                        <Icon source={ImageIcon} tone="subdued" />
+                        <Text as="p" alignment="center" tone="subdued">
+                          Generated assets and product details will appear here
+                        </Text>
+                      </BlockStack>
+                    </div>
+                  </Box>
+                ) : (
+                  generations.map((generation) => {
+                    const response = generation.response;
+                    const details = parseTextDetails(response);
+                    const imageUrls = Array.isArray(response?.urls)
+                      ? response.urls
+                      : Array.isArray(response?.images?.urls)
+                        ? response.images.urls
+                        : [];
+
                     return (
-                      <Box 
-                        background="bg-fill-secondary" 
-                        padding="800" 
-                        borderRadius="200"
-                        minHeight="500px"
-                        borderColor="border"
-                      >
-                        <div 
-                          style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center', 
-                            minHeight: '400px',
-                            width: '100%',
-                            textAlign: 'center'
-                          }}
-                        >
-                          <BlockStack gap="200" align="center">
-                            <Spinner size="large" />
-                            <Text as="p" alignment="center" tone="subdued">
-                              Product Agent is generating your content...
-                            </Text>
-                            {showCancelButton && (
-                              <Button
-                                variant="plain"
-                                tone="critical"
-                                size="micro"
-                                onClick={handleCancelGeneration}
-                              >
-                                Cancel Generation
-                              </Button>
-                            )}
-                          </BlockStack>
-                        </div>
-                      </Box>
-                    );
-                  } else if (generations.length === 0) {
-                    return (
-                      <Box 
-                        background="bg-fill-secondary" 
-                        padding="800" 
-                        borderRadius="200"
-                        minHeight="500px"
-                        borderColor="border"
-                      >
-                        <div 
-                          style={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center', 
-                            minHeight: '400px',
-                            width: '100%'
-                          }}
-                        >
-                          <BlockStack gap="200" align="center">
-                            <Icon source={ImageIcon} tone="subdued" />
-                            <Text as="p" alignment="center" tone="subdued">
-                              Generated images will appear here
-                            </Text>
-                          </BlockStack>
-                        </div>
-                      </Box>
-                    );
-                  } else {
-                    return generations.map((gen) => (
-                      <Card key={gen.id}>
+                      <Card key={generation.id}>
                         <Box padding="400">
-                          <BlockStack gap="400">
-                            {gen.prompt && (
+                          <BlockStack gap="300">
+                            {generation.prompt ? (
                               <Box>
-                                <Text variant="headingSm" as="h3">Prompt</Text>
-                                <Text as="p">{gen.prompt}</Text>
-                              </Box>
-                            )}
-                            {gen.isGenerating ? (
-                              <BlockStack gap="200" align="center">
-                                <InlineStack gap="200" blockAlign="center">
-                                  <Spinner size="small" />
-                                  <Text as="p" tone="subdued">
-                                    {gen.status === 'processing' ? 'Processing your content...' : 'Queued for generation...'}
-                                  </Text>
-                                </InlineStack>
-                                <Text as="p" tone="subdued" variant="bodySm">
-                                  This may take a few minutes. You can navigate away and come back.
+                                <Text as="h3" variant="headingSm">
+                                  Prompt
                                 </Text>
-                              </BlockStack>
-                            ) : gen.status === 'failed' || gen.error ? (
-                              <div style={{ textAlign: 'center', padding: '20px' }}>
-                                <BlockStack gap="200" align="center">
-                                  <InlineStack gap="200" blockAlign="center">
-                                    <Icon source={XCircleIcon} tone="critical" />
-                                    <Text as="p" tone="critical">Failed to generate, please try again later.</Text>
-                                  </InlineStack>
-                                  <Button 
-                                    variant="plain" 
-                                    tone="critical"
-                                    onClick={() => {
-                                      setPrompt(gen.prompt);
-                                      if (gen.previewUrl) {
-                                        setPreviewUrl(gen.previewUrl);
-                                      }
+                                <Text as="p">{generation.prompt}</Text>
+                              </Box>
+                            ) : null}
+
+                            {generation.isGenerating ? (
+                              <InlineStack gap="200" blockAlign="center">
+                                <Spinner size="small" />
+                                <Text as="p" tone="subdued">
+                                  {generation.status === "processing"
+                                    ? "Processing your content..."
+                                    : "Queued for generation..."}
+                                </Text>
+                              </InlineStack>
+                            ) : generation.status === "failed" || generation.error ? (
+                              <InlineStack gap="200" blockAlign="center">
+                                <Icon source={XCircleIcon} tone="critical" />
+                                <Text as="p" tone="critical">
+                                  {generation.error ?? "Failed to generate, please try again later."}
+                                </Text>
+                              </InlineStack>
+                            ) : generation.status === "cancelled" ? (
+                              <Text as="p" tone="subdued">
+                                Generation was cancelled.
+                              </Text>
+                            ) : null}
+
+                            {imageUrls.length ? (
+                              <div
+                                style={{
+                                  display: "grid",
+                                  gridTemplateColumns: "repeat(2, 1fr)",
+                                  gap: "8px",
+                                }}
+                              >
+                                {imageUrls.slice(0, 4).map((url, index) => (
+                                  <div
+                                    key={`${generation.id}-${index}`}
+                                    style={{
+                                      aspectRatio: "1 / 1",
+                                      overflow: "hidden",
+                                      borderRadius: "8px",
                                     }}
                                   >
-                                    Retry with same prompt
-                                  </Button>
-                                </BlockStack>
+                                    <img
+                                      src={url}
+                                      alt={`Generated ${index + 1}`}
+                                      style={{
+                                        width: "100%",
+                                        height: "100%",
+                                        objectFit: "cover",
+                                        display: "block",
+                                      }}
+                                    />
+                                  </div>
+                                ))}
                               </div>
-                            ) : gen.status === 'cancelled' ? (
-                              <BlockStack gap="200" align="center">
-                                <InlineStack gap="200" blockAlign="center">
-                                  <Icon source={XCircleIcon} tone="subdued" />
-                                  <Text as="p" tone="subdued">Generation was cancelled</Text>
-                                </InlineStack>
-                              </BlockStack>
-                            ) : gen.response?.urls && gen.response.urls.length > 0 ? (
+                            ) : null}
+
+                            {details?.title ? (
                               <Box>
-                                <div 
-                                  style={{ 
-                                    display: 'grid', 
-                                    gridTemplateColumns: 'repeat(2, 1fr)', 
-                                    gap: '8px',
-                                    width: '100%'
-                                  }}
-                                >
-                                  {gen.response.urls.slice(0, 4).map((url: string, index: number) => (
-                                    <div key={index} style={{ aspectRatio: '1/1', overflow: 'hidden', borderRadius: '8px' }}>
-                                      <img 
-                                        src={url} 
-                                        alt={`Generated ${index + 1}`}
-                                        style={{ 
-                                          width: '100%', 
-                                          height: '100%', 
-                                          objectFit: 'cover',
-                                          display: 'block'
-                                        }}
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
+                                <Text as="p" fontWeight="bold">
+                                  Title
+                                </Text>
+                                <Text as="p">{details.title}</Text>
                               </Box>
-                            ) : gen.response?.text ? (() => {
-                              // Parse text field which contains JSON string
-                              let parsedDetails: any = null;
-                              try {
-                                parsedDetails = JSON.parse(gen.response.text || '{}');
-                              } catch (e) {
-                                parsedDetails = { description: gen.response.text };
-                              }
-                              return (
-                                <Box>
-                                  <Text variant="headingSm" as="h3">Product Details</Text>
-                                  <BlockStack gap="200">
-                                    {parsedDetails?.title && (
-                                      <Box>
-                                        <Text as="p" fontWeight="bold">Title:</Text>
-                                        <Text as="p">{parsedDetails.title}</Text>
+                            ) : null}
+
+                            {details?.description ? (
+                              <Box>
+                                <Text as="p" fontWeight="bold">
+                                  Description
+                                </Text>
+                                <Text as="p">{details.description}</Text>
+                              </Box>
+                            ) : null}
+
+                            {details?.features?.length ? (
+                              <Box>
+                                <Text as="p" fontWeight="bold">
+                                  Features
+                                </Text>
+                                <BlockStack gap="100">
+                                  {details.features.map((feature) => (
+                                    <Text as="p" key={feature} variant="bodySm">
+                                      {feature}
+                                    </Text>
+                                  ))}
+                                </BlockStack>
+                              </Box>
+                            ) : null}
+
+                            {details?.specifications && Object.keys(details.specifications).length ? (
+                              <Box>
+                                <Text as="p" fontWeight="bold">
+                                  Specifications
+                                </Text>
+                                <BlockStack gap="100">
+                                  {Object.entries(details.specifications).map(([key, value]) => (
+                                    <Text as="p" key={key} variant="bodySm">
+                                      {key}: {String(value)}
+                                    </Text>
+                                  ))}
+                                </BlockStack>
+                              </Box>
+                            ) : null}
+
+                            {details?.platforms && Object.keys(details.platforms).length ? (
+                              <Box>
+                                <Text as="p" fontWeight="bold">
+                                  Platform Content
+                                </Text>
+                                <BlockStack gap="200">
+                                  {Object.entries(details.platforms).map(([platform, content]) => (
+                                    <Card key={platform}>
+                                      <Box padding="300">
+                                        <BlockStack gap="100">
+                                          <Text as="p" fontWeight="bold" tone="subdued">
+                                            {platform}
+                                          </Text>
+                                          {content.title ? <Text as="p">{content.title}</Text> : null}
+                                          {content.description ? (
+                                            <Text as="p" variant="bodySm">
+                                              {content.description}
+                                            </Text>
+                                          ) : null}
+                                        </BlockStack>
                                       </Box>
-                                    )}
-                                    
-                                    {parsedDetails?.description && (
-                                      <Box>
-                                        <Text as="p" fontWeight="bold">Description:</Text>
-                                        <Text as="p">{parsedDetails.description}</Text>
-                                      </Box>
-                                    )}
-                                    
-                                    {parsedDetails?.features && parsedDetails.features.length > 0 && (
-                                      <Box paddingBlockStart="200">
-                                        <Text as="p" fontWeight="bold">Features:</Text>
-                                        <Box paddingBlockStart="100">
-                                          {parsedDetails.features.map((feature: string, idx: number) => (
-                                            <InlineStack key={idx} gap="200" blockAlign="center">
-                                              <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#4A90E2' }} />
-                                              <Text as="p" variant="bodySm">{feature}</Text>
-                                            </InlineStack>
-                                          ))}
-                                        </Box>
-                                      </Box>
-                                    )}
-                                    
-                                    {parsedDetails?.specifications && typeof parsedDetails.specifications === 'object' && Object.keys(parsedDetails.specifications).length > 0 && (
-                                      <Box paddingBlockStart="200">
-                                        <Text as="p" fontWeight="bold">Specifications:</Text>
-                                        <Box paddingBlockStart="100">
-                                          <InlineStack gap="200" wrap>
-                                            {Object.entries(parsedDetails.specifications).map(([key, value]) => (
-                                              <span key={key} style={{ 
-                                                background: '#f1f1f1', 
-                                                padding: '4px 12px', 
-                                                borderRadius: '12px',
-                                                fontSize: '12px'
-                                              }}>
-                                                <strong>{key}:</strong> {String(value)}
-                                              </span>
-                                            ))}
-                                          </InlineStack>
-                                        </Box>
-                                      </Box>
-                                    )}
-                                    
-                                    {parsedDetails?.platforms && typeof parsedDetails.platforms === 'object' && Object.keys(parsedDetails.platforms).length > 0 && (
-                                      <Box paddingBlockStart="300">
-                                        <Text as="p" fontWeight="bold">Platform Content:</Text>
-                                        <Box paddingBlockStart="200">
-                                          <BlockStack gap="300">
-                                          {Object.entries(parsedDetails.platforms).map(([platform, content]: [string, any]) => (
-                                            <Card key={platform}>
-                                              <Box padding="300">
-                                                <BlockStack gap="200">
-                                                  <Text as="p" fontWeight="bold" tone="subdued">
-                                                    {platform === 'shopify' ? '🛍️ Shopify' : platform === 'generic' ? '🌐 Generic' : platform.toUpperCase()}
-                                                  </Text>
-                                                  {content?.title && (
-                                                    <Box>
-                                                      <Text as="p" variant="bodySm" tone="subdued">Title</Text>
-                                                      <Text as="p">{content.title}</Text>
-                                                    </Box>
-                                                  )}
-                                                  {content?.description && (
-                                                    <Box>
-                                                      <Text as="p" variant="bodySm" tone="subdued">Description</Text>
-                                                      <Text as="p" variant="bodySm">{content.description}</Text>
-                                                    </Box>
-                                                  )}
-                                                  {content?.metadata?.features && content.metadata.features.length > 0 && (
-                                                    <Box>
-                                                      <Text as="p" variant="bodySm" tone="subdued">Key Features</Text>
-                                                      <InlineStack gap="100" wrap>
-                                                        {content.metadata.features.slice(0, 3).map((f: string, i: number) => (
-                                                          <span key={i} style={{ fontSize: '11px', background: '#e8f4fd', padding: '2px 8px', borderRadius: '4px' }}>
-                                                            {f.substring(0, 30)}{f.length > 30 ? '...' : ''}
-                                                          </span>
-                                                        ))}
-                                                      </InlineStack>
-                                                    </Box>
-                                                  )}
-                                                </BlockStack>
-                                              </Box>
-                                            </Card>
-                                          ))}
-                                          </BlockStack>
-                                        </Box>
-                                      </Box>
-                                    )}
-                                  </BlockStack>
-                                </Box>
-                              );
-                            })() : null}
+                                    </Card>
+                                  ))}
+                                </BlockStack>
+                              </Box>
+                            ) : null}
                           </BlockStack>
                         </Box>
                       </Card>
-                    ));
-                  }
-                })()}
+                    );
+                  })
+                )}
               </BlockStack>
             </InlineGrid>
           </Box>
         </Card>
 
-        {(!isConnected || !hasPageHistory) && (
+        {!isConnected || !hasPageHistory ? (
           <Card>
             <Box padding="400">
               <div className="product-masonry">
@@ -1026,18 +909,16 @@ export default function ProductGenPage() {
               </div>
             </Box>
           </Card>
-        )}
+        ) : null}
 
-        {isConnected && (
-          <History 
-            shop={shop} 
+        {isConnected ? (
+          <History
             endpoint="ecommerce"
             onHasVisibleHistoryChange={handleHistoryVisibilityChange}
             showLoadingState={hasPageHistory}
           />
-        )}
+        ) : null}
       </BlockStack>
     </Page>
-  </>
-);
+  );
 }

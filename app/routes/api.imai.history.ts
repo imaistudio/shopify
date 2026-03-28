@@ -3,19 +3,28 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
 const VALID_ENDPOINTS = new Set(["marketing", "ecommerce"]);
+type HistoryResultPayload = {
+  urls?: unknown;
+  images?: {
+    urls?: unknown;
+  };
+  details?: {
+    title?: string;
+  };
+} & Record<string, unknown>;
 
-function parseResult(result: string | null) {
+function parseResult(result: string | null): HistoryResultPayload | null {
   if (!result) return null;
 
   try {
-    return JSON.parse(result);
+    return JSON.parse(result) as HistoryResultPayload;
   } catch (error) {
     console.error("Failed to parse history result payload:", error);
     return null;
   }
 }
 
-function getResultUrls(payload: any): string[] {
+function getResultUrls(payload: HistoryResultPayload | null): string[] {
   const rawUrls = [
     ...(Array.isArray(payload?.urls) ? payload.urls : []),
     ...(Array.isArray(payload?.images?.urls) ? payload.images.urls : []),

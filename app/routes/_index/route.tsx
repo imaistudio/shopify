@@ -2,7 +2,6 @@ import type { LoaderFunctionArgs } from "react-router";
 import { redirect, useLoaderData } from "react-router";
 
 import { LaunchHero } from "../../components/LaunchHero";
-import { login } from "../../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
@@ -11,7 +10,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     throw redirect(`/app?${url.searchParams.toString()}`);
   }
 
-  return { showForm: Boolean(login) };
+  return null;
 };
 
 export const meta = () => {
@@ -26,7 +25,6 @@ export const meta = () => {
 };
 
 export default function App() {
-  const { showForm } = useLoaderData<typeof loader>();
-
-  return <LaunchHero showShopDomainForm={showForm} />;
+  useLoaderData<typeof loader>();
+  return <LaunchHero />;
 }

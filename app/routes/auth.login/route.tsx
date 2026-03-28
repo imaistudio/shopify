@@ -1,7 +1,6 @@
-import { AppProvider } from "@shopify/shopify-app-react-router/react";
-import { useState } from "react";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
-import { Form, useActionData, useLoaderData } from "react-router";
+import { useActionData, useLoaderData } from "react-router";
+import { Banner, BlockStack, Page, Text } from "@shopify/polaris";
 
 import { login } from "../../shopify.server";
 import { loginErrorMessage } from "./error.server";
@@ -23,27 +22,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function Auth() {
   const loaderData = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
-  const [shop, setShop] = useState("");
   const { errors } = actionData || loaderData;
+  const message =
+    errors.shop ??
+    "Open IMAI Studio from Shopify Admin or the app install screen to continue.";
 
   return (
-    <AppProvider embedded={false}>
-      <s-page>
-        <Form method="post">
-        <s-section heading="Log in">
-          <s-text-field
-            name="shop"
-            label="Shop domain"
-            details="example.myshopify.com"
-            value={shop}
-            onChange={(e) => setShop(e.currentTarget.value)}
-            autocomplete="on"
-            error={errors.shop}
-          ></s-text-field>
-          <s-button type="submit">Log in</s-button>
-        </s-section>
-        </Form>
-      </s-page>
-    </AppProvider>
+    <Page title="Open from Shopify Admin">
+      <BlockStack gap="400">
+        <Banner tone="info" title="Start this app from Shopify">
+          <Text as="p">{message}</Text>
+        </Banner>
+      </BlockStack>
+    </Page>
   );
 }

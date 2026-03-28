@@ -14,5 +14,5 @@ export const meta = () => {
 };
 
 export default function App() {
-  return <LaunchHero showShopDomainForm={false} />;
+  return <LaunchHero />;
 }

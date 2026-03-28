@@ -15,6 +15,15 @@ interface JobItem {
   onError: (error: string) => void;
 }
 
+type PollStatusResponse = {
+  success?: boolean;
+  accepted?: boolean;
+  status?: "queued" | "running" | "processing" | "completed" | "failed" | "cancelled";
+  error?: string;
+  message?: string;
+  result?: JobResult;
+};
+
 export function useJobPoller(
   jobs: JobItem[]
 ) {
@@ -40,7 +49,7 @@ export function useJobPoller(
 
   const activePollersRef = useRef<Set<string>>(new Set());
 
-  const pollJobStatus = useCallback(async (jobId: string, onComplete: (result: any) => void, onError: (error: string) => void) => {
+  const pollJobStatus = useCallback(async (jobId: string, onComplete: (result: JobResult) => void, onError: (error: string) => void) => {
     // Skip if already completed or if polling is already active for this job
     if (completedJobsRef.current.has(jobId) || activePollersRef.current.has(jobId)) {
       return;
@@ -63,7 +72,7 @@ export function useJobPoller(
           throw new Error(`Status check failed: ${resp.status}`);
         }
 
-        const data = await resp.json();
+        const data = (await resp.json()) as PollStatusResponse;
 
         if (data.success === false || data.error) {
           console.log(`Job ${jobId} failed:`, data.error || data.message);
@@ -77,7 +86,7 @@ export function useJobPoller(
           console.log(`Job ${jobId} completed`);
           completedJobsRef.current.add(jobId);
           activePollersRef.current.delete(jobId);
-          const result = data.result || data;
+          const result = data.result || { urls: [], assetIds: [] };
           onComplete(result);
           return;
         } else if (data.status === "failed") {

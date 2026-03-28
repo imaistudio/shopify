@@ -1,4 +1,4 @@
-import type { LoaderFunctionArgs } from "react-router";
+import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
@@ -7,33 +7,27 @@ import prisma from "../db.server";
  * Cancels a generation job by updating its status in the database
  * Body: { jobId: string, shop: string }
  */
-export async function action({ request }: LoaderFunctionArgs) {
-  if (request.method !== "POST") {
-    return Response.json(
-      { error: "Method not allowed" },
-      { status: 405 }
-    );
-  }
-
+export async function action({ request }: ActionFunctionArgs) {
+  const { session } = await authenticate.admin(request);
   try {
     const body = await request.json();
-    const { jobId, shop } = body;
+    const { jobId } = body as { jobId?: string };
 
-    if (!jobId || !shop) {
+    if (!jobId) {
       return Response.json(
-        { error: "Missing jobId or shop parameter" },
+        { error: "Missing jobId parameter" },
         { status: 400 }
       );
     }
 
-    console.log("Cancel API called for jobId:", jobId, "shop:", shop);
+    console.log("Cancel API called for jobId:", jobId, "shop:", session.shop);
 
     // Update job status to cancelled in database
     const updatedJob = await prisma.imaiJob.updateMany({
       where: { 
         jobId,
-        shop,
-        status: { in: ['queued', 'generating'] } // Only cancel active jobs
+        shop: session.shop,
+        status: { in: ['queued', 'running', 'processing'] }
       },
       data: { 
         status: 'cancelled',

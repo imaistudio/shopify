@@ -2,6 +2,19 @@ import type { LoaderFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 
+type JobResultPayload = Record<string, unknown>;
+
+function parseJobResult(result: string | null): JobResultPayload | null {
+  if (!result) return null;
+
+  try {
+    return JSON.parse(result) as JobResultPayload;
+  } catch (error) {
+    console.error("Failed to parse stored job result:", error);
+    return null;
+  }
+}
+
 /**
  * GET /api/imai/status?jobId=<jobId>
  * Checks job status from LOCAL DATABASE ONLY - never hits IMAI API
@@ -11,6 +24,7 @@ import prisma from "../db.server";
  * only reads from your local database, making it safe to poll frequently.
  */
 export async function loader({ request }: LoaderFunctionArgs) {
+  const { session } = await authenticate.admin(request);
   const url = new URL(request.url);
   const jobId = url.searchParams.get("jobId");
 
@@ -37,8 +51,31 @@ export async function loader({ request }: LoaderFunctionArgs) {
     );
   }
 
+  if (localJob.shop !== session.shop) {
+    return Response.json(
+      { error: "Job not found" },
+      { status: 404 }
+    );
+  }
+
   // Return status from database only
-  const response: any = {
+  const response: {
+    success: true;
+    jobId: string;
+    endpoint: string;
+    status: string;
+    result?: JobResultPayload;
+    error?: string;
+    job: {
+      jobId: string;
+      status: string;
+      endpoint: string;
+      createdAt: Date;
+      updatedAt: Date;
+      result?: JobResultPayload;
+      error?: string;
+    };
+  } = {
     success: true,
     jobId: localJob.jobId,
     endpoint: localJob.endpoint,
@@ -52,9 +89,10 @@ export async function loader({ request }: LoaderFunctionArgs) {
     }
   };
 
-  if (localJob.result) {
-    response.result = JSON.parse(localJob.result);
-    response.job.result = localJob.result;
+  const parsedResult = parseJobResult(localJob.result);
+  if (parsedResult) {
+    response.result = parsedResult;
+    response.job.result = parsedResult;
   }
 
   if (localJob.error) {

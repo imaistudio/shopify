@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import type { LoaderFunctionArgs } from "react-router";
 import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
@@ -31,19 +31,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function LibraryPage() {
-  const { shop, isConnected } = useLoaderData<typeof loader>();
-  const [libraryRefreshTrigger, setLibraryRefreshTrigger] = useState(0);
-
-  const handleGenerationComplete = useCallback(() => {
-    setLibraryRefreshTrigger((prev) => prev + 1);
-  }, []);
+  const { isConnected } = useLoaderData<typeof loader>();
+  const [libraryRefreshTrigger] = useState(0);
 
   return (
     <Page title="Library">
       <BlockStack gap="400">
         {!isConnected && (
           <Banner tone="info" title="Connect your IMAI Studio API key">
-            <Text>
+            <Text as="p">
               Connect your API key in the Settings tab to start viewing your library.
               Get your key at{" "}
               <a href="https://www.imai.studio" target="_blank" rel="noopener noreferrer">
@@ -56,13 +52,10 @@ export default function LibraryPage() {
         <Card>
           <Box padding="400">
             {isConnected ? (
-              <LibraryGrid 
-                refreshTrigger={libraryRefreshTrigger}
-                shop={shop}
-              />
+              <LibraryGrid refreshTrigger={libraryRefreshTrigger} />
             ) : (
-              <BlockStack gap="400" alignment="center">
-                <Text tone="subdued" alignment="center">
+              <BlockStack gap="400">
+                <Text as="p" tone="subdued" alignment="center">
                   Connect your API key to view your library
                 </Text>
               </BlockStack>

@@ -7,11 +7,10 @@ import { authenticate } from "../shopify.server";
  * The image can then be used as a reference for generation
  */
 export async function action({ request }: ActionFunctionArgs) {
-  const { session } = await authenticate.admin(request);
+  await authenticate.admin(request);
   
   const formData = await request.formData();
   const image = formData.get("image") as File | null;
-  const shop = formData.get("shop") as string;
 
   if (!image) {
     return Response.json(

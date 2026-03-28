@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Card,
   Box,
@@ -15,7 +15,11 @@ interface HistoryItem {
   prompt: string;
   results: string[];
   error?: string | null;
-  response?: any; // For product generation responses
+  response?: {
+    details?: {
+      title?: string;
+    };
+  } & Record<string, unknown>;
 }
 
 interface SelectedImage {
@@ -25,7 +29,6 @@ interface SelectedImage {
 }
 
 interface HistoryProps {
-  shop: string;
   endpoint: "marketing" | "ecommerce";
   refreshTrigger?: number;
   onHasVisibleHistoryChange?: (hasVisibleHistory: boolean) => void;
@@ -33,7 +36,6 @@ interface HistoryProps {
 }
 
 export function History({
-  shop,
   endpoint,
   refreshTrigger,
   onHasVisibleHistoryChange,
@@ -55,18 +57,25 @@ export function History({
     });
   };
 
-  const loadHistory = async () => {
+  type HistoryApiItem = {
+    id: string;
+    prompt: string;
+    results?: unknown;
+    response?: HistoryItem["response"];
+  };
+
+  const loadHistory = useCallback(async () => {
     try {
       setLoading(true);
       const resp = await fetch(`/api/imai/history?endpoint=${encodeURIComponent(endpoint)}`);
       if (resp.ok) {
-        const data = await resp.json();
+        const data = (await resp.json()) as HistoryApiItem[];
         setBrokenImageUrls(new Set());
-        setHistory(data.map((h: any) => ({
+        setHistory(data.map((h) => ({
           id: `history-${h.id}`,
           prompt: h.prompt,
           results: Array.isArray(h.results) ? h.results : [],
-          response: h.response || null,
+          response: h.response ?? undefined,
           error: null,
         })));
       }
@@ -75,7 +84,7 @@ export function History({
     } finally {
       setLoading(false);
     }
-  };
+  }, [endpoint]);
 
   const handleImport = async () => {
     if (!selectedImage?.url) return;
@@ -110,44 +119,17 @@ export function History({
     setSelectedImage({ url, prompt, index });
   };
 
-  // Initial load and when shop changes
+  // Initial load and when endpoint changes
   useEffect(() => {
     loadHistory();
-  }, [shop, endpoint]);
-
-  // Listen for SSE events to auto-refresh
-  useEffect(() => {
-    if (!shop) return;
-
-    const eventSource = new EventSource(`/api/imai/events?shop=${shop}`);
-
-    eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'job_update' && (data.status === 'completed' || data.status === 'failed')) {
-          // Refresh history when a job completes or fails
-          loadHistory();
-        }
-      } catch (err) {
-        console.error("Error parsing SSE event in History:", err);
-      }
-    };
-
-    eventSource.onerror = () => {
-      eventSource.close();
-    };
-
-    return () => {
-      eventSource.close();
-    };
-  }, [shop, endpoint]);
+  }, [loadHistory]);
 
   // Also refresh when refreshTrigger changes
   useEffect(() => {
     if (refreshTrigger) {
       loadHistory();
     }
-  }, [refreshTrigger]);
+  }, [loadHistory, refreshTrigger]);
 
   const validHistoryItems = history.filter((item) => {
     if (item.error) return false;
@@ -194,10 +176,16 @@ export function History({
                         {item.results
                           .filter((url) => !brokenImageUrls.has(url))
                           .map((url, index) => (
-                          <div 
+                          <button
+                            type="button"
                             key={index} 
                             onClick={() => handleImageClick(url, index, item.prompt)}
-                            style={{ cursor: "pointer" }}
+                            style={{
+                              cursor: "pointer",
+                              border: 0,
+                              padding: 0,
+                              background: "transparent",
+                            }}
                           >
                             <div 
                               style={{ 
@@ -214,7 +202,7 @@ export function History({
                                 alt={`Generated ${index + 1}`}
                               />
                             </div>
-                          </div>
+                          </button>
                         ))}
                       </InlineGrid>
                     )}

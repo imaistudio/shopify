@@ -1,16 +1,13 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   BlockStack,
   InlineGrid,
   Card,
   Text,
-  Badge,
   Button,
   InlineStack,
-  Tabs,
   Spinner,
   EmptyState,
-  Pagination,
   Box,
   Modal,
   Toast,
@@ -33,17 +30,19 @@ interface Asset {
   };
 }
 
-interface PaginationInfo {
-  hasMore: boolean;
-  nextCursor?: string;
-}
-
 interface LibraryGridProps {
   refreshTrigger: number;
-  shop: string;
 }
 
-export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
+type LibraryResponse = {
+  generations?: Asset[];
+  pagination?: {
+    hasMore?: boolean;
+    nextCursor?: string | null;
+  };
+};
+
+export function LibraryGrid({ refreshTrigger }: LibraryGridProps) {
   const [assets, setAssets] = useState<Asset[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -53,10 +52,9 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
   const [isImporting, setIsImporting] = useState(false);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
-  const fetchLibrary = async (resetCursor = false) => {
+  const fetchLibrary = useCallback(async (currentCursor: string | null, resetCursor = false) => {
     setIsLoading(true);
     try {
-      const currentCursor = resetCursor ? null : cursor;
       const endpoint = '/api/v1/library/marketing';
       
       const params = new URLSearchParams({
@@ -71,7 +69,7 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
         throw new Error("Failed to fetch library");
       }
 
-      const data = await resp.json();
+      const data = (await resp.json()) as LibraryResponse;
       
       if (resetCursor) {
         setAssets(data.generations || []);
@@ -86,18 +84,13 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     setCursor(null);
     setFailedImages(new Set());
-    fetchLibrary(true);
-  }, [refreshTrigger]);
-
-  const formatDate = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  };
+    fetchLibrary(null, true);
+  }, [fetchLibrary, refreshTrigger]);
 
   const handleImageError = (assetId: string, imageUrl: string) => {
     console.error('Image failed to load:', imageUrl);
@@ -139,13 +132,13 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
 
   const handleLoadMore = () => {
     if (hasMore && !isLoading) {
-      fetchLibrary(false);
+      fetchLibrary(cursor, false);
     }
   };
 
   const handleRefresh = () => {
     setCursor(null);
-    fetchLibrary(true);
+    fetchLibrary(null, true);
   };
 
   if (isLoading && assets.length === 0) {
@@ -173,7 +166,9 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
           <Button 
             onClick={handleRefresh} 
             disabled={isLoading}
-          />
+          >
+            Refresh
+          </Button>
         </InlineStack>
       </BlockStack>
     );
@@ -186,10 +181,17 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
           <BlockStack gap="100">
             <InlineGrid columns={{ xs: 2, sm: 3, md: 4 }} gap="300">
               {assets.filter(asset => !failedImages.has(asset.id)).map((asset) => (
-                <div 
+                <button
+                  type="button"
                   key={asset.id} 
                   onClick={() => setSelectedAsset(asset)}
-                  style={{ cursor: "pointer" }}
+                  style={{
+                    cursor: "pointer",
+                    border: 0,
+                    padding: 0,
+                    background: "transparent",
+                    textAlign: "left",
+                  }}
                 >
                   <Card padding="0">
                     <Box>
@@ -207,7 +209,7 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
                       />
                     </Box>
                   </Card>
-                </div>
+                </button>
               ))}
             </InlineGrid>
 
@@ -274,25 +276,5 @@ export function LibraryGrid({ refreshTrigger, shop }: LibraryGridProps) {
         />
       )}
     </Frame>
-  );
-}
-
-function RefreshIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path
-        d="M13.3333 8.00004C13.3333 4.31804 10.682 1.66671 7 1.66671C4.54933 1.66671 2.414 3.13071 1.41667 5.24337M2.66667 8.00004C2.66667 11.682 5.318 14.3334 9 14.3334C11.4507 14.3334 13.586 12.8694 14.5833 10.7567M11.3333 5.24337H14.5833V1.99071M1.41667 10.7567V14.0094H4.66667"
-        stroke="currentColor"
-        strokeWidth="1.33333"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }

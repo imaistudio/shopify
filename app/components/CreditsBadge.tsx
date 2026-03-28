@@ -10,7 +10,7 @@ export function CreditsBadge({ balance, isLoading }: CreditsBadgeProps) {
     return (
       <InlineStack gap="200" blockAlign="center">
         <Spinner size="small" />
-        <Text>Loading credits...</Text>
+        <Text as="span">Loading credits...</Text>
       </InlineStack>
     );
   }
@@ -21,7 +21,7 @@ export function CreditsBadge({ balance, isLoading }: CreditsBadgeProps) {
 
   return (
     <Badge tone={tone}>
-      {balance.toLocaleString()} credits
+      {`${balance.toLocaleString()} credits`}
     </Badge>
   );
 }

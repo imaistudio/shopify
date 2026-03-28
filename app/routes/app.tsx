@@ -18,12 +18,12 @@ export default function App() {
   return (
     <AppProvider embedded apiKey={apiKey}>
       <s-app-nav>
-        <s-link href="/app">Home</s-link>
-        <s-link href="/app/marketing">Media Agent</s-link>
-        <s-link href="/app/productgen">Product Agent</s-link>
-        <s-link href="/app/library">My Library</s-link>
-        <s-link href="/app/settings">Settings</s-link>
-        <s-link href="/app/explore-imai">Explore IMAI</s-link>
+        <a href="/app" rel="home">Home</a>
+        <a href="/app/marketing">Media Agent</a>
+        <a href="/app/productgen">Product Agent</a>
+        <a href="/app/library">My Library</a>
+        <a href="/app/settings">Settings</a>
+        <a href="/app/explore-imai">Explore IMAI</a>
       </s-app-nav>
       <Outlet />
     </AppProvider>

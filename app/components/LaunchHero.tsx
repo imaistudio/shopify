@@ -1,6 +1,5 @@
 import { Icon } from "@iconify/react";
 import { RefreshCcw } from "lucide-react";
-import { Form } from "react-router";
 
 import styles from "./LaunchHero.module.css";
 
@@ -22,14 +21,10 @@ const featureItems = [
     ),
   },
   {
-    title: "Sync Store With Agents",
+    title: "Import Outputs To Shopify",
     renderIcon: () => <RefreshCcw size={20} strokeWidth={2.1} />,
   },
 ];
-
-type LaunchHeroProps = {
-  showShopDomainForm: boolean;
-};
 
 function ShopifyMark() {
   return (
@@ -56,29 +51,7 @@ function ShopifyMark() {
   );
 }
 
-function SparkIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-      width="1em"
-      height="1em"
-      viewBox="0 0 24 24"
-      fill="none"
-    >
-      <path
-        fill="currentColor"
-        stroke="currentColor"
-        strokeLinejoin="round"
-        strokeWidth="1.5"
-        d="M3 12c6.268 0 9-2.637 9-9c0 6.363 2.713 9 9 9c-6.287 0-9 2.713-9 9c0-6.287-2.732-9-9-9Z"
-      />
-    </svg>
-  );
-}
-
-export function LaunchHero({ showShopDomainForm }: LaunchHeroProps) {
+export function LaunchHero() {
   return (
     <div className={styles.page}>
       <main className={styles.shell}>
@@ -108,6 +81,9 @@ export function LaunchHero({ showShopDomainForm }: LaunchHeroProps) {
             <div className={styles.copyBlock}>
               <h1 className={styles.heading}>Transform your Store</h1>
               <p className={styles.subtitle}>IMAI.STUDIO</p>
+              <p className={styles.subtitle}>
+                Open the app from Shopify Admin to continue.
+              </p>
             </div>
 
             <ul className={styles.featureList}>
@@ -125,32 +101,6 @@ export function LaunchHero({ showShopDomainForm }: LaunchHeroProps) {
                 </li>
               ))}
             </ul>
-
-            {showShopDomainForm ? (
-              <Form className={styles.form} method="post" action="/auth/login">
-                <label className={styles.srOnly} htmlFor="shop">
-                  Shopify domain
-                </label>
-                <div className={styles.inputRow}>
-                  <input
-                    className={styles.input}
-                    id="shop"
-                    type="text"
-                    name="shop"
-                    placeholder="your-store.myshopify.com"
-                    autoComplete="on"
-                    required
-                  />
-                  <button
-                    className={styles.button}
-                    type="submit"
-                    aria-label="Go to app"
-                  >
-                    <SparkIcon className={styles.buttonSparkIcon} />
-                  </button>
-                </div>
-              </Form>
-            ) : null}
           </aside>
         </section>
       </main>
