@@ -18,13 +18,11 @@ import {
   InlineStack,
   Spinner,
   InlineGrid,
-  ProgressBar,
   Icon,
 } from "@shopify/polaris";
-import { ImageIcon, CheckCircleIcon, XCircleIcon, PlusIcon } from "@shopify/polaris-icons";
+import { ImageIcon, XCircleIcon, PlusIcon } from "@shopify/polaris-icons";
 
 // Components
-import { CreditsBadge } from "../components/CreditsBadge";
 import { History } from "../components/History";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -100,6 +98,22 @@ const WEBHOOK_GRACE_PERIOD_MS = 210000; // 3.5 minutes to wait for webhook
 const POLL_INTERVAL_MS = 120000; // 2 minutes between polls
 const MAX_POLL_COUNT = 4; // Max 4 polling attempts
 const CANCEL_BUTTON_TIMEOUT_MS = 60000; // 1 minute before showing cancel button
+
+const productMasonryColumns = [
+  [
+    { src: "/block2/1.webp", alt: "Product Studio sample 1" },
+    { src: "/block2/5.webp", alt: "Product Studio sample 5" },
+  ],
+  [
+    { src: "/block2/2.webp", alt: "Product Studio sample 2" },
+    { src: "/block2/6.webp", alt: "Product Studio sample 6" },
+  ],
+  [
+    { src: "/block2/3.webp", alt: "Product Studio sample 3" },
+    { src: "/block2/7.webp", alt: "Product Studio sample 7" },
+  ],
+  [{ src: "/block2/4.webp", alt: "Product Studio sample 4" }],
+] as const;
 
 export default function ProductGenPage() {
   const { shop, isConnected, balance } = useLoaderData<typeof loader>();
@@ -540,6 +554,39 @@ export default function ProductGenPage() {
   return (
     <>
       <Page title="Product Studio" primaryAction={primaryAction}>
+      <style>{`
+        .product-masonry {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 16px;
+          align-items: start;
+        }
+
+        .product-masonry-column {
+          display: grid;
+          gap: 16px;
+          align-content: start;
+        }
+
+        .product-masonry-image {
+          width: 100%;
+          height: auto;
+          display: block;
+          border-radius: 16px;
+        }
+
+        @media (max-width: 1024px) {
+          .product-masonry {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        @media (max-width: 640px) {
+          .product-masonry {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
       <BlockStack gap="400">
         <Box paddingBlockEnd="200" style={{ marginTop: '-20px' }}>
           <Text as="p" tone="subdued">
@@ -550,7 +597,7 @@ export default function ProductGenPage() {
         <Card>
           <Box padding="400">
             <img 
-              src="/product/productgen.webp" 
+              src="/product/productgen2.webp" 
               alt="Product Studio Banner"
               style={{ 
                 width: "100%", 
@@ -939,16 +986,21 @@ export default function ProductGenPage() {
         {/* Second Banner - Above History */}
         <Card>
           <Box padding="400">
-            <img 
-              src="/product/productgen2.webp" 
-              alt="Product History Banner"
-              style={{ 
-                width: "100%", 
-                height: "auto", 
-                borderRadius: "12px",
-                objectFit: "cover"
-              }}
-            />
+            <div className="product-masonry">
+              {productMasonryColumns.map((column, columnIndex) => (
+                <div className="product-masonry-column" key={`product-column-${columnIndex}`}>
+                  {column.map((image) => (
+                    <img
+                      key={image.src}
+                      className="product-masonry-image"
+                      src={image.src}
+                      alt={image.alt}
+                      loading="lazy"
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
           </Box>
         </Card>
 
