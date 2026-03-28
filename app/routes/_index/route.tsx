@@ -1,8 +1,8 @@
 import type { LoaderFunctionArgs } from "react-router";
 import { redirect, Form, useLoaderData } from "react-router";
+import { Icon } from "@iconify/react";
 import {
   RefreshCcw,
-  Smartphone,
 } from "lucide-react";
 
 import { login } from "../../shopify.server";
@@ -18,11 +18,13 @@ const featureItems = [
   {
     title: "Campaign Ready Visuals",
     subtitle: "Media Studio Agent",
-    renderIcon: () => <Smartphone size={20} strokeWidth={2.1} />,
+    renderIcon: () => <Icon icon="bi:phone-fill" width={25} height={25} />,
   },
   {
     title: "One Click Catalogue Generation",
-    renderIcon: () => <SparkIcon className={styles.featureSparkIcon} />,
+    renderIcon: () => (
+      <Icon icon="fluent:collections-20-filled" width={25} height={25} />
+    ),
   },
   {
     title: "Sync Store With Studio",

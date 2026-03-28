@@ -94,7 +94,7 @@
 
 .copyBlock {
   display: grid;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
 .heading {
@@ -125,25 +125,21 @@
 
 .featureItem {
   display: grid;
-  grid-template-columns: 3.5rem minmax(0, 1fr);
-  gap: 0.8rem;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  gap: 0.95rem;
   align-items: center;
 }
 
 .iconWrap {
-  width: 3.5rem;
-  height: 3.5rem;
+  width: 4rem;
+  height: 4rem;
   display: grid;
   place-items: center;
-  border-radius: 1rem;
-  border: 1px solid rgba(122, 128, 149, 0.18);
-  background: #ffffff;
+  border-radius: 1.15rem;
+  border: 1px solid #dfe1f4;
+  background: transparent;
   color: #6f6a87;
-  box-shadow: 0 16px 30px rgba(15, 15, 15, 0.04);
-}
-
-.featureSparkIcon {
-  font-size: 1.35rem;
+  box-shadow: none;
 }
 
 .featureCopy {
@@ -267,20 +263,30 @@
 
   .hero {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(0, 60fr) minmax(0, 40fr);
+    grid-template-rows: auto auto;
     gap: 0.85rem;
-    min-height: calc(100vh - 0.9rem);
-    min-height: calc(100dvh - 0.9rem);
+    min-height: auto;
   }
 
   .visualPanel {
-    height: 100%;
+    grid-row: 2;
+    height: auto;
+    justify-content: center;
+    align-items: flex-start;
   }
 
   .contentPanel {
+    grid-row: 1;
     align-content: center;
     padding: 0;
     gap: 0.9rem;
+  }
+
+  .heroImage {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    object-position: center top;
   }
 
   .heading {
