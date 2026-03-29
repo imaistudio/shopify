@@ -45,7 +45,9 @@ export function History({
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState<SelectedImage | null>(null);
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("Image imported to Shopify Files!");
   const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const [brokenImageUrls, setBrokenImageUrls] = useState<Set<string>>(new Set());
 
   const markImageAsBroken = (url: string) => {
@@ -90,6 +92,7 @@ export function History({
     if (!selectedImage?.url) return;
     
     setIsImporting(true);
+    setImportError(null);
     try {
       const response = await fetch('/api/import-image', {
         method: 'POST',
@@ -103,19 +106,31 @@ export function History({
       const result = await response.json();
       
       if (result.ok) {
+        setToastMessage(
+          typeof result.message === "string"
+            ? result.message
+            : "Image imported to Shopify Files!",
+        );
         setShowToast(true);
         setSelectedImage(null);
       } else {
         console.error('Import failed:', result.errors);
+        setImportError(
+          Array.isArray(result.errors) && result.errors.length
+            ? result.errors.map((error: { message?: string }) => error.message).filter(Boolean).join(", ")
+            : "Import failed. Check the server logs for details.",
+        );
       }
     } catch (error) {
       console.error('Error importing image:', error);
+      setImportError("Import failed. Check the server logs for details.");
     } finally {
       setIsImporting(false);
     }
   };
 
   const handleImageClick = (url: string, index: number, prompt?: string) => {
+    setImportError(null);
     setSelectedImage({ url, prompt, index });
   };
 
@@ -244,6 +259,11 @@ export function History({
                     Prompt: {selectedImage.prompt}
                   </Text>
                 )}
+                {importError && (
+                  <Text as="p" tone="critical">
+                    {importError}
+                  </Text>
+                )}
               </>
             )}
           </BlockStack>
@@ -252,7 +272,7 @@ export function History({
 
       {showToast && (
         <Toast
-          content="Image imported to Shopify Files!"
+          content={toastMessage}
           onDismiss={() => setShowToast(false)}
         />
       )}

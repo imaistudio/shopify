@@ -12,7 +12,7 @@ Add these to your local `.env` file:
 SHOPIFY_API_KEY=your_shopify_api_key
 SHOPIFY_API_SECRET=your_shopify_api_secret
 SHOPIFY_APP_URL=https://your-ngrok-or-localhost-url
-SCOPES=write_files
+SCOPES=read_products,write_products,write_files
 DATABASE_URL=file:./dev.sqlite
 ENCRYPTION_KEY=use-a-random-32-plus-character-secret
 IMAI_WEBHOOK_SECRET=your_imai_webhook_secret
@@ -27,7 +27,7 @@ NODE_ENV=production
 SHOPIFY_API_KEY=your_shopify_api_key
 SHOPIFY_API_SECRET=your_shopify_api_secret
 SHOPIFY_APP_URL=https://imai.up.railway.app
-SCOPES=write_files
+SCOPES=read_products,write_products,write_files
 DATABASE_URL=file:/var/data/prod.sqlite
 ENCRYPTION_KEY=use-a-random-32-plus-character-secret
 IMAI_WEBHOOK_SECRET=your_imai_webhook_secret
@@ -87,3 +87,4 @@ Why:
 - [ ] Set `IMAI_WEBHOOK_SECRET` for webhook verification
 - [ ] Run `shopify app deploy` after updating production URLs
 - [ ] Verify compliance webhooks are subscribed before App Store submission
+- [ ] Reinstall or reauthorize the app after changing scopes so Shopify issues a token with `read_products` and `write_products`

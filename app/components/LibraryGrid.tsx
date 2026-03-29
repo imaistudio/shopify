@@ -49,7 +49,9 @@ export function LibraryGrid({ refreshTrigger }: LibraryGridProps) {
   const [hasMore, setHasMore] = useState(false);
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState("Image imported to Shopify Files!");
   const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const [failedImages, setFailedImages] = useState<Set<string>>(new Set());
 
   const fetchLibrary = useCallback(async (currentCursor: string | null, resetCursor = false) => {
@@ -105,6 +107,7 @@ export function LibraryGrid({ refreshTrigger }: LibraryGridProps) {
     if (!selectedAsset?.url) return;
     
     setIsImporting(true);
+    setImportError(null);
     try {
       const response = await fetch('/api/import-image', {
         method: 'POST',
@@ -118,13 +121,24 @@ export function LibraryGrid({ refreshTrigger }: LibraryGridProps) {
       const result = await response.json();
       
       if (result.ok) {
+        setToastMessage(
+          typeof result.message === "string"
+            ? result.message
+            : "Image imported to Shopify Files!",
+        );
         setShowToast(true);
         setSelectedAsset(null);
       } else {
         console.error('Import failed:', result.errors);
+        setImportError(
+          Array.isArray(result.errors) && result.errors.length
+            ? result.errors.map((error: { message?: string }) => error.message).filter(Boolean).join(", ")
+            : "Import failed. Check the server logs for details.",
+        );
       }
     } catch (error) {
       console.error('Error importing image:', error);
+      setImportError("Import failed. Check the server logs for details.");
     } finally {
       setIsImporting(false);
     }
@@ -184,7 +198,10 @@ export function LibraryGrid({ refreshTrigger }: LibraryGridProps) {
                 <button
                   type="button"
                   key={asset.id} 
-                  onClick={() => setSelectedAsset(asset)}
+                  onClick={() => {
+                    setImportError(null);
+                    setSelectedAsset(asset);
+                  }}
                   style={{
                     cursor: "pointer",
                     border: 0,
@@ -265,13 +282,18 @@ export function LibraryGrid({ refreshTrigger }: LibraryGridProps) {
                 alt="Preview"
               />
             )}
+            {importError && (
+              <Text as="p" tone="critical">
+                {importError}
+              </Text>
+            )}
           </BlockStack>
         </Modal.Section>
       </Modal>
 
       {showToast && (
         <Toast
-          content="Image imported to Shopify Files!"
+          content={toastMessage}
           onDismiss={() => setShowToast(false)}
         />
       )}

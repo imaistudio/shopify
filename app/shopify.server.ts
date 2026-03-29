@@ -7,6 +7,8 @@ import {
 } from "@shopify/shopify-app-react-router/server";
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
+import { decrypt } from "./lib/encryption.server";
+import { syncShopifyStoreTokenToImai } from "./lib/imai-oauth.server";
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY,
@@ -35,6 +37,52 @@ const shopify = shopifyApp({
   hooks: {
     afterAuth: async ({ session }) => {
       await shopify.registerWebhooks({ session });
+
+      const storedKey = await prisma.apiKey.findUnique({
+        where: { shop: session.shop },
+      });
+
+      if (!storedKey) {
+        console.log("[Auth] No IMAI key stored yet, skipping Shopify token sync", {
+          shop: session.shop,
+        });
+        return;
+      }
+
+      try {
+        const result = await syncShopifyStoreTokenToImai({
+          shop: session.shop,
+          imaiApiKey: decrypt(storedKey.encryptedKey),
+          source: "after-auth",
+          fallbackSession: {
+            id: session.id,
+            accessToken: session.accessToken,
+            scope: session.scope,
+            expires: session.expires,
+            isOnline: session.isOnline,
+          },
+        });
+
+        if (!result.ok) {
+          console.warn("[Auth] Shopify token sync to IMAI failed", {
+            shop: session.shop,
+            message: result.message ?? null,
+            status: result.status ?? null,
+          });
+        }
+
+        if (result.missingScopes.length) {
+          console.warn("[Auth] Shopify token synced without required product scopes", {
+            shop: session.shop,
+            missingScopes: result.missingScopes,
+          });
+        }
+      } catch (error) {
+        console.error("[Auth] Unexpected error while syncing Shopify token to IMAI", {
+          shop: session.shop,
+          error,
+        });
+      }
     },
   },
   ...(process.env.SHOP_CUSTOM_DOMAIN

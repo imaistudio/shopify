@@ -4,6 +4,7 @@ import { useFetcher, useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { encrypt, decrypt, maskApiKey } from "../lib/encryption.server";
+import { syncShopifyStoreTokenToImai } from "../lib/imai-oauth.server";
 import {
   Page,
   Box,
@@ -58,34 +59,71 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   // API Key management actions
   if (intent === "saveKey") {
-    const apiKey = formData.get("apiKey") as string;
+    const apiKey = (formData.get("apiKey") as string)?.trim();
+
+    console.log("[Settings] Save key requested", {
+      shop: session.shop,
+      sessionId: session.id,
+      hasAccessToken: !!session.accessToken,
+      keyLength: apiKey?.length ?? 0,
+    });
+
+    if (!apiKey) {
+      return { error: "API key is required" };
+    }
     
     // Validate key with IMAI API
     try {
+      console.log("[Settings] Validating IMAI health endpoint", {
+        shop: session.shop,
+      });
       const healthCheck = await fetch("https://www.imai.studio/api/v1/health");
       if (!healthCheck.ok) {
+        console.warn("[Settings] IMAI health check failed", {
+          shop: session.shop,
+          status: healthCheck.status,
+        });
         return { error: "Could not reach IMAI Studio" };
       }
 
+      console.log("[Settings] Validating IMAI credits endpoint", {
+        shop: session.shop,
+      });
       const creditsResp = await fetch("https://www.imai.studio/api/v1/credits", {
         headers: { Authorization: `Bearer ${apiKey}` },
       });
 
       if (creditsResp.status === 401) {
+        console.warn("[Settings] IMAI key rejected", {
+          shop: session.shop,
+          status: creditsResp.status,
+        });
         return { error: "Invalid API key" };
       }
 
       if (creditsResp.status === 403) {
+        console.warn("[Settings] IMAI key missing scopes", {
+          shop: session.shop,
+          status: creditsResp.status,
+        });
         return { 
           error: "Key is missing required scopes: credits:read, library:read, generate:write" 
         };
       }
 
       if (!creditsResp.ok) {
+        console.warn("[Settings] IMAI key validation failed", {
+          shop: session.shop,
+          status: creditsResp.status,
+        });
         return { error: "Could not validate API key" };
       }
 
       const creditsData = await creditsResp.json();
+      console.log("[Settings] IMAI key validated", {
+        shop: session.shop,
+        balance: creditsData.balance || 0,
+      });
       
       // Encrypt and store the key in database
       const encryptedKey = encrypt(apiKey);
@@ -106,13 +144,62 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         },
       });
 
+      console.log("[Settings] Stored IMAI key in database", {
+        shop: session.shop,
+        maskedKey,
+      });
+
+      const oauthSync = await syncShopifyStoreTokenToImai({
+        shop: session.shop,
+        imaiApiKey: apiKey,
+        source: "settings-save",
+        fallbackSession: {
+          id: session.id,
+          accessToken: session.accessToken,
+          scope: session.scope,
+          expires: session.expires,
+          isOnline: session.isOnline,
+        },
+      });
+
+      const warnings: string[] = [];
+      if (!oauthSync.ok) {
+        warnings.push(
+          oauthSync.message ??
+            "Saved the API key, but syncing the Shopify token to IMAI did not complete.",
+        );
+      }
+      if (oauthSync.missingScopes.length) {
+        warnings.push(
+          `The current Shopify token is missing ${oauthSync.missingScopes.join(", ")}. Update app scopes and reinstall the app before IMAI can sync and edit products.`,
+        );
+      }
+
+      if (warnings.length) {
+        console.warn("[Settings] Saved key with warnings", {
+          shop: session.shop,
+          warnings,
+        });
+      } else {
+        console.log("[Settings] Saved key and synced Shopify token to IMAI", {
+          shop: session.shop,
+          oauthStatus: oauthSync.status ?? null,
+          tokenId: oauthSync.tokenId ?? null,
+        });
+      }
+
       return {
         success: true,
         maskedKey,
         balance: creditsData.balance || 0,
         message: "IMAI API key connected successfully",
+        warning: warnings.length ? warnings.join(" ") : null,
       };
-    } catch (err) {
+    } catch (error) {
+      console.error("[Settings] Save key failed", {
+        shop: session.shop,
+        error,
+      });
       return { error: "Network error. Could not reach IMAI Studio." };
     }
   }
@@ -152,6 +239,7 @@ export default function SettingsPage() {
   }, [fetcher]);
 
   const error = fetcher.data?.error;
+  const warning = fetcher.data?.warning;
   const successMessage = fetcher.data?.success ? fetcher.data?.message : null;
   const isRemovingKey =
     fetcher.state === "submitting" &&
@@ -171,6 +259,11 @@ export default function SettingsPage() {
         {error && (
           <Banner tone="critical" title="Error">
             {error}
+          </Banner>
+        )}
+        {warning && (
+          <Banner tone="warning" title="Needs Attention">
+            {warning}
           </Banner>
         )}
         {successMessage && (
