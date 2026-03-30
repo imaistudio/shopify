@@ -1167,7 +1167,7 @@ Store an OAuth access token for a supported external platform.
 
 - The API key is the only authentication mechanism for this endpoint.
 - The server binds the stored token to the organization from the validated API key.
-- Access tokens are stored as one-way hashes and can still be verified server-side.
+- Access tokens are stored directly so downstream platform APIs can use them without a verification or re-hydration step.
 - `refreshToken` is intentionally not accepted by this endpoint.
 
 **Request Body**:

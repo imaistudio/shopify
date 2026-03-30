@@ -129,6 +129,7 @@ export async function syncShopifyStoreTokenToImai({
       body: JSON.stringify({
         platform: "shopify",
         platformUserId: shop,
+        // IMAI stores and reuses the live provider token, so this must remain raw.
         token: session.accessToken,
         tokenExpiresAt: session.expires?.getTime(),
         scope: grantedScopes.length ? grantedScopes : undefined,

@@ -112,36 +112,31 @@ export function SettingsBlock({
 
   return (
     <BlockStack gap="400">
-      <Text as="h2" variant="headingMd">Connect Your Store to IMAI.STUDIO</Text>
-
-      <Text as="p" variant="bodyMd">
-        To start generating high-quality product visuals and marketing images, connect your Shopify store to IMAI.STUDIO using your API key.
-      </Text>
+      <Text as="h1" variant="headingMd">How to get your API key</Text>
 
       <BlockStack gap="200">
-        <Text as="p" variant="bodyMd">How to get your API key:</Text>
-        <ul style={{ paddingLeft: "20px", margin: 0 }}>
+        <ol style={{ paddingLeft: "20px", margin: 0 }}>
           <li>
             <Text as="span" variant="bodyMd">
               Log in to{" "}
               <Link url="https://www.imai.studio" target="_blank">
-                imai.studio
+                IMAI.Studio
               </Link>{" "}
               (or create an account).
             </Text>
           </li>
           <li>
             <Text as="span" variant="bodyMd">
-              Open your <strong>Profile → Extensions → Shopify</strong> and click{" "}
+              Open your <strong>Profile → Extensions → Shopify</strong> & click{" "}
               <strong>Generate API Key</strong>.
             </Text>
           </li>
           <li>
             <Text as="span" variant="bodyMd">
-              Copy the key and paste it below.
+              Copy the key & paste it below.
             </Text>
           </li>
-        </ul>
+        </ol>
       </BlockStack>
 
       {error && (
