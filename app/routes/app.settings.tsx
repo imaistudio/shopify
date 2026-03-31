@@ -20,6 +20,23 @@ import {
 // Components
 import { SettingsBlock } from "../components/SettingsBlock";
 
+const SUPPORT_EMAIL = "tech@imai.studio";
+
+const FAQ_ITEMS = [
+  {
+    label:
+      "Get your API key from IMAI.Studio under Profile > Extensions > Shopify.",
+  },
+  {
+    label:
+      "Credits are pulled from your connected IMAI account and may need a short refresh window.",
+  },
+  {
+    label:
+      "Removing the API key disconnects the app and clears saved IMAI job data for this shop.",
+  },
+];
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   
@@ -282,65 +299,108 @@ export default function SettingsPage() {
             }}
             className="settings-grid"
           >
-            <Card>
-              <Box padding="400">
-                {isConnected ? (
+            <BlockStack gap="400">
+              <Card>
+                <Box padding="400">
+                  {isConnected ? (
+                    <BlockStack gap="300">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Badge tone="success">Connected</Badge>
+                      </InlineStack>
+
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="span" variant="bodyMd" tone="subdued">
+                          API Key
+                        </Text>
+                        <Text
+                          as="span"
+                          variant="headingLg"
+                          fontWeight="medium"
+                        >
+                          {maskedKey}
+                        </Text>
+                      </InlineStack>
+
+                      <div>
+                        <Button
+                          onClick={removeKey}
+                          loading={isRemovingKey}
+                          variant="primary"
+                          tone="critical"
+                        >
+                          Remove Key
+                        </Button>
+                      </div>
+                    </BlockStack>
+                  ) : (
+                    <SettingsBlock
+                      isConnected={isConnected}
+                      maskedKey={maskedKey}
+                      balance={balance}
+                      onSaveKey={saveKey}
+                      onRemoveKey={removeKey}
+                      isLoading={fetcher.state === "submitting"}
+                      error={fetcher.data?.error}
+                      onKeySaved={handleKeySaved}
+                    />
+                  )}
+                </Box>
+              </Card>
+
+              <Card>
+                <Box padding="400">
                   <BlockStack gap="300">
-                    <InlineStack gap="200" blockAlign="center">
-                      <Badge tone="success">Connected</Badge>
-                    </InlineStack>
-
-                    <InlineStack gap="200" blockAlign="center">
-                      <Text as="span" variant="bodyMd" tone="subdued">
-                        API Key
-                      </Text>
-                      <Text
-                        as="span"
-                        variant="headingLg"
-                        fontWeight="medium"
-                      >
-                        {maskedKey}
-                      </Text>
-                    </InlineStack>
-
-                    <div>
-                      <Button
-                        onClick={removeKey}
-                        loading={isRemovingKey}
-                        variant="primary"
-                        tone="critical"
-                      >
-                        Remove Key
-                      </Button>
-                    </div>
+                    <Text as="h2" variant="headingMd">
+                      FAQ
+                    </Text>
+                    <Box paddingInlineStart="300">
+                      <BlockStack as="ul" gap="200">
+                        {FAQ_ITEMS.map((item) => (
+                          <li key={item.label}>
+                            <Text as="span" variant="bodyMd" tone="subdued">
+                              {item.label}
+                            </Text>
+                          </li>
+                        ))}
+                      </BlockStack>
+                    </Box>
                   </BlockStack>
-                ) : (
-                  <SettingsBlock
-                    isConnected={isConnected}
-                    maskedKey={maskedKey}
-                    balance={balance}
-                    onSaveKey={saveKey}
-                    onRemoveKey={removeKey}
-                    isLoading={fetcher.state === "submitting"}
-                    error={fetcher.data?.error}
-                    onKeySaved={handleKeySaved}
-                  />
-                )}
-              </Box>
-            </Card>
+                </Box>
+              </Card>
+            </BlockStack>
 
-            <Card>
-              <Box padding="400">
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    Credits Remaining
-                  </Text>
-                  <Text as="p" variant="headingLg" fontWeight="medium">
-                    {balance === null ? "0" : balance.toLocaleString()}
-                  </Text>
-                </BlockStack>
-              </Box>
-            </Card>
+            <BlockStack gap="400">
+              <Card>
+                <Box padding="400">
+                  <BlockStack gap="200">
+                    <Text as="h2" variant="headingMd">
+                      Credits Remaining
+                    </Text>
+                    <Text as="p" variant="headingLg" fontWeight="medium">
+                      {balance === null ? "0" : balance.toLocaleString()}
+                    </Text>
+                  </BlockStack>
+                </Box>
+              </Card>
+
+              <Card>
+                <Box padding="400">
+                  <BlockStack gap="200">
+                    <Text as="h2" variant="headingMd">
+                      Help
+                    </Text>
+                    <Text as="p" variant="bodyMd" tone="subdued">
+                      Need technical support with setup, credits, or API
+                      connection issues?
+                    </Text>
+                    <Text as="p" variant="bodyMd">
+                      Contact{" "}
+                      <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
+                    </Text>
+                  </BlockStack>
+                </Box>
+              </Card>
+            </BlockStack>
           </div>
         </Box>
       </BlockStack>

@@ -22,7 +22,7 @@ export default function App() {
         <a href="/app/marketing">Marketing Agent</a>
         <a href="/app/productgen">Catalogue Agent</a>
         <a href="/app/library">My Library</a>
-        <a href="/app/settings">Settings & FAQ</a>
+        <a href="/app/settings">FAQ & Settings</a>
         <a href="/app/explore-imai">Explore IMAI</a>
       </s-app-nav>
       <Outlet />
