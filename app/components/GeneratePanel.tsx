@@ -13,7 +13,19 @@ import {
   TextField,
   Thumbnail,
 } from "@shopify/polaris";
-import { ImageIcon, PlusIcon, XCircleIcon } from "@shopify/polaris-icons";
+import { PlusIcon, XCircleIcon } from "@shopify/polaris-icons";
+
+const placeholderStarIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" width="2.75em" height="2.75em" viewBox="0 0 24 24">
+    <path
+      fill="#7b61ff"
+      stroke="#7b61ff"
+      strokeLinejoin="round"
+      strokeWidth="1.5"
+      d="M3 12c6.268 0 9-2.637 9-9c0 6.363 2.713 9 9 9c-6.287 0-9 2.713-9 9c0-6.287-2.732-9-9-9Z"
+    />
+  </svg>
+);
 
 interface Generation {
   id: string;
@@ -518,12 +530,7 @@ export function GeneratePanel({
                     width: "100%",
                   }}
                 >
-                  <BlockStack gap="200" align="center">
-                    <Icon source={ImageIcon} tone="subdued" />
-                    <Text as="p" alignment="center" tone="subdued">
-                      Generated images will appear here
-                    </Text>
-                  </BlockStack>
+                  <Icon source={placeholderStarIcon} />
                 </div>
               </Box>
             ) : (
