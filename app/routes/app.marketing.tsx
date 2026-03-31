@@ -19,18 +19,18 @@ import { History } from "../components/History";
 
 const marketingMasonryColumns = [
   [
-    { src: "/block1/1.webp", alt: "Media Agent sample 1" },
-    { src: "/block1/5.webp", alt: "Media Agent sample 5" },
+    { src: "/block1/1.webp", alt: "Marketing Agent sample 1" },
+    { src: "/block1/5.webp", alt: "Marketing Agent sample 5" },
   ],
   [
-    { src: "/block1/2.webp", alt: "Media Agent sample 2" },
-    { src: "/block1/6.webp", alt: "Media Agent sample 6" },
+    { src: "/block1/2.webp", alt: "Marketing Agent sample 2" },
+    { src: "/block1/6.webp", alt: "Marketing Agent sample 6" },
   ],
   [
-    { src: "/block1/3.webp", alt: "Media Agent sample 3" },
-    { src: "/block1/7.webp", alt: "Media Agent sample 7" },
+    { src: "/block1/3.webp", alt: "Marketing Agent sample 3" },
+    { src: "/block1/7.webp", alt: "Marketing Agent sample 7" },
   ],
-  [{ src: "/block1/4.webp", alt: "Media Agent sample 4" }],
+  [{ src: "/block1/4.webp", alt: "Marketing Agent sample 4" }],
 ] as const;
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
@@ -98,17 +98,17 @@ export default function MarketingPage() {
 
   if (!isConnected) {
     return (
-      <Page title="Media Agent" primaryAction={primaryAction}>
+      <Page title="Marketing Agent" primaryAction={primaryAction}>
         <ApiKeyEmptyState
           bannerText="Connect your API key in the Settings tab to start generating marketing images."
-          emptyText="Connect your API key to view Media Agent content"
+          emptyText="Connect your API key to view Marketing Agent content"
         />
       </Page>
     );
   }
 
   return (
-    <Page title="Media Agent" primaryAction={primaryAction}>
+    <Page title="Marketing Agent" primaryAction={primaryAction}>
       <style>{`
         .marketing-masonry {
           display: grid;
@@ -146,7 +146,7 @@ export default function MarketingPage() {
         <div style={{ marginTop: "-20px" }}>
           <Box paddingBlockEnd="200">
             <Text as="p" tone="subdued">
-              Use the Media Agent to generate campaign-ready visuals for social, ads, and storefront placements. Upload a reference image or describe the outcome, and let the agent produce ready-to-publish variations.
+              Use the Marketing Agent to generate campaign-ready visuals for social, ads, and storefront placements. Upload a reference image or describe the outcome, and let the agent produce ready-to-publish variations.
             </Text>
           </Box>
         </div>
@@ -174,7 +174,7 @@ export default function MarketingPage() {
               onGenerationComplete={handleGenerationComplete}
               balance={balance}
               promptPlaceholder='e.g. "Instagram lifestyle photo with soft lighting" or "Modern product post with pastel background"'
-              promptHelpText="Give the Media Agent the channel, visual style, and mood so it can steer the output with less guesswork."
+              promptHelpText="Give the Marketing Agent the channel, visual style, and mood so it can steer the output with less guesswork."
             />
           </Box>
         </Card>

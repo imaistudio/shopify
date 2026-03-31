@@ -89,18 +89,18 @@ const CANCEL_BUTTON_TIMEOUT_MS = 60000;
 
 const productMasonryColumns = [
   [
-    { src: "/block2/1.webp", alt: "Product Agent sample 1" },
-    { src: "/block2/5.webp", alt: "Product Agent sample 5" },
+    { src: "/block2/1.webp", alt: "Catalogue Agent sample 1" },
+    { src: "/block2/5.webp", alt: "Catalogue Agent sample 5" },
   ],
   [
-    { src: "/block2/2.webp", alt: "Product Agent sample 2" },
-    { src: "/block2/6.webp", alt: "Product Agent sample 6" },
+    { src: "/block2/2.webp", alt: "Catalogue Agent sample 2" },
+    { src: "/block2/6.webp", alt: "Catalogue Agent sample 6" },
   ],
   [
-    { src: "/block2/3.webp", alt: "Product Agent sample 3" },
-    { src: "/block2/7.webp", alt: "Product Agent sample 7" },
+    { src: "/block2/3.webp", alt: "Catalogue Agent sample 3" },
+    { src: "/block2/7.webp", alt: "Catalogue Agent sample 7" },
   ],
-  [{ src: "/block2/4.webp", alt: "Product Agent sample 4" }],
+  [{ src: "/block2/4.webp", alt: "Catalogue Agent sample 4" }],
 ] as const;
 
 function normalizeStatus(
@@ -518,17 +518,17 @@ export default function ProductGenPage() {
 
   if (!isConnected) {
     return (
-      <Page title="Product Agent">
+      <Page title="Catalogue Agent">
         <ApiKeyEmptyState
-          bannerText="Connect your API key in the Settings tab to start generating product content with the Product Agent."
-          emptyText="Connect your API key to view Product Agent content"
+          bannerText="Connect your API key in the Settings tab to start generating product content with the Catalogue Agent."
+          emptyText="Connect your API key to view Catalogue Agent content"
         />
       </Page>
     );
   }
 
   return (
-    <Page title="Product Agent">
+    <Page title="Catalogue Agent">
       <style>{`
         .product-masonry {
           display: grid;
@@ -567,7 +567,7 @@ export default function ProductGenPage() {
         <div style={{ marginTop: "-20px" }}>
           <Box paddingBlockEnd="200">
             <Text as="p" tone="subdued">
-              Use the Product Agent to turn a reference image into clean catalogue shots and richer product content for your store.
+              Use the Catalogue Agent to turn a reference image into clean catalogue shots and richer product content for your store.
             </Text>
           </Box>
         </div>
@@ -665,7 +665,7 @@ export default function ProductGenPage() {
                   placeholder='e.g. "Clean white background ecommerce shot" or "Luxury product on marble surface"'
                   multiline={3}
                   autoComplete="off"
-                  helpText="Add style, mood, or background ideas to guide the Product Agent."
+                  helpText="Add style, mood, or background ideas to guide the Catalogue Agent."
                 />
 
                 {balance !== null ? (
@@ -681,7 +681,7 @@ export default function ProductGenPage() {
                   disabled={!uploadedFile || isUploading || hasActiveGeneration}
                   onClick={handleGenerate}
                 >
-                  Run Product Agent
+                  Run Catalogue Agent
                 </Button>
               </BlockStack>
 
@@ -701,7 +701,7 @@ export default function ProductGenPage() {
                       <BlockStack gap="200" align="center">
                         <Spinner size="large" />
                         <Text as="p" alignment="center" tone="subdued">
-                          Product Agent is generating your content...
+                          Catalogue Agent is generating your content...
                         </Text>
                         {showCancelButton ? (
                           <Button variant="plain" tone="critical" size="micro" onClick={handleCancelGeneration}>
