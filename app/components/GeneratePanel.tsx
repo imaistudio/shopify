@@ -8,6 +8,7 @@ import {
   Icon,
   InlineGrid,
   InlineStack,
+  Select,
   Spinner,
   Text,
   TextField,
@@ -97,6 +98,11 @@ const CANCEL_BUTTON_TIMEOUT_MS = 60000;
 const DEFAULT_PROMPT_PLACEHOLDER =
   "Describe your ideal images — e.g. “4 lifestyle shots on a white background” or “hero banner with model wearing the product”";
 
+const IMAGE_COUNT_OPTIONS = ["1", "2", "3", "4", "5"].map((value) => ({
+  label: value,
+  value,
+}));
+
 function normalizeStatus(
   status:
     | "queued"
@@ -121,6 +127,8 @@ export function GeneratePanel({
   promptHelpText,
 }: GeneratePanelProps) {
   const [prompt, setPrompt] = useState("");
+  const [imageCount, setImageCount] = useState("1");
+  const [showImageCountHelp, setShowImageCountHelp] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [generations, setGenerations] = useState<Generation[]>([]);
@@ -340,7 +348,9 @@ export function GeneratePanel({
   }, [uploadedFile]);
 
   const handleGenerate = useCallback(async () => {
-    if (!prompt.trim()) return;
+    const trimmedPrompt = prompt.trim();
+
+    if (!trimmedPrompt) return;
     if (!uploadedFile) {
       setError("Please upload an image first");
       return;
@@ -350,10 +360,13 @@ export function GeneratePanel({
       return;
     }
 
+    const imageCountLabel = imageCount === "1" ? "image" : "images";
+    const submittedPrompt = `${trimmedPrompt}\n\nI need ${imageCount} ${imageCountLabel}.`;
+
     const generationId = Date.now().toString();
     const newGeneration: Generation = {
       id: generationId,
-      prompt: prompt.trim(),
+      prompt: trimmedPrompt,
       uploadedFile,
       previewUrl,
       isGenerating: true,
@@ -382,7 +395,7 @@ export function GeneratePanel({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          prompt: prompt.trim(),
+          prompt: submittedPrompt,
           url: imageUrl,
           mode: "marketing",
         }),
@@ -430,6 +443,7 @@ export function GeneratePanel({
     }
   }, [
     hasActiveGeneration,
+    imageCount,
     onGenerationComplete,
     previewUrl,
     prompt,
@@ -617,6 +631,73 @@ export function GeneratePanel({
               disabled={hasActiveGeneration}
               helpText={promptHelpText}
             />
+
+            <div
+              style={{
+                width: "40%",
+                minWidth: "220px",
+                position: "relative",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  marginBottom: "6px",
+                }}
+              >
+                <Text as="p" variant="bodyMd">
+                  Number of images
+                </Text>
+                <span
+                  onMouseEnter={() => setShowImageCountHelp(true)}
+                  onMouseLeave={() => setShowImageCountHelp(false)}
+                  style={{
+                    fontSize: "13px",
+                    color: "#7b61ff",
+                    cursor: "help",
+                    textDecoration: "underline",
+                    textUnderlineOffset: "2px",
+                  }}
+                >
+                  Need help?
+                </span>
+              </div>
+
+              {showImageCountHelp ? (
+                <div
+                  onMouseEnter={() => setShowImageCountHelp(true)}
+                  onMouseLeave={() => setShowImageCountHelp(false)}
+                  style={{
+                    position: "absolute",
+                    top: "-4px",
+                    left: "calc(100% + 12px)",
+                    width: "220px",
+                    padding: "12px",
+                    borderRadius: "12px",
+                    background: "#111111",
+                    color: "#ffffff",
+                    fontSize: "13px",
+                    lineHeight: 1.4,
+                    boxShadow: "0 12px 30px rgba(0, 0, 0, 0.18)",
+                    zIndex: 10,
+                  }}
+                >
+                  Pick how many images you want. We keep your visible prompt
+                  clean and append the count only when sending the request.
+                </div>
+              ) : null}
+
+              <Select
+                label="Number of images"
+                labelHidden
+                options={IMAGE_COUNT_OPTIONS}
+                value={imageCount}
+                onChange={setImageCount}
+                disabled={hasActiveGeneration}
+              />
+            </div>
 
             <BlockStack gap="200">
               <Text as="p" variant="bodyMd">
