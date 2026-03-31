@@ -26,14 +26,48 @@ const FAQ_ITEMS = [
   {
     label:
       "Get your API key from IMAI.Studio under Profile > Extensions > Shopify.",
+    question: "How do I connect my store?",
+    answer: "Generate a key on IMAI.Studio and paste it here.",
   },
   {
     label:
       "Credits are pulled from your connected IMAI account and may need a short refresh window.",
+    question: "Where do I get the API key?",
+    answer: "Open IMAI.Studio > Profile > Extensions > Shopify.",
   },
   {
     label:
       "Removing the API key disconnects the app and clears saved IMAI job data for this shop.",
+    question: "Do I get free credits?",
+    answer: "Yes, you get $10 free to test the platform and plugin.",
+  },
+  {
+    question: "Why should I connect my store?",
+    answer: "It keeps Shopify and IMAI.Studio in sync.",
+  },
+  {
+    question: "Where should I manage advanced features?",
+    answer: "Most power features are managed on IMAI.Studio.",
+  },
+  {
+    question: "Can I test before going all in?",
+    answer: "Yes, use the free credits to learn the workflow first.",
+  },
+  {
+    question: "Why are my credits different?",
+    answer: "Credit totals sync from IMAI and may refresh with a delay.",
+  },
+  {
+    question: "What happens if I remove the key?",
+    answer: "The app disconnects and clears saved IMAI job data.",
+  },
+  {
+    question: "Can I reconnect later?",
+    answer: "Yes, add a new API key any time.",
+  },
+  {
+    question: "Who do I contact for help?",
+    answer: "Email tech@imai.studio for setup, credits, or connection support.",
   },
 ];
 
@@ -356,10 +390,21 @@ export default function SettingsPage() {
                     <Box paddingInlineStart="300">
                       <BlockStack as="ul" gap="200">
                         {FAQ_ITEMS.map((item) => (
-                          <li key={item.label}>
-                            <Text as="span" variant="bodyMd" tone="subdued">
-                              {item.label}
-                            </Text>
+                          <li key={item.question}>
+                            <BlockStack gap="100">
+                              <Text as="p" variant="bodyMd" fontWeight="medium">
+                                {"• "}
+                                {item.question}
+                              </Text>
+                              <Text as="p" variant="bodyMd" tone="subdued">
+                                {item.answer}
+                              </Text>
+                              {item.label ? (
+                                <Text as="p" variant="bodySm" tone="subdued">
+                                  {item.label}
+                                </Text>
+                              ) : null}
+                            </BlockStack>
                           </li>
                         ))}
                       </BlockStack>
