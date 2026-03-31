@@ -83,7 +83,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           shop: session.shop,
           status: healthCheck.status,
         });
-        return { error: "Could not reach IMAI Studio" };
+        return { error: "Could not reach IMAI.Studio" };
       }
 
       console.log("[Settings] Validating IMAI credits endpoint", {
@@ -200,7 +200,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         shop: session.shop,
         error,
       });
-      return { error: "Network error. Could not reach IMAI Studio." };
+      return { error: "Network error. Could not reach IMAI.Studio." };
     }
   }
 

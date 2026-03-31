@@ -1,13 +1,13 @@
-# IMAI Studio – Shopify App
+# IMAI.Studio – Shopify App
 
-An **embedded Shopify app** that brings [IMAI Studio](https://www.imai.studio) AI into your store. Merchants can generate product images and marketing content, manage an asset library, and sync with IMAI Studio using an API key—all inside Shopify Admin.
+An **embedded Shopify app** that brings [IMAI.Studio](https://www.imai.studio) AI into your store. Merchants can generate product images and marketing content, manage an asset library, and sync with IMAI.Studio using an API key—all inside Shopify Admin.
 
 **What this plugin does:**
 
 - **Product generation** – AI-generated product images and e‑commerce content (titles, descriptions, specs) from prompts or reference images
-- **Library** – Browse and use assets from your IMAI Studio library in the app
-- **Marketing** – Create marketing content with IMAI Studio
-- **Settings** – Connect your store to IMAI Studio via API key; credits and connection status shown in-app
+- **Library** – Browse and use assets from your IMAI.Studio library in the app
+- **Marketing** – Create marketing content with IMAI.Studio
+- **Settings** – Connect your store to IMAI.Studio via API key; credits and connection status shown in-app
 
 Built with [React Router](https://reactrouter.com/) and the [Shopify App React Router](https://shopify.dev/docs/api/shopify-app-react-router) template.
 

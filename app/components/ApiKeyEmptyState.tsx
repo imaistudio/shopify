@@ -17,7 +17,7 @@ export function ApiKeyEmptyState({
 }: ApiKeyEmptyStateProps) {
   return (
     <BlockStack gap="400">
-      <Banner tone="info" title="Connect your IMAI Studio API key">
+      <Banner tone="info" title="Connect your IMAI.Studio API key">
         <Text as="p">
           {bannerText} Get your key at{" "}
           <a
@@ -25,7 +25,7 @@ export function ApiKeyEmptyState({
             target="_blank"
             rel="noopener noreferrer"
           >
-            www.imai.studio
+            www.IMAI.Studio
           </a>
         </Text>
       </Banner>

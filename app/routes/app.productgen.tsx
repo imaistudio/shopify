@@ -574,16 +574,21 @@ export default function ProductGenPage() {
 
         <Card>
           <Box padding="400">
-            <img
-              src="/product/productgen2.webp"
-              alt="Product Agent banner"
-              style={{
-                width: "100%",
-                height: "auto",
-                borderRadius: "12px",
-                objectFit: "cover",
-              }}
-            />
+            <div className="product-masonry">
+              {productMasonryColumns.map((column, columnIndex) => (
+                <div className="product-masonry-column" key={`product-column-${columnIndex}`}>
+                  {column.map((image) => (
+                    <img
+                      key={image.src}
+                      className="product-masonry-image"
+                      src={image.src}
+                      alt={image.alt}
+                      loading="lazy"
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
           </Box>
         </Card>
 
@@ -888,28 +893,6 @@ export default function ProductGenPage() {
             </InlineGrid>
           </Box>
         </Card>
-
-        {!hasPageHistory ? (
-          <Card>
-            <Box padding="400">
-              <div className="product-masonry">
-                {productMasonryColumns.map((column, columnIndex) => (
-                  <div className="product-masonry-column" key={`product-column-${columnIndex}`}>
-                    {column.map((image) => (
-                      <img
-                        key={image.src}
-                        className="product-masonry-image"
-                        src={image.src}
-                        alt={image.alt}
-                        loading="lazy"
-                      />
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </Box>
-          </Card>
-        ) : null}
 
         <History
           endpoint="ecommerce"

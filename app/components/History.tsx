@@ -99,7 +99,7 @@ export function History({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           imageUrl: selectedImage.url,
-          altText: `Image generated from IMAI Studio - ${selectedImage.prompt || 'History item'}`
+          altText: `Image generated from IMAI.Studio - ${selectedImage.prompt || 'History item'}`
         })
       });
       

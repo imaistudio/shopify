@@ -183,7 +183,7 @@ export async function action({ request }: ActionFunctionArgs) {
         variables: {
           files: [
             {
-              alt: altText ?? "Image from IMAI Studio",
+              alt: altText ?? "Image from IMAI.Studio",
               contentType: "IMAGE",
               originalSource: imageUrl,
               filename: filename,

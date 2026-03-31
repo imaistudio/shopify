@@ -150,19 +150,23 @@ export default function MarketingPage() {
             </Text>
           </Box>
         </div>
-        {/* First Banner - Top of Page */}
         <Card>
           <Box padding="400">
-            <img 
-              src="/media/marketing.webp" 
-              alt="Media Agent banner"
-              style={{ 
-                width: "100%", 
-                height: "auto", 
-                borderRadius: "12px",
-                objectFit: "cover"
-              }}
-            />
+            <div className="marketing-masonry">
+              {marketingMasonryColumns.map((column, columnIndex) => (
+                <div className="marketing-masonry-column" key={`marketing-column-${columnIndex}`}>
+                  {column.map((image) => (
+                    <img
+                      key={image.src}
+                      className="marketing-masonry-image"
+                      src={image.src}
+                      alt={image.alt}
+                      loading="lazy"
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
           </Box>
         </Card>
 
@@ -176,28 +180,6 @@ export default function MarketingPage() {
             />
           </Box>
         </Card>
-
-        {!hasPageHistory && (
-          <Card>
-            <Box padding="400">
-              <div className="marketing-masonry">
-                {marketingMasonryColumns.map((column, columnIndex) => (
-                  <div className="marketing-masonry-column" key={`marketing-column-${columnIndex}`}>
-                    {column.map((image) => (
-                      <img
-                        key={image.src}
-                        className="marketing-masonry-image"
-                        src={image.src}
-                        alt={image.alt}
-                        loading="lazy"
-                      />
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </Box>
-          </Card>
-        )}
 
         <History 
           endpoint="marketing"

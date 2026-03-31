@@ -1,7 +1,7 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
 client_id = "459fae02689e6372969153f15758d58b"
-name = "IMAI.STUDIO"
+name = "IMAI.Studio"
 application_url = "https://imai.up.railway.app"
 embedded = true
 

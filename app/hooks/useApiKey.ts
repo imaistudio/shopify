@@ -57,7 +57,7 @@ export function useApiKey(
             isLoading: false,
             error: null,
           });
-          shopify.toast.show("✅ Connected to IMAI Studio");
+          shopify.toast.show("✅ Connected to IMAI.Studio");
         }
       } else if (fetcher.data.error) {
         setState((prev) => ({

@@ -69,18 +69,18 @@ export function LaunchHero() {
               <div className={styles.shopifyCard}>
                 <ShopifyMark />
               </div>
-              <div className={styles.logoBadge} aria-label="IMAI Studio logo">
+              <div className={styles.logoBadge} aria-label="IMAI.Studio logo">
                 <img
                   className={styles.logoImage}
                   src={COMPANY_LOGO_SRC}
-                  alt="IMAI Studio logo"
+                  alt="IMAI.Studio logo"
                 />
               </div>
             </div>
 
             <div className={styles.copyBlock}>
               <h1 className={styles.heading}>Transform your Store</h1>
-              <p className={styles.subtitle}>IMAI.STUDIO</p>
+              <p className={styles.subtitle}>IMAI.Studio</p>
             </div>
 
             <ul className={styles.featureList}>

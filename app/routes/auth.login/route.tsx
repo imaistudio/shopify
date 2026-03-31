@@ -25,7 +25,7 @@ export default function Auth() {
   const { errors } = actionData || loaderData;
   const message =
     errors.shop ??
-    "Open IMAI Studio from Shopify Admin or the app install screen to continue.";
+    "Open IMAI.Studio from Shopify Admin or the app install screen to continue.";
 
   return (
     <Page title="Open from Shopify Admin">

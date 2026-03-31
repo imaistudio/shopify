@@ -1,4 +1,4 @@
-# IMAI Studio - Environment Setup
+# IMAI.Studio - Environment Setup
 
 This file reflects the code that is currently in this repo.
 
@@ -66,7 +66,7 @@ Why:
    - The app will appear in Shopify Admin under Apps
 
 4. **Connect API Key**
-   - Open the IMAI Studio app in Shopify Admin
+   - Open the IMAI.Studio app in Shopify Admin
    - Go to Settings tab
    - Paste your IMAI API key and click Connect
    - The key is stored encrypted in the app database for that shop

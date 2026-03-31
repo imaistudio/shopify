@@ -56,7 +56,7 @@ export function SettingsBlock({
       <BlockStack gap="400">
         <InlineStack gap="200" blockAlign="center">
           <Badge tone="success">Connected</Badge>
-          <Text as="span" variant="headingMd">Connected to IMAI Studio</Text>
+          <Text as="span" variant="headingMd">Connected to IMAI.Studio</Text>
         </InlineStack>
 
         <BlockStack gap="200">
@@ -101,7 +101,7 @@ export function SettingsBlock({
         >
           <Modal.Section>
             <Text as="p">
-              This will disconnect your IMAI Studio account. You will need to
+              This will disconnect your IMAI.Studio account. You will need to
               reconnect to generate images again.
             </Text>
           </Modal.Section>

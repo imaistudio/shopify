@@ -15,7 +15,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export const meta = () => {
   return [
-    { title: "Transform your Store | IMAI.STUDIO" },
+    { title: "Transform your Store | IMAI.Studio" },
     {
       name: "description",
       content:
