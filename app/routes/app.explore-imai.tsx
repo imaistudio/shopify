@@ -9,6 +9,7 @@ import {
   InlineStack,
   Divider,
 } from "@shopify/polaris";
+import styles from "../components/ExploreHero.module.css";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
@@ -65,31 +66,34 @@ function FeatureBlock({
 
 export default function ExploreIMAI() {
   return (
-    <Page title="Explore">
+    <Page>
       <Layout>
         {/* Hero */}
         <Layout.Section>
-          <BlockStack gap="200">
-            <Text variant="heading2xl" as="h1" alignment="start">
-              Physical Product Creation Agents
-            </Text>
-            <Text variant="headingLg" as="p" alignment="start" tone="subdued">
-              That Learn Brand-Specific Design, Technical & Marketing Skills
-            </Text>
-            <Text variant="bodySm" as="p" alignment="start" tone="subdued">
-              And Generate Collection Designs, Product Variations, Techpacks, and Campaign-Ready Visuals
-            </Text>
-          </BlockStack>
+          <section className={styles.hero}>
+            <p className={styles.eyebrow}>Purpose Built</p>
+            <h1 className={styles.heroTitle}>
+              <span>Physical Product Creation</span>
+              <span>Agents</span>
+            </h1>
+            <p className={styles.heroSubtitle}>
+              <span>That Learn Brand-Specific Design, Technical &amp;</span>
+              <span>Marketing Skills</span>
+            </p>
+            <p className={styles.heroCaption}>
+              And Generate Collection Designs, Product Variations, Techpacks,
+              and Campaign-Ready Visuals
+            </p>
+          </section>
         </Layout.Section>
 
         <Layout.Section>
           <Divider />
         </Layout.Section>
 
-        {/* 1️⃣ Sketch to Photorealistic */}
         <Layout.Section>
           <FeatureBlock
-            title="1. Sketch → Photorealistic Product"
+            title="Create Instant Product Renders"
             image="https://assets.imai.studio/global/image/8aeae9f1-c29d-46da-9233-51b03ff6aab0.png"
             description={`Upload a rough product sketch. 
 Select a design style (optional). 
@@ -99,69 +103,104 @@ Perfect for footwear, apparel, accessories, and concept products.`}
           />
         </Layout.Section>
 
-        {/* 2️⃣ Design Aesthetics + Garment Editing */}
+
+
+
         <Layout.Section>
           <FeatureBlock
             reverse
-            title="2. Apply Aesthetics to Anything"
-            image="https://assets.imai.studio/global/image/24aaf55f-0479-432b-a502-20abb98b395d.png"
-            description={`Select multiple design aesthetics like Minimal, Edgy, Animal Print, or Luxury.
-
-IMAI intelligently applies the style directly to your garment structure — 
-adjusting fabric, pattern, silhouette, and detailing automatically.`}
+            title="Instant Color Variations"
+            image="https://www.imai.studio/_next/image?url=https%3A%2F%2Fassets.imai.studio%2Fglobal%2Fimage%2Fc642d575-f5fd-4884-ba0a-6547ebe086bf.png&w=3840&q=75"
+            description={`Turn one design into endless color possibilities.
+Generate multiple colorways instantly, explore palettes, and refine your products look — all without starting over.
+Built for fast iteration across footwear, apparel, accessories, and more.`}
           />
         </Layout.Section>
 
-        {/* 3️⃣ Technical Blueprints + FOB */}
+
+
+
+
         <Layout.Section>
           <FeatureBlock
-            title="3. Technical Blueprints & FOB Costing"
-            image="https://assets.imai.studio/global/image/af7f9d20-7b12-4a3e-a025-601a35e9b1b2.webp"
-            description={`Generate technical breakdowns instantly.
-
-Compare FOB across China, Vietnam, Indonesia, Italy.
-Get material, labor, overhead and margin insights.
-Export detailed reports for sourcing teams.`}
+            title="Real Time Trend Forecasting"
+            image="https://www.imai.studio/_next/image?url=https%3A%2F%2Fassets.imai.studio%2Fglobal%2Fimage%2Fd59e4fa9-7f25-4782-bba6-238841f212b3.png&w=3840&q=75"
+            description={`Stay ahead with real-time trend insights.
+Analyze emerging styles, colors, and design directions as they happen — so you can create products that match what the market wants now.
+Perfect for fast-moving fashion and product teams.`}
           />
         </Layout.Section>
+
+
+
+
+        <Layout.Section>
+          <FeatureBlock
+            reverse
+            title="Customized Graphic Patterns"
+            image="https://www.imai.studio/_next/image?url=https%3A%2F%2Fassets.imai.studio%2Fglobal%2Fimage%2F24aaf55f-0479-432b-a502-20abb98b395d.png&w=3840&q=75"
+            description={`Create unique graphic patterns tailored to your design.
+Generate prints, textures, and surface graphics instantly — customized to your product, style, and brand identity.
+Perfect for apparel, footwear, and accessories.`}
+          />
+        </Layout.Section>
+
+
+
 
         {/* 4️⃣ Lifestyle & Social Generation */}
         <Layout.Section>
           <FeatureBlock
-            reverse
-            title="4. Lifestyle & Social Media Generation"
-            image="https://assets.imai.studio/global/image/a4c8b986-0d62-4fb1-a5fe-40613a12a15c.png"
-            description={`Select up to 5 avatars to guide content generation.
+            
+            title="Technical Blueprint"
+            image="https://www.imai.studio/_next/image?url=https%3A%2F%2Fassets.imai.studio%2Fglobal%2Fimage%2Faf7f9d20-7b12-4a3e-a025-601a35e9b1b2.webp&w=3840&q=75"
+            description={`Generate detailed technical blueprints for your designs.
 
-Create premium lifestyle images ready for:
-• Instagram
-• Shopify banners
-• Ads
-• Product campaigns
-
-No photoshoots required.`}
+Get precise specifications including construction details, measurements, materials, and components — ready for production and manufacturing.`}
           />
         </Layout.Section>
 
         {/* 5️⃣ Pattern Generation */}
         <Layout.Section>
           <FeatureBlock
-            title="5. Layered Pattern & Print Files"
-            image="https://assets.imai.studio/global/image/660334a0-63ee-40a7-9a01-eb7d2a10d977.jpg"
-            description={`Upload product reference.
-Preview layered pattern blowups.
-Generate repeatable high-resolution print files for production.
-
-Export scalable printer-ready assets instantly.`}
+          reverse
+            title="Extract Graphic Patterns"
+            image="https://www.imai.studio/_next/image?url=https%3A%2F%2Fassets.imai.studio%2Fglobal%2Fimage%2F660334a0-63ee-40a7-9a01-eb7d2a10d977.jpg&w=3840&q=75"
+            description={`Upload a product or reference image.
+Extract and isolate graphic patterns instantly, preview detailed pattern blowups, and generate seamless repeat files ready for production.
+Export high-resolution, print-ready assets in seconds.`}
           />
         </Layout.Section>
+
+
+
+        <Layout.Section>
+          <FeatureBlock
+            title="Detailed Cost Breakdown"
+            image="https://www.imai.studio/_next/image?url=https%3A%2F%2Fassets.imai.studio%2Fglobal%2Fimage%2F89b47bea-9107-4818-9727-3662fef67636.png&w=3840&q=75"
+            description={`Get a complete cost breakdown for your product.
+Analyze materials, labor, overhead, and margins in detail — giving you clear visibility into total production costs.`}
+          />
+        </Layout.Section>
+
+        <Layout.Section>
+          <FeatureBlock
+            reverse
+            title="Avatars"
+            image="https://www.imai.studio/_next/image?url=https%3A%2F%2Fassets.imai.studio%2Fglobal%2Fimage%2F3106e1b7-e040-4f3d-a313-c9c3afaee956.png&w=3840&q=75"
+            description={`Create consistent brand avatars for your campaigns.
+              Generate models that represent your brand identity and reuse them across ads, social media, and product visuals — keeping your look cohesive everywhere.`}
+          />
+        </Layout.Section>
+
+
+
+
 
         {/* CTA Section */}
         <Layout.Section>
           <Divider />
         </Layout.Section>
-
-    
       </Layout>
     </Page>
   );
