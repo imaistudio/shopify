@@ -19,7 +19,7 @@ import {
   TextField,
   Thumbnail,
 } from "@shopify/polaris";
-import { XCircleIcon } from "@shopify/polaris-icons";
+import { PlusIcon, XCircleIcon } from "@shopify/polaris-icons";
 import { ApiKeyEmptyState } from "../components/ApiKeyEmptyState";
 import { History } from "../components/History";
 
@@ -947,9 +947,19 @@ export default function ProductGenPage() {
                               display: "inline-flex",
                               flexDirection: "column",
                               alignItems: "center",
+                              gap: "4px",
                             }}
                           >
-                            <Icon source={placeholderStarIcon} />
+                            <Icon source={PlusIcon} tone="subdued" />
+                            <span
+                              style={{
+                                fontSize: "13px",
+                                color: "var(--p-color-text-subdued)",
+                                lineHeight: 1.3,
+                              }}
+                            >
+                              Drop or click to upload
+                            </span>
                           </div>
                         </div>
                       </DropZone>
