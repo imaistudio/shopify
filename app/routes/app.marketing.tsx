@@ -150,25 +150,23 @@ export default function MarketingPage() {
             </Text>
           </Box>
         </div>
-        <Card>
-          <Box padding="400">
-            <div className="marketing-masonry">
-              {marketingMasonryColumns.map((column, columnIndex) => (
-                <div className="marketing-masonry-column" key={`marketing-column-${columnIndex}`}>
-                  {column.map((image) => (
-                    <img
-                      key={image.src}
-                      className="marketing-masonry-image"
-                      src={image.src}
-                      alt={image.alt}
-                      loading="lazy"
-                    />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </Box>
-        </Card>
+        <Box padding="400">
+          <div className="marketing-masonry">
+            {marketingMasonryColumns.map((column, columnIndex) => (
+              <div className="marketing-masonry-column" key={`marketing-column-${columnIndex}`}>
+                {column.map((image) => (
+                  <img
+                    key={image.src}
+                    className="marketing-masonry-image"
+                    src={image.src}
+                    alt={image.alt}
+                    loading="lazy"
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </Box>
 
         <Card>
           <Box padding="400">

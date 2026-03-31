@@ -572,25 +572,23 @@ export default function ProductGenPage() {
           </Box>
         </div>
 
-        <Card>
-          <Box padding="400">
-            <div className="product-masonry">
-              {productMasonryColumns.map((column, columnIndex) => (
-                <div className="product-masonry-column" key={`product-column-${columnIndex}`}>
-                  {column.map((image) => (
-                    <img
-                      key={image.src}
-                      className="product-masonry-image"
-                      src={image.src}
-                      alt={image.alt}
-                      loading="lazy"
-                    />
-                  ))}
-                </div>
-              ))}
-            </div>
-          </Box>
-        </Card>
+        <Box padding="400">
+          <div className="product-masonry">
+            {productMasonryColumns.map((column, columnIndex) => (
+              <div className="product-masonry-column" key={`product-column-${columnIndex}`}>
+                {column.map((image) => (
+                  <img
+                    key={image.src}
+                    className="product-masonry-image"
+                    src={image.src}
+                    alt={image.alt}
+                    loading="lazy"
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </Box>
 
         {error ? (
           <Card>
