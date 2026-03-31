@@ -101,9 +101,15 @@
   margin: 0;
   max-width: 8ch;
   font-size: clamp(3.6rem, 6.2vw, 6rem);
-  line-height: 0.9;
+  line-height: 0.98;
   letter-spacing: -0.08em;
   font-weight: 700;
+}
+
+.headingAccent {
+  font-size: 0.62em;
+  letter-spacing: -0.03em;
+  margin-left: 0.08em;
 }
 
 .subtitle {
@@ -148,7 +154,7 @@
 }
 
 .featureText {
-  font-size: clamp(1rem, 1.55vw, 1.7rem);
+  font-size: clamp(1.08rem, 1.75vw, 1.9rem);
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: -0.04em;
@@ -156,7 +162,7 @@
 
 .featureSubtext {
   color: #7b61ff;
-  font-size: clamp(0.95rem, 1.35vw, 1.35rem);
+  font-size: clamp(0.88rem, 1.15vw, 1.18rem);
   font-weight: 500;
   line-height: 1.05;
 }
@@ -306,11 +312,11 @@
   }
 
   .featureText {
-    font-size: 0.96rem;
+    font-size: 1.02rem;
   }
 
   .featureSubtext {
-    font-size: 0.92rem;
+    font-size: 0.84rem;
   }
 
   .inputRow {

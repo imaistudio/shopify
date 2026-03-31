@@ -1,5 +1,4 @@
 import { Icon } from "@iconify/react";
-import { RefreshCcw } from "lucide-react";
 
 import styles from "./LaunchHero.module.css";
 
@@ -10,19 +9,28 @@ const COMPANY_LOGO_SRC = "/launch/logo.webp";
 
 const featureItems = [
   {
-    title: "Campaign Ready Visuals",
-    subtitle: "Media Studio Agent",
-    renderIcon: () => <Icon icon="bi:phone-fill" width={25} height={25} />,
-  },
-  {
-    title: "One Click Catalogue Generation",
+    title: "Design Agent",
+    subtitle: "Create Collections In One Go",
     renderIcon: () => (
-      <Icon icon="fluent:collections-20-filled" width={25} height={25} />
+      <Icon icon="boxicons:pen-filled" width={25} height={25} />
     ),
   },
   {
-    title: "Import Outputs To Shopify",
-    renderIcon: () => <RefreshCcw size={20} strokeWidth={2.1} />,
+    title: "Marketing Agent",
+    subtitle: "Everything You Need to Launch",
+    renderIcon: () => <Icon icon="mdi:cube-outline" width={25} height={25} />,
+  },
+  {
+    title: "Avatars",
+    subtitle: "Consistent Face Across Campaigns.",
+    renderIcon: () => <Icon icon="ic:round-face-3" width={25} height={25} />,
+  },
+  {
+    title: "Library Import",
+    subtitle: "Access your generations in one place",
+    renderIcon: () => (
+      <Icon icon="solar:library-bold-duotone" width={25} height={25} />
+    ),
   },
 ];
 
@@ -69,18 +77,24 @@ export function LaunchHero() {
               <div className={styles.shopifyCard}>
                 <ShopifyMark />
               </div>
-              <div className={styles.logoBadge} aria-label="IMAI.Studio logo">
+              <div className={styles.logoBadge} aria-label="IMAI logo">
                 <img
                   className={styles.logoImage}
                   src={COMPANY_LOGO_SRC}
-                  alt="IMAI.Studio logo"
+                  alt="IMAI logo"
                 />
               </div>
             </div>
 
             <div className={styles.copyBlock}>
-              <h1 className={styles.heading}>Transform your Store</h1>
-              <p className={styles.subtitle}>IMAI.Studio</p>
+              <h1 className={styles.heading}>
+                Plug into <br />
+                IMAI.<span className={styles.headingAccent}>Studio</span>
+              </h1>
+              <p className={styles.subtitle}>
+                Connect your store. Access everything to design, create, &
+                launch.
+              </p>
             </div>
 
             <ul className={styles.featureList}>
