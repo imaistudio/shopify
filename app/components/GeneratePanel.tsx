@@ -39,20 +39,38 @@ type ActiveJobsResponse = {
   jobs?: Array<{
     jobId: string;
     prompt: string;
-    status: "queued" | "running" | "processing" | "completed" | "failed" | "cancelled";
+    status:
+      | "queued"
+      | "running"
+      | "processing"
+      | "completed"
+      | "failed"
+      | "cancelled";
     createdAt?: string;
     error?: string | null;
   }>;
 };
 
 type StatusResponse = {
-  status?: "queued" | "running" | "processing" | "completed" | "failed" | "cancelled";
+  status?:
+    | "queued"
+    | "running"
+    | "processing"
+    | "completed"
+    | "failed"
+    | "cancelled";
   error?: string;
   result?: {
     urls?: string[];
   } & Record<string, unknown>;
   job?: {
-    status?: "queued" | "running" | "processing" | "completed" | "failed" | "cancelled";
+    status?:
+      | "queued"
+      | "running"
+      | "processing"
+      | "completed"
+      | "failed"
+      | "cancelled";
     error?: string;
     result?: {
       urls?: string[];
@@ -66,11 +84,15 @@ const CANCEL_BUTTON_TIMEOUT_MS = 60000;
 
 const DEFAULT_PROMPT_PLACEHOLDER =
   "Describe your ideal images — e.g. “4 lifestyle shots on a white background” or “hero banner with model wearing the product”";
-const DEFAULT_PROMPT_HELP =
-  "Be specific: number of images, style, background, and mood for best results.";
 
 function normalizeStatus(
-  status: "queued" | "running" | "processing" | "completed" | "failed" | "cancelled",
+  status:
+    | "queued"
+    | "running"
+    | "processing"
+    | "completed"
+    | "failed"
+    | "cancelled",
 ): Generation["status"] {
   return status === "running" ? "processing" : status;
 }
@@ -99,17 +121,23 @@ export function GeneratePanel({
 
   useEffect(() => {
     activeJobIdsRef.current = new Set(
-      generations.filter((generation) => generation.isGenerating && generation.jobId).map((generation) => generation.jobId!),
+      generations
+        .filter((generation) => generation.isGenerating && generation.jobId)
+        .map((generation) => generation.jobId!),
     );
   }, [generations]);
 
-  const hasActiveGeneration = generations.some((generation) => generation.isGenerating);
+  const hasActiveGeneration = generations.some(
+    (generation) => generation.isGenerating,
+  );
 
   const updateGenerationStatus = useCallback(
     (jobId: string, updates: Partial<Generation>) => {
       setGenerations((previous) =>
         previous.map((generation) =>
-          generation.jobId === jobId ? { ...generation, ...updates } : generation,
+          generation.jobId === jobId
+            ? { ...generation, ...updates }
+            : generation,
         ),
       );
     },
@@ -127,7 +155,9 @@ export function GeneratePanel({
         if (!jobs.length) return;
 
         setGenerations((previous) => {
-          const existingJobIds = new Set(previous.map((generation) => generation.jobId));
+          const existingJobIds = new Set(
+            previous.map((generation) => generation.jobId),
+          );
           const restored = jobs
             .filter((job) => !existingJobIds.has(job.jobId))
             .map<Generation>((job) => ({
@@ -135,12 +165,17 @@ export function GeneratePanel({
               prompt: job.prompt,
               uploadedFile: null,
               previewUrl: null,
-              isGenerating: job.status === "queued" || job.status === "running" || job.status === "processing",
+              isGenerating:
+                job.status === "queued" ||
+                job.status === "running" ||
+                job.status === "processing",
               jobId: job.jobId,
               results: null,
               error: job.error ?? null,
               status: normalizeStatus(job.status),
-              createdAt: job.createdAt ? new Date(job.createdAt).getTime() : Date.now(),
+              createdAt: job.createdAt
+                ? new Date(job.createdAt).getTime()
+                : Date.now(),
             }));
 
           return [...restored, ...previous];
@@ -210,7 +245,10 @@ export function GeneratePanel({
               isGenerating: false,
               status: status,
               results: null,
-              error: data.job?.error ?? data.error ?? "Generation failed. Please try again.",
+              error:
+                data.job?.error ??
+                data.error ??
+                "Generation failed. Please try again.",
             });
             activeJobIdsRef.current.delete(jobId);
             setShowCancelButton(false);
@@ -389,7 +427,9 @@ export function GeneratePanel({
   ]);
 
   const handleCancelGeneration = useCallback(async () => {
-    const activeGeneration = generations.find((generation) => generation.isGenerating && generation.jobId);
+    const activeGeneration = generations.find(
+      (generation) => generation.isGenerating && generation.jobId,
+    );
     if (!activeGeneration?.jobId) return;
 
     try {
@@ -427,6 +467,139 @@ export function GeneratePanel({
       <Box padding="400">
         <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
           <BlockStack gap="400">
+            {hasActiveGeneration ? (
+              <Box
+                background="bg-fill-secondary"
+                padding="800"
+                borderRadius="200"
+                minHeight="500px"
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: "400px",
+                    width: "100%",
+                    textAlign: "center",
+                  }}
+                >
+                  <BlockStack gap="200" align="center">
+                    <Spinner size="large" />
+                    <Text as="p" alignment="center" tone="subdued">
+                      Generating your images...
+                    </Text>
+                    {showCancelButton ? (
+                      <Button
+                        variant="plain"
+                        tone="critical"
+                        size="micro"
+                        onClick={handleCancelGeneration}
+                      >
+                        Cancel Generation
+                      </Button>
+                    ) : null}
+                  </BlockStack>
+                </div>
+              </Box>
+            ) : generations.length === 0 ? (
+              <Box
+                background="bg-fill-secondary"
+                padding="800"
+                borderRadius="200"
+                minHeight="500px"
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minHeight: "400px",
+                    width: "100%",
+                  }}
+                >
+                  <BlockStack gap="200" align="center">
+                    <Icon source={ImageIcon} tone="subdued" />
+                    <Text as="p" alignment="center" tone="subdued">
+                      Generated images will appear here
+                    </Text>
+                  </BlockStack>
+                </div>
+              </Box>
+            ) : (
+              generations.map((generation) => (
+                <Card key={generation.id}>
+                  <Box padding="400">
+                    <BlockStack gap="300">
+                      <Text as="p" variant="headingSm">
+                        Prompt
+                      </Text>
+                      <Text as="p">{generation.prompt}</Text>
+
+                      {generation.isGenerating ? (
+                        <InlineStack gap="200" blockAlign="center">
+                          <Spinner size="small" />
+                          <Text as="p" tone="subdued">
+                            {generation.status === "processing"
+                              ? "Processing your images..."
+                              : "Queued for generation..."}
+                          </Text>
+                        </InlineStack>
+                      ) : generation.status === "failed" || generation.error ? (
+                        <InlineStack gap="200" blockAlign="center">
+                          <Icon source={XCircleIcon} tone="critical" />
+                          <Text as="p" tone="critical">
+                            {generation.error ??
+                              "Failed to generate, please try again later."}
+                          </Text>
+                        </InlineStack>
+                      ) : generation.status === "cancelled" ? (
+                        <Text as="p" tone="subdued">
+                          Generation was cancelled.
+                        </Text>
+                      ) : generation.results?.length ? (
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(2, 1fr)",
+                            gap: "8px",
+                          }}
+                        >
+                          {generation.results.map((imageUrl, index) => (
+                            <div
+                              key={`${generation.id}-${index}`}
+                              style={{
+                                aspectRatio: "1 / 1",
+                                overflow: "hidden",
+                                borderRadius: "8px",
+                              }}
+                            >
+                              <img
+                                src={imageUrl}
+                                alt={`Generated ${index + 1}`}
+                                style={{
+                                  width: "100%",
+                                  height: "100%",
+                                  objectFit: "cover",
+                                  display: "block",
+                                }}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <Text as="p" tone="subdued">
+                          Waiting for results.
+                        </Text>
+                      )}
+                    </BlockStack>
+                  </Box>
+                </Card>
+              ))
+            )}
+          </BlockStack>
+
+          <BlockStack gap="400">
             <TextField
               label="What do you want to generate?"
               multiline={4}
@@ -435,7 +608,7 @@ export function GeneratePanel({
               onChange={setPrompt}
               autoComplete="off"
               disabled={hasActiveGeneration}
-              helpText={promptHelpText ?? DEFAULT_PROMPT_HELP}
+              helpText={promptHelpText}
             />
 
             <BlockStack gap="200">
@@ -483,7 +656,11 @@ export function GeneratePanel({
                 </DropZone>
               ) : (
                 <InlineStack gap="200" blockAlign="center">
-                  <Thumbnail source={previewUrl || ""} size="small" alt="Reference" />
+                  <Thumbnail
+                    source={previewUrl || ""}
+                    size="small"
+                    alt="Reference"
+                  />
                   <Text as="p">{uploadedFile.name}</Text>
                   <Button
                     variant="plain"
@@ -497,143 +674,26 @@ export function GeneratePanel({
               )}
             </BlockStack>
 
-            {balance !== null ? (
-              <Text as="p" tone="subdued">
-                Credits remaining: {Math.round(balance)}
-              </Text>
-            ) : null}
-
             <Button
               variant="primary"
               size="large"
               fullWidth
-              disabled={!prompt.trim() || !uploadedFile || isUploading || hasActiveGeneration}
+              disabled={
+                !prompt.trim() ||
+                !uploadedFile ||
+                isUploading ||
+                hasActiveGeneration
+              }
               onClick={handleGenerate}
             >
               Generate
             </Button>
-          </BlockStack>
 
-          <BlockStack gap="400">
-            {hasActiveGeneration ? (
-              <Box background="bg-fill-secondary" padding="800" borderRadius="200" minHeight="500px">
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minHeight: "400px",
-                    width: "100%",
-                    textAlign: "center",
-                  }}
-                >
-                  <BlockStack gap="200" align="center">
-                    <Spinner size="large" />
-                    <Text as="p" alignment="center" tone="subdued">
-                      Generating your images...
-                    </Text>
-                    {showCancelButton ? (
-                      <Button
-                        variant="plain"
-                        tone="critical"
-                        size="micro"
-                        onClick={handleCancelGeneration}
-                      >
-                        Cancel Generation
-                      </Button>
-                    ) : null}
-                  </BlockStack>
-                </div>
-              </Box>
-            ) : generations.length === 0 ? (
-              <Box background="bg-fill-secondary" padding="800" borderRadius="200" minHeight="500px">
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minHeight: "400px",
-                    width: "100%",
-                  }}
-                >
-                  <BlockStack gap="200" align="center">
-                    <Icon source={ImageIcon} tone="subdued" />
-                    <Text as="p" alignment="center" tone="subdued">
-                      Generated images will appear here
-                    </Text>
-                  </BlockStack>
-                </div>
-              </Box>
-            ) : (
-              generations.map((generation) => (
-                <Card key={generation.id}>
-                  <Box padding="400">
-                    <BlockStack gap="300">
-                      <Text as="p" variant="headingSm">
-                        Prompt
-                      </Text>
-                      <Text as="p">{generation.prompt}</Text>
-
-                      {generation.isGenerating ? (
-                        <InlineStack gap="200" blockAlign="center">
-                          <Spinner size="small" />
-                          <Text as="p" tone="subdued">
-                            {generation.status === "processing"
-                              ? "Processing your images..."
-                              : "Queued for generation..."}
-                          </Text>
-                        </InlineStack>
-                      ) : generation.status === "failed" || generation.error ? (
-                        <InlineStack gap="200" blockAlign="center">
-                          <Icon source={XCircleIcon} tone="critical" />
-                          <Text as="p" tone="critical">
-                            {generation.error ?? "Failed to generate, please try again later."}
-                          </Text>
-                        </InlineStack>
-                      ) : generation.status === "cancelled" ? (
-                        <Text as="p" tone="subdued">
-                          Generation was cancelled.
-                        </Text>
-                      ) : generation.results?.length ? (
-                        <div
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "repeat(2, 1fr)",
-                            gap: "8px",
-                          }}
-                        >
-                          {generation.results.map((imageUrl, index) => (
-                            <div
-                              key={`${generation.id}-${index}`}
-                              style={{
-                                aspectRatio: "1 / 1",
-                                overflow: "hidden",
-                                borderRadius: "8px",
-                              }}
-                            >
-                              <img
-                                src={imageUrl}
-                                alt={`Generated ${index + 1}`}
-                                style={{
-                                  width: "100%",
-                                  height: "100%",
-                                  objectFit: "cover",
-                                  display: "block",
-                                }}
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <Text as="p" tone="subdued">
-                          Waiting for results.
-                        </Text>
-                      )}
-                    </BlockStack>
-                  </Box>
-                </Card>
-              ))
-            )}
+            {balance !== null ? (
+              <Text as="p" alignment="center" tone="subdued">
+                Credits remaining: {Math.round(balance)}
+              </Text>
+            ) : null}
           </BlockStack>
         </InlineGrid>
       </Box>

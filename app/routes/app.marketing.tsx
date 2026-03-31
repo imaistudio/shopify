@@ -4,13 +4,7 @@ import { useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { decrypt } from "../lib/encryption.server";
-import {
-  Page,
-  Card,
-  Box,
-  BlockStack,
-  Text,
-} from "@shopify/polaris";
+import { Page, Card, Box, BlockStack, Text } from "@shopify/polaris";
 
 // Components
 import { ApiKeyEmptyState } from "../components/ApiKeyEmptyState";
@@ -35,20 +29,23 @@ const marketingMasonryColumns = [
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  
+
   // Check if shop has a stored API key
   const storedKey = await prisma.apiKey.findUnique({
     where: { shop: session.shop },
   });
-  
+
   let balance = null;
   let hasHistory = false;
   if (storedKey) {
     try {
       const apiKey = decrypt(storedKey.encryptedKey);
-      const creditsResp = await fetch("https://www.imai.studio/api/v1/credits", {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      });
+      const creditsResp = await fetch(
+        "https://www.imai.studio/api/v1/credits",
+        {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        },
+      );
       if (creditsResp.ok) {
         const creditsData = await creditsResp.json();
         balance = creditsData.balance;
@@ -68,8 +65,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     hasHistory = !!existingHistory;
   }
-  
-  return { 
+
+  return {
     shop: session.shop,
     isConnected: !!storedKey,
     balance,
@@ -90,9 +87,12 @@ export default function MarketingPage() {
     setLibraryRefreshTrigger((prev) => prev + 1);
   }, []);
 
-  const handleHistoryVisibilityChange = useCallback((hasVisibleHistory: boolean) => {
-    setHasPageHistory(hasVisibleHistory);
-  }, []);
+  const handleHistoryVisibilityChange = useCallback(
+    (hasVisibleHistory: boolean) => {
+      setHasPageHistory(hasVisibleHistory);
+    },
+    [],
+  );
 
   const primaryAction = undefined;
 
@@ -146,14 +146,20 @@ export default function MarketingPage() {
         <div style={{ marginTop: "-20px" }}>
           <Box paddingBlockEnd="200">
             <Text as="p" tone="subdued">
-              Use the Marketing Agent to generate campaign-ready visuals for social, ads, and storefront placements. Upload a reference image or describe the outcome, and let the agent produce ready-to-publish variations.
+              Use the Marketing Agent to generate campaign-ready visuals for
+              social, ads, and storefront placements. Upload a reference image
+              or describe the outcome, and let the agent produce
+              ready-to-publish variations.
             </Text>
           </Box>
         </div>
         <Box padding="400">
           <div className="marketing-masonry">
             {marketingMasonryColumns.map((column, columnIndex) => (
-              <div className="marketing-masonry-column" key={`marketing-column-${columnIndex}`}>
+              <div
+                className="marketing-masonry-column"
+                key={`marketing-column-${columnIndex}`}
+              >
                 {column.map((image) => (
                   <img
                     key={image.src}
@@ -168,18 +174,19 @@ export default function MarketingPage() {
           </div>
         </Box>
 
-        <Card>
-          <Box padding="400">
-            <GeneratePanel 
-              onGenerationComplete={handleGenerationComplete}
-              balance={balance}
-              promptPlaceholder='e.g. "Instagram lifestyle photo with soft lighting" or "Modern product post with pastel background"'
-              promptHelpText="Give the Marketing Agent the channel, visual style, and mood so it can steer the output with less guesswork."
-            />
-          </Box>
-        </Card>
+        <Box paddingBlockEnd="400">
+          <Card>
+            <Box padding="400">
+              <GeneratePanel
+                onGenerationComplete={handleGenerationComplete}
+                balance={balance}
+                promptPlaceholder='e.g. "Instagram lifestyle photo with soft lighting" or "Modern product post with pastel background"'
+              />
+            </Box>
+          </Card>
+        </Box>
 
-        <History 
+        <History
           endpoint="marketing"
           refreshTrigger={libraryRefreshTrigger}
           onHasVisibleHistoryChange={handleHistoryVisibilityChange}

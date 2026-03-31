@@ -66,18 +66,36 @@ type ActiveJobsResponse = {
   jobs?: Array<{
     jobId: string;
     prompt: string;
-    status: "queued" | "running" | "processing" | "completed" | "failed" | "cancelled";
+    status:
+      | "queued"
+      | "running"
+      | "processing"
+      | "completed"
+      | "failed"
+      | "cancelled";
     createdAt?: string;
     error?: string | null;
   }>;
 };
 
 type StatusResponse = {
-  status?: "queued" | "running" | "processing" | "completed" | "failed" | "cancelled";
+  status?:
+    | "queued"
+    | "running"
+    | "processing"
+    | "completed"
+    | "failed"
+    | "cancelled";
   error?: string;
   result?: EcommerceResponse;
   job?: {
-    status?: "queued" | "running" | "processing" | "completed" | "failed" | "cancelled";
+    status?:
+      | "queued"
+      | "running"
+      | "processing"
+      | "completed"
+      | "failed"
+      | "cancelled";
     error?: string;
     result?: EcommerceResponse;
   };
@@ -104,7 +122,13 @@ const productMasonryColumns = [
 ] as const;
 
 function normalizeStatus(
-  status: "queued" | "running" | "processing" | "completed" | "failed" | "cancelled",
+  status:
+    | "queued"
+    | "running"
+    | "processing"
+    | "completed"
+    | "failed"
+    | "cancelled",
 ): ProductGeneration["status"] {
   return status === "running" ? "processing" : status;
 }
@@ -113,7 +137,9 @@ function parseResponse(data: StatusResponse): EcommerceResponse | null {
   return data.result ?? data.job?.result ?? null;
 }
 
-function parseTextDetails(response: EcommerceResponse | null): ProductDetails | null {
+function parseTextDetails(
+  response: EcommerceResponse | null,
+): ProductDetails | null {
   if (response?.details) return response.details;
   if (!response?.text) return null;
 
@@ -137,9 +163,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   if (storedKey) {
     try {
       const apiKey = decrypt(storedKey.encryptedKey);
-      const creditsResp = await fetch("https://www.imai.studio/api/v1/credits", {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      });
+      const creditsResp = await fetch(
+        "https://www.imai.studio/api/v1/credits",
+        {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        },
+      );
       if (creditsResp.ok) {
         const creditsData = await creditsResp.json();
         balance = creditsData.balance;
@@ -188,19 +217,30 @@ export default function ProductGenPage() {
 
   useEffect(() => {
     activeJobIdsRef.current = new Set(
-      generations.filter((generation) => generation.isGenerating && generation.jobId).map((generation) => generation.jobId!),
+      generations
+        .filter((generation) => generation.isGenerating && generation.jobId)
+        .map((generation) => generation.jobId!),
     );
   }, [generations]);
 
-  const hasActiveGeneration = generations.some((generation) => generation.isGenerating);
+  const hasActiveGeneration = generations.some(
+    (generation) => generation.isGenerating,
+  );
 
   const updateGeneration = useCallback(
-    (match: { id?: string; jobId?: string }, updates: Partial<ProductGeneration>) => {
+    (
+      match: { id?: string; jobId?: string },
+      updates: Partial<ProductGeneration>,
+    ) => {
       setGenerations((previous) =>
         previous.map((generation) => {
           const matchesId = match.id ? generation.id === match.id : false;
-          const matchesJobId = match.jobId ? generation.jobId === match.jobId : false;
-          return matchesId || matchesJobId ? { ...generation, ...updates } : generation;
+          const matchesJobId = match.jobId
+            ? generation.jobId === match.jobId
+            : false;
+          return matchesId || matchesJobId
+            ? { ...generation, ...updates }
+            : generation;
         }),
       );
     },
@@ -218,7 +258,9 @@ export default function ProductGenPage() {
         if (!jobs.length) return;
 
         setGenerations((previous) => {
-          const existingJobIds = new Set(previous.map((generation) => generation.jobId));
+          const existingJobIds = new Set(
+            previous.map((generation) => generation.jobId),
+          );
           const restored = jobs
             .filter((job) => !existingJobIds.has(job.jobId))
             .map<ProductGeneration>((job) => ({
@@ -226,12 +268,17 @@ export default function ProductGenPage() {
               prompt: job.prompt,
               uploadedFile: null,
               previewUrl: null,
-              isGenerating: job.status === "queued" || job.status === "running" || job.status === "processing",
+              isGenerating:
+                job.status === "queued" ||
+                job.status === "running" ||
+                job.status === "processing",
               jobId: job.jobId,
               response: null,
               error: job.error ?? null,
               status: normalizeStatus(job.status),
-              createdAt: job.createdAt ? new Date(job.createdAt).getTime() : Date.now(),
+              createdAt: job.createdAt
+                ? new Date(job.createdAt).getTime()
+                : Date.now(),
             }));
 
           return [...restored, ...previous];
@@ -305,7 +352,10 @@ export default function ProductGenPage() {
                 isGenerating: false,
                 status,
                 response: null,
-                error: data.job?.error ?? data.error ?? "Generation failed. Please try again.",
+                error:
+                  data.job?.error ??
+                  data.error ??
+                  "Generation failed. Please try again.",
               },
             );
             activeJobIdsRef.current.delete(jobId);
@@ -314,7 +364,10 @@ export default function ProductGenPage() {
             updateGeneration({ jobId }, { status: "processing" });
           }
         } catch (pollError) {
-          console.error(`Failed to poll product status for ${jobId}:`, pollError);
+          console.error(
+            `Failed to poll product status for ${jobId}:`,
+            pollError,
+          );
         }
       }
     }, POLL_INTERVAL_MS);
@@ -483,10 +536,19 @@ export default function ProductGenPage() {
       }
       setPreviewUrl(null);
     }
-  }, [hasActiveGeneration, previewUrl, prompt, updateGeneration, uploadImage, uploadedFile]);
+  }, [
+    hasActiveGeneration,
+    previewUrl,
+    prompt,
+    updateGeneration,
+    uploadImage,
+    uploadedFile,
+  ]);
 
   const handleCancelGeneration = useCallback(async () => {
-    const activeGeneration = generations.find((generation) => generation.isGenerating && generation.jobId);
+    const activeGeneration = generations.find(
+      (generation) => generation.isGenerating && generation.jobId,
+    );
     if (!activeGeneration?.jobId) return;
 
     try {
@@ -512,9 +574,12 @@ export default function ProductGenPage() {
     setShowCancelButton(false);
   }, [generations, updateGeneration]);
 
-  const handleHistoryVisibilityChange = useCallback((hasVisibleHistory: boolean) => {
-    setHasPageHistory(hasVisibleHistory);
-  }, []);
+  const handleHistoryVisibilityChange = useCallback(
+    (hasVisibleHistory: boolean) => {
+      setHasPageHistory(hasVisibleHistory);
+    },
+    [],
+  );
 
   if (!isConnected) {
     return (
@@ -567,7 +632,8 @@ export default function ProductGenPage() {
         <div style={{ marginTop: "-20px" }}>
           <Box paddingBlockEnd="200">
             <Text as="p" tone="subdued">
-              Use the Catalogue Agent to turn a reference image into clean catalogue shots and richer product content for your store.
+              Use the Catalogue Agent to turn a reference image into clean
+              catalogue shots and richer product content for your store.
             </Text>
           </Box>
         </div>
@@ -575,7 +641,10 @@ export default function ProductGenPage() {
         <Box padding="400">
           <div className="product-masonry">
             {productMasonryColumns.map((column, columnIndex) => (
-              <div className="product-masonry-column" key={`product-column-${columnIndex}`}>
+              <div
+                className="product-masonry-column"
+                key={`product-column-${columnIndex}`}
+              >
                 {column.map((image) => (
                   <img
                     key={image.src}
@@ -600,297 +669,344 @@ export default function ProductGenPage() {
           </Card>
         ) : null}
 
-        <Card>
-          <Box padding="400">
-            <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
-              <BlockStack gap="400">
-                <BlockStack gap="200">
-                  <Text as="p" variant="bodyMd">
-                    Reference Image
-                  </Text>
-
-                  {!uploadedFile ? (
-                    <DropZone
-                      accept=".webp,.png,.jpeg,.jpg"
-                      type="image"
-                      onDrop={handleDrop}
-                      allowMultiple={false}
+        <Box paddingBlockEnd="400">
+          <Card>
+            <Box padding="400">
+              <InlineGrid columns={{ xs: 1, md: 2 }} gap="400">
+                <BlockStack gap="400">
+                  {hasActiveGeneration ? (
+                    <Box
+                      background="bg-fill-secondary"
+                      padding="800"
+                      borderRadius="200"
+                      minHeight="500px"
                     >
                       <div
                         style={{
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          minHeight: "200px",
+                          minHeight: "400px",
                           width: "100%",
-                          padding: "16px",
+                          textAlign: "center",
                         }}
                       >
-                        <div
-                          style={{
-                            display: "inline-flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            gap: "4px",
-                          }}
-                        >
-                          <Icon source={PlusIcon} tone="subdued" />
-                          <span
-                            style={{
-                              fontSize: "13px",
-                              color: "var(--p-color-text-subdued)",
-                              lineHeight: 1.3,
-                            }}
-                          >
-                            Drop or click to upload
-                          </span>
-                        </div>
+                        <BlockStack gap="200" align="center">
+                          <Spinner size="large" />
+                          <Text as="p" alignment="center" tone="subdued">
+                            Catalogue Agent is generating your content...
+                          </Text>
+                          {showCancelButton ? (
+                            <Button
+                              variant="plain"
+                              tone="critical"
+                              size="micro"
+                              onClick={handleCancelGeneration}
+                            >
+                              Cancel Generation
+                            </Button>
+                          ) : null}
+                        </BlockStack>
                       </div>
-                    </DropZone>
+                    </Box>
+                  ) : generations.length === 0 ? (
+                    <Box
+                      background="bg-fill-secondary"
+                      padding="800"
+                      borderRadius="200"
+                      minHeight="500px"
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          minHeight: "400px",
+                          width: "100%",
+                        }}
+                      >
+                        <BlockStack gap="200" align="center">
+                          <Icon source={ImageIcon} tone="subdued" />
+                          <Text as="p" alignment="center" tone="subdued">
+                            Generated assets and product details will appear
+                            here
+                          </Text>
+                        </BlockStack>
+                      </div>
+                    </Box>
                   ) : (
-                    <InlineStack gap="200" blockAlign="center">
-                      <Thumbnail source={previewUrl || ""} size="small" alt="Reference" />
-                      <Text as="p">{uploadedFile.name}</Text>
-                      <Button variant="plain" tone="critical" onClick={clearImage}>
-                        Remove
-                      </Button>
-                    </InlineStack>
+                    generations.map((generation) => {
+                      const response = generation.response;
+                      const details = parseTextDetails(response);
+                      const imageUrls = Array.isArray(response?.urls)
+                        ? response.urls
+                        : Array.isArray(response?.images?.urls)
+                          ? response.images.urls
+                          : [];
+
+                      return (
+                        <Card key={generation.id}>
+                          <Box padding="400">
+                            <BlockStack gap="300">
+                              {generation.prompt ? (
+                                <Box>
+                                  <Text as="h3" variant="headingSm">
+                                    Prompt
+                                  </Text>
+                                  <Text as="p">{generation.prompt}</Text>
+                                </Box>
+                              ) : null}
+
+                              {generation.isGenerating ? (
+                                <InlineStack gap="200" blockAlign="center">
+                                  <Spinner size="small" />
+                                  <Text as="p" tone="subdued">
+                                    {generation.status === "processing"
+                                      ? "Processing your content..."
+                                      : "Queued for generation..."}
+                                  </Text>
+                                </InlineStack>
+                              ) : generation.status === "failed" ||
+                                generation.error ? (
+                                <InlineStack gap="200" blockAlign="center">
+                                  <Icon source={XCircleIcon} tone="critical" />
+                                  <Text as="p" tone="critical">
+                                    {generation.error ??
+                                      "Failed to generate, please try again later."}
+                                  </Text>
+                                </InlineStack>
+                              ) : generation.status === "cancelled" ? (
+                                <Text as="p" tone="subdued">
+                                  Generation was cancelled.
+                                </Text>
+                              ) : null}
+
+                              {imageUrls.length ? (
+                                <div
+                                  style={{
+                                    display: "grid",
+                                    gridTemplateColumns: "repeat(2, 1fr)",
+                                    gap: "8px",
+                                  }}
+                                >
+                                  {imageUrls.slice(0, 4).map((url, index) => (
+                                    <div
+                                      key={`${generation.id}-${index}`}
+                                      style={{
+                                        aspectRatio: "1 / 1",
+                                        overflow: "hidden",
+                                        borderRadius: "8px",
+                                      }}
+                                    >
+                                      <img
+                                        src={url}
+                                        alt={`Generated ${index + 1}`}
+                                        style={{
+                                          width: "100%",
+                                          height: "100%",
+                                          objectFit: "cover",
+                                          display: "block",
+                                        }}
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : null}
+
+                              {details?.title ? (
+                                <Box>
+                                  <Text as="p" fontWeight="bold">
+                                    Title
+                                  </Text>
+                                  <Text as="p">{details.title}</Text>
+                                </Box>
+                              ) : null}
+
+                              {details?.description ? (
+                                <Box>
+                                  <Text as="p" fontWeight="bold">
+                                    Description
+                                  </Text>
+                                  <Text as="p">{details.description}</Text>
+                                </Box>
+                              ) : null}
+
+                              {details?.features?.length ? (
+                                <Box>
+                                  <Text as="p" fontWeight="bold">
+                                    Features
+                                  </Text>
+                                  <BlockStack gap="100">
+                                    {details.features.map((feature) => (
+                                      <Text
+                                        as="p"
+                                        key={feature}
+                                        variant="bodySm"
+                                      >
+                                        {feature}
+                                      </Text>
+                                    ))}
+                                  </BlockStack>
+                                </Box>
+                              ) : null}
+
+                              {details?.specifications &&
+                              Object.keys(details.specifications).length ? (
+                                <Box>
+                                  <Text as="p" fontWeight="bold">
+                                    Specifications
+                                  </Text>
+                                  <BlockStack gap="100">
+                                    {Object.entries(details.specifications).map(
+                                      ([key, value]) => (
+                                        <Text as="p" key={key} variant="bodySm">
+                                          {key}: {String(value)}
+                                        </Text>
+                                      ),
+                                    )}
+                                  </BlockStack>
+                                </Box>
+                              ) : null}
+
+                              {details?.platforms &&
+                              Object.keys(details.platforms).length ? (
+                                <Box>
+                                  <Text as="p" fontWeight="bold">
+                                    Platform Content
+                                  </Text>
+                                  <BlockStack gap="200">
+                                    {Object.entries(details.platforms).map(
+                                      ([platform, content]) => (
+                                        <Card key={platform}>
+                                          <Box padding="300">
+                                            <BlockStack gap="100">
+                                              <Text
+                                                as="p"
+                                                fontWeight="bold"
+                                                tone="subdued"
+                                              >
+                                                {platform}
+                                              </Text>
+                                              {content.title ? (
+                                                <Text as="p">
+                                                  {content.title}
+                                                </Text>
+                                              ) : null}
+                                              {content.description ? (
+                                                <Text as="p" variant="bodySm">
+                                                  {content.description}
+                                                </Text>
+                                              ) : null}
+                                            </BlockStack>
+                                          </Box>
+                                        </Card>
+                                      ),
+                                    )}
+                                  </BlockStack>
+                                </Box>
+                              ) : null}
+                            </BlockStack>
+                          </Box>
+                        </Card>
+                      );
+                    })
                   )}
                 </BlockStack>
 
-                <TextField
-                  label="Agent Brief (Optional)"
-                  value={prompt}
-                  onChange={setPrompt}
-                  placeholder='e.g. "Clean white background ecommerce shot" or "Luxury product on marble surface"'
-                  multiline={3}
-                  autoComplete="off"
-                  helpText="Add style, mood, or background ideas to guide the Catalogue Agent."
-                />
+                <BlockStack gap="400">
+                  <BlockStack gap="200">
+                    <Text as="p" variant="bodyMd">
+                      Reference Image
+                    </Text>
 
-                {balance !== null ? (
-                  <Text as="p" tone="subdued">
-                    Credits remaining: {Math.round(balance)}
-                  </Text>
-                ) : null}
+                    {!uploadedFile ? (
+                      <DropZone
+                        accept=".webp,.png,.jpeg,.jpg"
+                        type="image"
+                        onDrop={handleDrop}
+                        allowMultiple={false}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            minHeight: "200px",
+                            width: "100%",
+                            padding: "16px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "inline-flex",
+                              flexDirection: "column",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            <Icon source={PlusIcon} tone="subdued" />
+                            <span
+                              style={{
+                                fontSize: "13px",
+                                color: "var(--p-color-text-subdued)",
+                                lineHeight: 1.3,
+                              }}
+                            >
+                              Drop or click to upload
+                            </span>
+                          </div>
+                        </div>
+                      </DropZone>
+                    ) : (
+                      <InlineStack gap="200" blockAlign="center">
+                        <Thumbnail
+                          source={previewUrl || ""}
+                          size="small"
+                          alt="Reference"
+                        />
+                        <Text as="p">{uploadedFile.name}</Text>
+                        <Button
+                          variant="plain"
+                          tone="critical"
+                          onClick={clearImage}
+                        >
+                          Remove
+                        </Button>
+                      </InlineStack>
+                    )}
+                  </BlockStack>
 
-                <Button
-                  variant="primary"
-                  size="large"
-                  fullWidth
-                  disabled={!uploadedFile || isUploading || hasActiveGeneration}
-                  onClick={handleGenerate}
-                >
-                  Run Catalogue Agent
-                </Button>
-              </BlockStack>
+                  <TextField
+                    label="Agent Brief (Optional)"
+                    value={prompt}
+                    onChange={setPrompt}
+                    placeholder='e.g. "Clean white background ecommerce shot" or "Luxury product on marble surface"'
+                    multiline={3}
+                    autoComplete="off"
+                  />
 
-              <BlockStack gap="400">
-                {hasActiveGeneration ? (
-                  <Box background="bg-fill-secondary" padding="800" borderRadius="200" minHeight="500px">
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        minHeight: "400px",
-                        width: "100%",
-                        textAlign: "center",
-                      }}
-                    >
-                      <BlockStack gap="200" align="center">
-                        <Spinner size="large" />
-                        <Text as="p" alignment="center" tone="subdued">
-                          Catalogue Agent is generating your content...
-                        </Text>
-                        {showCancelButton ? (
-                          <Button variant="plain" tone="critical" size="micro" onClick={handleCancelGeneration}>
-                            Cancel Generation
-                          </Button>
-                        ) : null}
-                      </BlockStack>
-                    </div>
-                  </Box>
-                ) : generations.length === 0 ? (
-                  <Box background="bg-fill-secondary" padding="800" borderRadius="200" minHeight="500px">
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        minHeight: "400px",
-                        width: "100%",
-                      }}
-                    >
-                      <BlockStack gap="200" align="center">
-                        <Icon source={ImageIcon} tone="subdued" />
-                        <Text as="p" alignment="center" tone="subdued">
-                          Generated assets and product details will appear here
-                        </Text>
-                      </BlockStack>
-                    </div>
-                  </Box>
-                ) : (
-                  generations.map((generation) => {
-                    const response = generation.response;
-                    const details = parseTextDetails(response);
-                    const imageUrls = Array.isArray(response?.urls)
-                      ? response.urls
-                      : Array.isArray(response?.images?.urls)
-                        ? response.images.urls
-                        : [];
+                  <Button
+                    variant="primary"
+                    size="large"
+                    fullWidth
+                    disabled={
+                      !uploadedFile || isUploading || hasActiveGeneration
+                    }
+                    onClick={handleGenerate}
+                  >
+                    Generate
+                  </Button>
 
-                    return (
-                      <Card key={generation.id}>
-                        <Box padding="400">
-                          <BlockStack gap="300">
-                            {generation.prompt ? (
-                              <Box>
-                                <Text as="h3" variant="headingSm">
-                                  Prompt
-                                </Text>
-                                <Text as="p">{generation.prompt}</Text>
-                              </Box>
-                            ) : null}
-
-                            {generation.isGenerating ? (
-                              <InlineStack gap="200" blockAlign="center">
-                                <Spinner size="small" />
-                                <Text as="p" tone="subdued">
-                                  {generation.status === "processing"
-                                    ? "Processing your content..."
-                                    : "Queued for generation..."}
-                                </Text>
-                              </InlineStack>
-                            ) : generation.status === "failed" || generation.error ? (
-                              <InlineStack gap="200" blockAlign="center">
-                                <Icon source={XCircleIcon} tone="critical" />
-                                <Text as="p" tone="critical">
-                                  {generation.error ?? "Failed to generate, please try again later."}
-                                </Text>
-                              </InlineStack>
-                            ) : generation.status === "cancelled" ? (
-                              <Text as="p" tone="subdued">
-                                Generation was cancelled.
-                              </Text>
-                            ) : null}
-
-                            {imageUrls.length ? (
-                              <div
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns: "repeat(2, 1fr)",
-                                  gap: "8px",
-                                }}
-                              >
-                                {imageUrls.slice(0, 4).map((url, index) => (
-                                  <div
-                                    key={`${generation.id}-${index}`}
-                                    style={{
-                                      aspectRatio: "1 / 1",
-                                      overflow: "hidden",
-                                      borderRadius: "8px",
-                                    }}
-                                  >
-                                    <img
-                                      src={url}
-                                      alt={`Generated ${index + 1}`}
-                                      style={{
-                                        width: "100%",
-                                        height: "100%",
-                                        objectFit: "cover",
-                                        display: "block",
-                                      }}
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            ) : null}
-
-                            {details?.title ? (
-                              <Box>
-                                <Text as="p" fontWeight="bold">
-                                  Title
-                                </Text>
-                                <Text as="p">{details.title}</Text>
-                              </Box>
-                            ) : null}
-
-                            {details?.description ? (
-                              <Box>
-                                <Text as="p" fontWeight="bold">
-                                  Description
-                                </Text>
-                                <Text as="p">{details.description}</Text>
-                              </Box>
-                            ) : null}
-
-                            {details?.features?.length ? (
-                              <Box>
-                                <Text as="p" fontWeight="bold">
-                                  Features
-                                </Text>
-                                <BlockStack gap="100">
-                                  {details.features.map((feature) => (
-                                    <Text as="p" key={feature} variant="bodySm">
-                                      {feature}
-                                    </Text>
-                                  ))}
-                                </BlockStack>
-                              </Box>
-                            ) : null}
-
-                            {details?.specifications && Object.keys(details.specifications).length ? (
-                              <Box>
-                                <Text as="p" fontWeight="bold">
-                                  Specifications
-                                </Text>
-                                <BlockStack gap="100">
-                                  {Object.entries(details.specifications).map(([key, value]) => (
-                                    <Text as="p" key={key} variant="bodySm">
-                                      {key}: {String(value)}
-                                    </Text>
-                                  ))}
-                                </BlockStack>
-                              </Box>
-                            ) : null}
-
-                            {details?.platforms && Object.keys(details.platforms).length ? (
-                              <Box>
-                                <Text as="p" fontWeight="bold">
-                                  Platform Content
-                                </Text>
-                                <BlockStack gap="200">
-                                  {Object.entries(details.platforms).map(([platform, content]) => (
-                                    <Card key={platform}>
-                                      <Box padding="300">
-                                        <BlockStack gap="100">
-                                          <Text as="p" fontWeight="bold" tone="subdued">
-                                            {platform}
-                                          </Text>
-                                          {content.title ? <Text as="p">{content.title}</Text> : null}
-                                          {content.description ? (
-                                            <Text as="p" variant="bodySm">
-                                              {content.description}
-                                            </Text>
-                                          ) : null}
-                                        </BlockStack>
-                                      </Box>
-                                    </Card>
-                                  ))}
-                                </BlockStack>
-                              </Box>
-                            ) : null}
-                          </BlockStack>
-                        </Box>
-                      </Card>
-                    );
-                  })
-                )}
-              </BlockStack>
-            </InlineGrid>
-          </Box>
-        </Card>
+                  {balance !== null ? (
+                    <Text as="p" alignment="center" tone="subdued">
+                      Credits remaining: {Math.round(balance)}
+                    </Text>
+                  ) : null}
+                </BlockStack>
+              </InlineGrid>
+            </Box>
+          </Card>
+        </Box>
 
         <History
           endpoint="ecommerce"

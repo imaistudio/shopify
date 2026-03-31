@@ -25,7 +25,7 @@
 
 .visualPanel {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
   align-items: flex-end;
   align-self: end;
   height: 100%;
@@ -37,7 +37,7 @@
   width: 100%;
   height: 100%;
   object-fit: contain;
-  object-position: center bottom;
+  object-position: left bottom;
   display: block;
 }
 
