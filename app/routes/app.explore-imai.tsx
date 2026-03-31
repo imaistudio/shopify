@@ -194,6 +194,16 @@ Analyze materials, labor, overhead, and margins in detail — giving you clear v
         </Layout.Section>
 
 
+        <Layout.Section>
+          <FeatureBlock
+            title="Videos & UGC"
+            image="https://www.imai.studio/_next/image?url=https%3A%2F%2Fassets.imai.studio%2Fglobal%2Fimage%2Fa4c8b986-0d62-4fb1-a5fe-40613a12a15c.png&w=3840&q=75"
+            description={`Create product videos and UGC with your brand avatars.
+Generate engaging content for ads, social media, and campaigns — without shoots or creators.`}
+          />
+        </Layout.Section>
+
+
 
 
 
