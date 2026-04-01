@@ -13,6 +13,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     // If this webhook already ran, the session may have been deleted previously.
     if (session) {
       await db.session.deleteMany({ where: { shop } });
+      await db.shopBillingState.deleteMany({ where: { shop } });
+      await db.billingCreditAllocation.deleteMany({ where: { shop } });
       console.log(`🗑️ Deleted session for shop: ${shop}`);
     } else {
       console.log(`⚠️ No session found for shop: ${shop} (already uninstalled?)`);

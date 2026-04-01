@@ -16,6 +16,8 @@ SCOPES=read_products,write_products,write_files
 DATABASE_URL=file:./dev.sqlite
 ENCRYPTION_KEY=use-a-random-32-plus-character-secret
 IMAI_WEBHOOK_SECRET=your_imai_webhook_secret
+SHOPIFY_BILLING_TEST_MODE=true
+IMAI_BILLING_SYNC_URL=https://www.imai.studio/api/v1/shopify/billing/allocate-credits
 ```
 
 ### Production
@@ -31,6 +33,8 @@ SCOPES=read_products,write_products,write_files
 DATABASE_URL=file:/var/data/prod.sqlite
 ENCRYPTION_KEY=use-a-random-32-plus-character-secret
 IMAI_WEBHOOK_SECRET=your_imai_webhook_secret
+SHOPIFY_BILLING_TEST_MODE=false
+IMAI_BILLING_SYNC_URL=https://www.imai.studio/api/v1/shopify/billing/allocate-credits
 ```
 
 ## Variables this repo does not currently use
@@ -47,6 +51,22 @@ Why:
 - merchants enter their own IMAI API key inside the app, and the app stores it encrypted per shop
 - IMAI endpoints are hardcoded to `https://www.imai.studio`
 - uploads currently use `tempfile.org`, not your own R2 bucket or CDN
+
+## Billing-specific notes
+
+- The app now uses Shopify manual subscription billing for recurring plans:
+  - Monthly
+    - `IMAI Starter Monthly` at `$20/month`
+    - `IMAI Pro Monthly` at `$100/month`
+    - `IMAI Ultra Monthly` at `$200/month`
+  - Annual
+    - `IMAI Starter Annual` at `$240/year`
+    - `IMAI Pro Annual` at `$1,200/year`
+    - `IMAI Ultra Annual` at `$2,400/year`
+- Free remains the no-subscription state in Shopify.
+- `SHOPIFY_BILLING_TEST_MODE=true` should stay enabled in local development.
+- `IMAI_BILLING_SYNC_URL` must point to an IMAI endpoint that grants monthly credits idempotently using the posted `grantKey`.
+- The app grants credits in monthly windows for both monthly and annual subscriptions.
 
 ## Testing Locally
 
@@ -85,6 +105,9 @@ Why:
 - [ ] Run a single app instance
 - [ ] Configure webhook endpoint to public URL
 - [ ] Set `IMAI_WEBHOOK_SECRET` for webhook verification
+- [ ] Set `IMAI_BILLING_SYNC_URL` to the IMAI credit allocation endpoint
+- [ ] Set `SHOPIFY_BILLING_TEST_MODE=false` in production
 - [ ] Run `shopify app deploy` after updating production URLs
 - [ ] Verify compliance webhooks are subscribed before App Store submission
+- [ ] Verify `app/subscriptions/update` webhook is subscribed after deploy
 - [ ] Reinstall or reauthorize the app after changing scopes so Shopify issues a token with `read_products` and `write_products`

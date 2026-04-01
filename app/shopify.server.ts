@@ -8,6 +8,7 @@ import {
 import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
 import prisma from "./db.server";
 import { decrypt } from "./lib/encryption.server";
+import { SHOPIFY_BILLING_CONFIG } from "./lib/billing.server";
 import { syncShopifyStoreTokenToImai } from "./lib/imai-oauth.server";
 
 const shopify = shopifyApp({
@@ -19,6 +20,7 @@ const shopify = shopifyApp({
   authPathPrefix: "/auth",
   sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
+  billing: SHOPIFY_BILLING_CONFIG,
   // Use non-expiring offline tokens so the Admin API token is long-lived and usable from anywhere
   // without refresh. See: https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/offline-access-tokens
   future: {
@@ -32,6 +34,10 @@ const shopify = shopifyApp({
     APP_SCOPES_UPDATE: {
       deliveryMethod: DeliveryMethod.Http,
       callbackUrl: "/webhooks/app/scopes_update",
+    },
+    APP_SUBSCRIPTIONS_UPDATE: {
+      deliveryMethod: DeliveryMethod.Http,
+      callbackUrl: "/webhooks/app/subscriptions/update",
     },
   },
   hooks: {

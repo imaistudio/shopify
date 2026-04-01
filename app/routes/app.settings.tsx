@@ -3,6 +3,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { useFetcher, useLoaderData } from "react-router";
 import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
+import { syncShopBillingState } from "../lib/billing.server";
 import { encrypt, decrypt, maskApiKey } from "../lib/encryption.server";
 import { syncShopifyStoreTokenToImai } from "../lib/imai-oauth.server";
 import {
@@ -104,7 +105,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, billing } = await authenticate.admin(request);
   const formData = await request.formData();
   const intent = formData.get("intent") as string;
 
@@ -237,6 +238,25 @@ export const action = async ({ request }: ActionFunctionArgs) => {
           oauthStatus: oauthSync.status ?? null,
           tokenId: oauthSync.tokenId ?? null,
         });
+      }
+
+      try {
+        const billingSync = await syncShopBillingState({
+          shop: session.shop,
+          billing,
+        });
+
+        if (billingSync.creditAllocation.state === "failed") {
+          warnings.push(billingSync.creditAllocation.message);
+        }
+      } catch (error) {
+        console.error("[Settings] Billing sync after key save failed", {
+          shop: session.shop,
+          error,
+        });
+        warnings.push(
+          "Saved the API key, but the current Shopify billing plan could not be synced to IMAI credits yet.",
+        );
       }
 
       return {

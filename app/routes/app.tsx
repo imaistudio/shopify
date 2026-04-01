@@ -4,9 +4,22 @@ import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 
 import { authenticate } from "../shopify.server";
+import { syncShopBillingState } from "../lib/billing.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session, billing } = await authenticate.admin(request);
+
+  try {
+    await syncShopBillingState({
+      shop: session.shop,
+      billing,
+    });
+  } catch (error) {
+    console.error("[Billing] Failed to sync plan state in app loader", {
+      shop: session.shop,
+      error,
+    });
+  }
 
   // eslint-disable-next-line no-undef
   return { apiKey: process.env.SHOPIFY_API_KEY || "" };
@@ -22,6 +35,7 @@ export default function App() {
         <a href="/app/marketing">Marketing Agent</a>
         <a href="/app/productgen">Catalogue Agent</a>
         <a href="/app/library">My Library</a>
+        <a href="/app/billing">Billing</a>
         <a href="/app/settings">FAQ & Settings</a>
         <a href="/app/explore-imai">Explore IMAI</a>
       </s-app-nav>

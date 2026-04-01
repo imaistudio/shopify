@@ -43,6 +43,45 @@ model ApiKey {
   updatedAt   DateTime @updatedAt
 }
 
+model ShopBillingState {
+  id                 String   @id @default(cuid())
+  shop               String   @unique
+  activePlanSlug     String   @default("free")
+  activePlanName     String?
+  subscriptionId     String?
+  subscriptionStatus String   @default("FREE")
+  currentPeriodEnd   DateTime?
+  isTest             Boolean  @default(false)
+  lastSyncedAt       DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([subscriptionId])
+}
+
+model BillingCreditAllocation {
+  id            String   @id @default(cuid())
+  shop          String
+  grantKey      String   @unique
+  planSlug      String
+  planName      String
+  subscriptionId String
+  credits       Int
+  amountCents   Int
+  currencyCode  String   @default("USD")
+  periodEnd     DateTime?
+  isTest        Boolean  @default(false)
+  status        String   @default("pending")
+  source        String?
+  responseJson  String?
+  error         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([shop, createdAt])
+  @@index([shop, subscriptionId])
+}
+
 model ImaiJob {
   id          String   @id @default(cuid())
   jobId       String   @unique

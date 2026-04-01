@@ -66,6 +66,8 @@ These are the variables the current app actually uses in production.
 | `SCOPES` | yes | Read by [`app/shopify.server.ts`](./app/shopify.server.ts). Keep it aligned with `shopify.app.toml`. |
 | `ENCRYPTION_KEY` | yes | Required in production for encrypting stored merchant IMAI keys. Must be at least 32 bytes. |
 | `IMAI_WEBHOOK_SECRET` | recommended | If set, [`app/routes/api.imai.webhook.ts`](./app/routes/api.imai.webhook.ts) verifies IMAI webhook signatures. |
+| `IMAI_BILLING_SYNC_URL` | recommended | Used by [`app/lib/billing.server.ts`](./app/lib/billing.server.ts) to grant monthly IMAI credits for both monthly and annual subscriptions. |
+| `SHOPIFY_BILLING_TEST_MODE` | yes | Set this to `false` in production so recurring plans create real charges instead of test subscriptions. |
 | `SHOP_CUSTOM_DOMAIN` | optional | Only needed if you use Shopify custom shop domains. |
 | `PORT` | optional | Useful if your host injects a port. |
 
@@ -119,6 +121,8 @@ What gets stored:
 
 - Shopify sessions in `Session`
 - encrypted merchant IMAI keys in `ApiKey`
+- Shopify billing state in `ShopBillingState`
+- Shopify-to-IMAI credit grant history in `BillingCreditAllocation`
 - async generation jobs in `ImaiJob`
 
 With this setup:
@@ -171,12 +175,14 @@ This repo already declares:
 
 - `app/uninstalled`
 - `app/scopes_update`
+- `app/subscriptions/update`
 - compliance topics routed to `/webhooks/compliance`
 
 Current webhook config lives in [`shopify.app.toml`](./shopify.app.toml), and webhook handlers live in:
 
 - [`app/routes/webhooks.app.uninstalled.tsx`](./app/routes/webhooks.app.uninstalled.tsx)
 - [`app/routes/webhooks.app.scopes_update.tsx`](./app/routes/webhooks.app.scopes_update.tsx)
+- [`app/routes/webhooks.app.subscriptions.update.tsx`](./app/routes/webhooks.app.subscriptions.update.tsx)
 - [`app/routes/webhooks.compliance.tsx`](./app/routes/webhooks.compliance.tsx)
 
 `shopify app deploy` syncs Shopify-side configuration only. It does not deploy your container.
