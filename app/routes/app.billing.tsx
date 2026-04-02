@@ -22,7 +22,6 @@ import prisma from "../db.server";
 import {
   BILLING_TEST_MODE,
   getBillingReturnUrl,
-  getLatestCreditAllocation,
   syncShopBillingState,
 } from "../lib/billing.server";
 import {
@@ -36,16 +35,6 @@ import {
 } from "../lib/billing/plans";
 import { authenticate } from "../shopify.server";
 
-function formatDate(value: string | null | undefined) {
-  if (!value) return "Not available";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Not available";
-
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-  }).format(date);
-}
-
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, billing } = await authenticate.admin(request);
   const syncedBilling = await syncShopBillingState({
@@ -57,7 +46,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     where: { shop: session.shop },
     select: { maskedKey: true },
   });
-  const latestAllocation = await getLatestCreditAllocation(session.shop);
   const searchParams = new URL(request.url).searchParams;
 
   return {
@@ -65,30 +53,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     monthlyPlans: MONTHLY_PLAN_CARDS,
     annualPlans: ANNUAL_PLAN_CARDS,
     isImaiConnected: !!storedKey,
-    maskedKey: storedKey?.maskedKey ?? null,
     billingTestMode: BILLING_TEST_MODE,
     currentPlanSlug: syncedBilling.activePlan.slug,
     currentPlanNameWithInterval: syncedBilling.activePlan.nameWithInterval,
     currentPlanInterval: syncedBilling.activePlan.billingInterval,
-    activeSubscription: syncedBilling.activeSubscription
-      ? {
-          id: syncedBilling.activeSubscription.id,
-          status: syncedBilling.activeSubscription.status,
-          currentPeriodEnd: syncedBilling.activeSubscription.currentPeriodEnd,
-          test: syncedBilling.activeSubscription.test,
-        }
-      : null,
     creditAllocation: syncedBilling.creditAllocation,
-    latestAllocation: latestAllocation
-      ? {
-          status: latestAllocation.status,
-          planName: latestAllocation.planName,
-          credits: latestAllocation.credits,
-          periodEnd: latestAllocation.periodEnd?.toISOString() ?? null,
-          error: latestAllocation.error,
-          updatedAt: latestAllocation.updatedAt.toISOString(),
-        }
-      : null,
     returnedFromBilling: searchParams.get("billing_return") === "1",
   };
 };
@@ -153,14 +122,11 @@ export default function BillingPage() {
     monthlyPlans,
     annualPlans,
     isImaiConnected,
-    maskedKey,
     billingTestMode,
     currentPlanSlug,
     currentPlanNameWithInterval,
     currentPlanInterval,
-    activeSubscription,
     creditAllocation,
-    latestAllocation,
     returnedFromBilling,
   } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
@@ -179,24 +145,28 @@ export default function BillingPage() {
       <style>{`
         .billing-grid {
           display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 20px;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 24px;
         }
 
-        .billing-sidebar {
-          display: grid;
-          grid-template-columns: minmax(0, 3fr) minmax(280px, 1fr);
+        .billing-grid > * {
+          height: 100%;
+        }
+
+        .plan-card-content {
+          display: flex;
+          flex-direction: column;
+          height: 100%;
           gap: 24px;
-          align-items: start;
+        }
+
+        .plan-card-cta {
+          margin-top: auto;
         }
 
         @media (max-width: 1200px) {
           .billing-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-
-          .billing-sidebar {
-            grid-template-columns: 1fr;
           }
         }
 
@@ -254,52 +224,52 @@ export default function BillingPage() {
           </Text>
         </Box>
 
-        <div className="billing-sidebar">
-          <BlockStack gap="400">
-            <InlineStack align="center">
-              <div
-                style={{
-                  display: "inline-flex",
-                  padding: 4,
-                  border: "1px solid var(--p-color-border-secondary)",
-                  borderRadius: 999,
-                  gap: 4,
-                  background: "var(--p-color-bg-surface)",
-                }}
-              >
-                {(["annual", "monthly"] as BillingIntervalView[]).map((interval) => {
-                  const isActive = selectedInterval === interval;
-                  return (
-                    <button
-                      key={interval}
-                      type="button"
-                      onClick={() => setSelectedInterval(interval)}
-                      style={{
-                        border: "none",
-                        borderRadius: 999,
-                        padding: "10px 18px",
-                        fontWeight: 600,
-                        cursor: "pointer",
-                        background: isActive ? "#111111" : "transparent",
-                        color: isActive ? "#ffffff" : "#6b7280",
-                      }}
-                    >
-                      {interval === "annual" ? "Yearly" : "Monthly"}
-                    </button>
-                  );
-                })}
-              </div>
-            </InlineStack>
-
-            <div className="billing-grid">
-              {[FREE_PLAN, ...plans].map((plan) => {
-                const isCurrentPlan = currentPlanSlug === plan.slug;
-                const isSubmittingThisPlan =
-                  submittingIntent === "subscribe" && submittingPlan === plan.slug;
-
+        <BlockStack gap="400">
+          <InlineStack align="center">
+            <div
+              style={{
+                display: "inline-flex",
+                padding: 4,
+                border: "1px solid var(--p-color-border-secondary)",
+                borderRadius: 999,
+                gap: 4,
+                background: "var(--p-color-bg-surface)",
+              }}
+            >
+              {(["annual", "monthly"] as BillingIntervalView[]).map((interval) => {
+                const isActive = selectedInterval === interval;
                 return (
-                  <Card key={plan.slug}>
-                    <Box padding="400">
+                  <button
+                    key={interval}
+                    type="button"
+                    onClick={() => setSelectedInterval(interval)}
+                    style={{
+                      border: "none",
+                      borderRadius: 999,
+                      padding: "10px 18px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      background: isActive ? "#111111" : "transparent",
+                      color: isActive ? "#ffffff" : "#6b7280",
+                    }}
+                  >
+                    {interval === "annual" ? "Yearly" : "Monthly"}
+                  </button>
+                );
+              })}
+            </div>
+          </InlineStack>
+
+          <div className="billing-grid">
+            {[FREE_PLAN, ...plans].map((plan) => {
+              const isCurrentPlan = currentPlanSlug === plan.slug;
+              const isSubmittingThisPlan =
+                submittingIntent === "subscribe" && submittingPlan === plan.slug;
+
+              return (
+                <Card key={plan.slug}>
+                  <Box padding="400">
+                    <div className="plan-card-content">
                       <BlockStack gap="300">
                         <InlineStack align="space-between" blockAlign="center">
                           <Text as="h2" variant="headingLg">
@@ -331,126 +301,58 @@ export default function BillingPage() {
 
                         <Divider />
 
-                        <BlockStack as="ul" gap="150">
+                        <ul
+                          style={{
+                            margin: 0,
+                            paddingLeft: "1.25rem",
+                            listStyleType: "disc",
+                            display: "grid",
+                            gap: "10px",
+                          }}
+                        >
                           {plan.features.map((feature) => (
                             <li key={feature}>
                               <Text as="span">{feature}</Text>
                             </li>
                           ))}
-                        </BlockStack>
-
-                        {plan.slug === FREE_PLAN.slug ? (
-                          <Form method="post">
-                            <input type="hidden" name="intent" value="cancel" />
-                            <Button
-                              submit
-                              fullWidth
-                              variant={isCurrentPlan ? "primary" : "secondary"}
-                              disabled={isCurrentPlan}
-                              loading={submittingIntent === "cancel"}
-                            >
-                              {isCurrentPlan ? "Current plan" : "Cancel paid plan"}
-                            </Button>
-                          </Form>
-                        ) : (
-                          <Form method="post">
-                            <input type="hidden" name="intent" value="subscribe" />
-                            <input type="hidden" name="plan" value={plan.slug} />
-                            <Button
-                              submit
-                              fullWidth
-                              variant={isCurrentPlan ? "primary" : "secondary"}
-                              disabled={isCurrentPlan}
-                              loading={isSubmittingThisPlan}
-                            >
-                              {isCurrentPlan ? "Current plan" : plan.ctaLabel}
-                            </Button>
-                          </Form>
-                        )}
+                        </ul>
                       </BlockStack>
-                    </Box>
-                  </Card>
-                );
-              })}
-            </div>
-          </BlockStack>
 
-          <BlockStack gap="400">
-            <Card>
-              <Box padding="400">
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    Current plan
-                  </Text>
-                  <InlineStack gap="200" blockAlign="center">
-                    <Text as="p" variant="headingLg">
-                      {currentPlanNameWithInterval}
-                    </Text>
-                    {activeSubscription?.test ? <Badge tone="info">Test</Badge> : null}
-                  </InlineStack>
-                  <Text as="p" tone="subdued">
-                    Shopify status: {activeSubscription?.status ?? "FREE"}
-                  </Text>
-                  <Text as="p" tone="subdued">
-                    Current period ends:{" "}
-                    {formatDate(activeSubscription?.currentPeriodEnd)}
-                  </Text>
-                </BlockStack>
-              </Box>
-            </Card>
-
-            <Card>
-              <Box padding="400">
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    IMAI sync
-                  </Text>
-                  <Text as="p" tone="subdued">
-                    API key: {maskedKey ?? "Not connected"}
-                  </Text>
-                  <Text as="p" tone="subdued">
-                    Latest credit sync:{" "}
-                    {latestAllocation
-                      ? `${latestAllocation.status} on ${formatDate(
-                          latestAllocation.updatedAt,
-                        )}`
-                      : "No sync attempts yet"}
-                  </Text>
-                  {latestAllocation ? (
-                    <Text as="p" tone="subdued">
-                      {`${latestAllocation.credits} credits for ${latestAllocation.planName}`}
-                    </Text>
-                  ) : null}
-                  {latestAllocation?.error ? (
-                    <Text as="p" tone="critical">
-                      {latestAllocation.error}
-                    </Text>
-                  ) : null}
-                </BlockStack>
-              </Box>
-            </Card>
-
-            <Card>
-              <Box padding="400">
-                <BlockStack gap="200">
-                  <Text as="h2" variant="headingMd">
-                    Current implementation
-                  </Text>
-                  <Text as="p" tone="subdued">
-                    Paid plan credits are granted in monthly windows, even for
-                    annual subscriptions. Each grant is keyed by subscription id
-                    plus the monthly grant window start to stay idempotent.
-                  </Text>
-                  <Text as="p" tone="subdued">
-                    Cancellation is immediate and non-prorated in this build, so
-                    existing IMAI credits stay where they are instead of becoming
-                    a support ticket with extra steps.
-                  </Text>
-                </BlockStack>
-              </Box>
-            </Card>
-          </BlockStack>
-        </div>
+                      {plan.slug === FREE_PLAN.slug ? (
+                        <Form method="post" className="plan-card-cta">
+                          <input type="hidden" name="intent" value="cancel" />
+                          <Button
+                            submit
+                            fullWidth
+                            variant={isCurrentPlan ? "primary" : "secondary"}
+                            disabled={isCurrentPlan}
+                            loading={submittingIntent === "cancel"}
+                          >
+                            {isCurrentPlan ? "Current plan" : "Cancel paid plan"}
+                          </Button>
+                        </Form>
+                      ) : (
+                        <Form method="post" className="plan-card-cta">
+                          <input type="hidden" name="intent" value="subscribe" />
+                          <input type="hidden" name="plan" value={plan.slug} />
+                          <Button
+                            submit
+                            fullWidth
+                            variant={isCurrentPlan ? "primary" : "secondary"}
+                            disabled={isCurrentPlan}
+                            loading={isSubmittingThisPlan}
+                          >
+                            {isCurrentPlan ? "Current plan" : plan.ctaLabel}
+                          </Button>
+                        </Form>
+                      )}
+                    </div>
+                  </Box>
+                </Card>
+              );
+            })}
+          </div>
+        </BlockStack>
       </BlockStack>
     </Page>
   );

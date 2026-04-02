@@ -66,10 +66,6 @@ const FAQ_ITEMS = [
     question: "Can I reconnect later?",
     answer: "Yes, add a new API key any time.",
   },
-  {
-    question: "Who do I contact for help?",
-    answer: "Email tech@imai.studio for setup, credits, or connection support.",
-  },
 ];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {

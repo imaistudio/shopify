@@ -13,7 +13,7 @@ export const FREE_PLAN = {
   ctaLabel: "Stay on Free",
   billingInterval: "monthly" as BillingIntervalView,
   features: [
-    "10 free credits during our Product Hunt launch",
+    "10 free credits on signup",
     "Enough for ~10 Design or 25 Marketing images",
     "4K resolution",
   ],
