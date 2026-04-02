@@ -29,8 +29,10 @@ import {
   MONTHLY_PLAN_CARDS,
   PAID_PLAN_NAMES,
   getPaidPlanBySlug,
+  getPaidPlanByTierAndInterval,
 } from "../lib/billing/plans";
 import { authenticate } from "../shopify.server";
+import { decrypt } from "../lib/encryption.server";
 
 type BillingPlanCard = typeof FREE_PLAN | (typeof MONTHLY_PLAN_CARDS)[number] | (typeof ANNUAL_PLAN_CARDS)[number];
 
@@ -64,9 +66,37 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const storedKey = await prisma.apiKey.findUnique({
     where: { shop: session.shop },
-    select: { maskedKey: true },
+    select: { maskedKey: true, encryptedKey: true },
   });
   const searchParams = new URL(request.url).searchParams;
+  let displayCurrentPlanSlug: string | null = null;
+
+  if (storedKey) {
+    try {
+      const apiKey = decrypt(storedKey.encryptedKey);
+      const creditsResp = await fetch("https://www.imai.studio/api/v1/credits", {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+
+      if (creditsResp.ok) {
+        const creditsData = (await creditsResp.json()) as {
+          plan?: string | null;
+          billingCycle?: string | null;
+        };
+        const displayPlan = getPaidPlanByTierAndInterval(
+          creditsData.plan,
+          creditsData.billingCycle,
+        );
+
+        displayCurrentPlanSlug = displayPlan?.slug ?? null;
+      }
+    } catch (error) {
+      console.error("[Billing] Failed to fetch IMAI plan for display", {
+        shop: session.shop,
+        error,
+      });
+    }
+  }
 
   return {
     shop: session.shop,
@@ -74,7 +104,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     annualPlans: ANNUAL_PLAN_CARDS,
     isImaiConnected: !!storedKey,
     billingTestMode: BILLING_TEST_MODE,
-    currentPlanSlug: syncedBilling.activePlan.slug,
+    shopifyCurrentPlanSlug: syncedBilling.activePlan.slug,
+    displayCurrentPlanSlug,
     currentPlanNameWithInterval: syncedBilling.activePlan.nameWithInterval,
     currentPlanInterval: syncedBilling.activePlan.billingInterval,
     creditAllocation: syncedBilling.creditAllocation,
@@ -144,7 +175,8 @@ export default function BillingPage() {
     annualPlans,
     isImaiConnected,
     billingTestMode,
-    currentPlanSlug,
+    shopifyCurrentPlanSlug,
+    displayCurrentPlanSlug,
     currentPlanNameWithInterval,
     creditAllocation,
     syncError,
@@ -157,7 +189,8 @@ export default function BillingPage() {
   const submittingPlan = navigation.formData?.get("plan");
 
   const renderPlanCard = (plan: BillingPlanCard) => {
-    const isCurrentPlan = currentPlanSlug === plan.slug;
+    const isShopifyCurrentPlan = shopifyCurrentPlanSlug === plan.slug;
+    const isDisplayCurrentPlan = displayCurrentPlanSlug === plan.slug;
     const isSubmittingThisPlan =
       submittingIntent === "subscribe" && submittingPlan === plan.slug;
     const features = plan.features
@@ -171,7 +204,7 @@ export default function BillingPage() {
             <Text as="h2" variant="headingLg">
               {plan.name}
             </Text>
-            {isCurrentPlan ? <Badge tone="success">Current</Badge> : null}
+            {isDisplayCurrentPlan ? <Badge tone="success">Current</Badge> : null}
           </InlineStack>
 
           <BlockStack gap="200">
@@ -220,11 +253,11 @@ export default function BillingPage() {
                 <Button
                   submit
                   fullWidth
-                  variant={isCurrentPlan ? "primary" : "secondary"}
-                  disabled={isCurrentPlan}
+                  variant={isShopifyCurrentPlan ? "primary" : "secondary"}
+                  disabled={isShopifyCurrentPlan}
                   loading={submittingIntent === "cancel"}
                 >
-                  {isCurrentPlan ? "Current plan" : "Cancel paid plan"}
+                  {isShopifyCurrentPlan ? "Current plan" : "Cancel paid plan"}
                 </Button>
               </Form>
             ) : (
@@ -234,11 +267,11 @@ export default function BillingPage() {
                 <Button
                   submit
                   fullWidth
-                  variant={isCurrentPlan ? "primary" : "secondary"}
-                  disabled={isCurrentPlan}
+                  variant={isShopifyCurrentPlan ? "primary" : "secondary"}
+                  disabled={isShopifyCurrentPlan}
                   loading={isSubmittingThisPlan}
                 >
-                  {isCurrentPlan ? "Current plan" : plan.ctaLabel}
+                  {isShopifyCurrentPlan ? "Current plan" : plan.ctaLabel}
                 </Button>
               </Form>
             )}
@@ -276,13 +309,13 @@ export default function BillingPage() {
           </Banner>
         ) : null}
 
-        {returnedFromBilling && currentPlanSlug !== FREE_PLAN.slug ? (
+        {returnedFromBilling && shopifyCurrentPlanSlug !== FREE_PLAN.slug ? (
           <Banner tone="success" title="Shopify billing approved">
             {`The shop is now on ${currentPlanNameWithInterval}.`}
           </Banner>
         ) : null}
 
-        {!isImaiConnected && currentPlanSlug !== FREE_PLAN.slug ? (
+        {!isImaiConnected && shopifyCurrentPlanSlug !== FREE_PLAN.slug ? (
           <Banner tone="warning" title="IMAI credit sync is waiting">
             Connect an IMAI API key in Settings before paid Shopify plans can
             grant monthly credits to the merchant account.

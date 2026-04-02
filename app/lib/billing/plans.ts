@@ -1,4 +1,5 @@
 export type BillingIntervalView = "monthly" | "annual";
+export type BillingTierSlug = "starter" | "pro" | "ultra";
 
 export const FREE_PLAN = {
   slug: "free",
@@ -153,6 +154,7 @@ export type PaidPlan = (typeof PAID_PLANS)[number];
 export type PaidPlanSlug = PaidPlan["slug"];
 export type PaidPlanInterval = PaidPlan["billingInterval"];
 export type PaidBillingPlanName = PaidPlan["billingName"];
+export type PaidPlanTierSlug = PaidPlan["tierSlug"];
 
 export const PAID_PLAN_NAMES = PAID_PLANS.map(
   (plan) => plan.billingName,
@@ -172,6 +174,39 @@ export function getPaidPlanBySlug(slug: string | null | undefined) {
 
 export function getPaidPlanByBillingName(name: string | null | undefined) {
   return PAID_PLANS.find((plan) => plan.billingName === name) ?? null;
+}
+
+export function getPaidPlanByTierAndInterval(
+  tierSlug: string | null | undefined,
+  billingInterval: string | null | undefined,
+) {
+  if (!tierSlug || !billingInterval) return null;
+
+  const normalizedTierSlug = tierSlug.toLowerCase();
+  const normalizedBillingInterval = billingInterval.toLowerCase();
+
+  if (
+    normalizedTierSlug !== "starter" &&
+    normalizedTierSlug !== "pro" &&
+    normalizedTierSlug !== "ultra"
+  ) {
+    return null;
+  }
+
+  if (
+    normalizedBillingInterval !== "monthly" &&
+    normalizedBillingInterval !== "annual"
+  ) {
+    return null;
+  }
+
+  return (
+    PAID_PLANS.find(
+      (plan) =>
+        plan.tierSlug === normalizedTierSlug &&
+        plan.billingInterval === normalizedBillingInterval,
+    ) ?? null
+  );
 }
 
 export function getDefaultPlanView(
