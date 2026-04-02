@@ -1,6 +1,7 @@
 import type { ActionFunctionArgs } from "react-router";
-import { authenticate } from "../shopify.server";
+import { authenticate, unauthenticated } from "../shopify.server";
 import db from "../db.server";
+import { syncShopBillingStateFromAdmin } from "../lib/billing.server";
 import { getPaidPlanByBillingName } from "../lib/billing/plans";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -52,6 +53,29 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         lastSyncedAt: new Date(),
       },
     });
+
+    if (status === "ACTIVE") {
+      try {
+        const { admin } = await unauthenticated.admin(shop);
+        const billingSync = await syncShopBillingStateFromAdmin({
+          shop,
+          admin,
+        });
+
+        console.log("✅ Synced billing credits after subscription webhook", {
+          shop,
+          activePlan: billingSync.activePlan.slug,
+          creditAllocation: billingSync.creditAllocation,
+        });
+      } catch (syncError) {
+        console.error("❌ Billing credit sync after subscription webhook failed", {
+          shop,
+          status,
+          subscriptionId,
+          error: syncError,
+        });
+      }
+    }
 
     return new Response("OK", { status: 200 });
   } catch (error) {

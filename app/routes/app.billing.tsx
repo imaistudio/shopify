@@ -20,7 +20,6 @@ import {
 import prisma from "../db.server";
 import {
   BILLING_TEST_MODE,
-  getBillingReturnUrl,
   syncShopBillingState,
 } from "../lib/billing.server";
 import {
@@ -68,7 +67,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     where: { shop: session.shop },
     select: { maskedKey: true, encryptedKey: true },
   });
-  const searchParams = new URL(request.url).searchParams;
   let displayCurrentPlanSlug: string | null = null;
 
   if (storedKey) {
@@ -106,11 +104,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     billingTestMode: BILLING_TEST_MODE,
     shopifyCurrentPlanSlug: syncedBilling.activePlan.slug,
     displayCurrentPlanSlug,
-    currentPlanNameWithInterval: syncedBilling.activePlan.nameWithInterval,
-    currentPlanInterval: syncedBilling.activePlan.billingInterval,
     creditAllocation: syncedBilling.creditAllocation,
     syncError,
-    returnedFromBilling: searchParams.get("billing_return") === "1",
   };
 };
 
@@ -130,7 +125,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return billing.request({
       plan: plan.billingName,
       isTest: BILLING_TEST_MODE,
-      returnUrl: getBillingReturnUrl(new URL(request.url)),
     });
   }
 
@@ -177,10 +171,8 @@ export default function BillingPage() {
     billingTestMode,
     shopifyCurrentPlanSlug,
     displayCurrentPlanSlug,
-    currentPlanNameWithInterval,
     creditAllocation,
     syncError,
-    returnedFromBilling,
   } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
@@ -306,12 +298,6 @@ export default function BillingPage() {
         {syncError ? (
           <Banner tone="critical" title="Billing data is temporarily unavailable">
             {syncError}
-          </Banner>
-        ) : null}
-
-        {returnedFromBilling && shopifyCurrentPlanSlug !== FREE_PLAN.slug ? (
-          <Banner tone="success" title="Shopify billing approved">
-            {`The shop is now on ${currentPlanNameWithInterval}.`}
           </Banner>
         ) : null}
 

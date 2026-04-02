@@ -20,6 +20,11 @@ import {
 } from "./billing/plans";
 
 const CREDIT_ALLOCATION_RETRY_WINDOW_MS = 15 * 60 * 1000;
+const DEFAULT_IMAI_BILLING_SYNC_URL =
+  "https://www.imai.studio/api/v1/shopify/allocate-credits";
+const DEPRECATED_IMAI_BILLING_SYNC_PATH =
+  "/api/v1/shopify/billing/allocate-credits";
+const CURRENT_IMAI_BILLING_SYNC_PATH = "/api/v1/shopify/allocate-credits";
 
 export const BILLING_TEST_MODE =
   process.env.SHOPIFY_BILLING_TEST_MODE === "true" ||
@@ -87,6 +92,13 @@ type BillingContextLike = {
   check: unknown;
 };
 
+type AdminContextLike = {
+  graphql: (
+    query: string,
+    options?: { variables?: Record<string, unknown> },
+  ) => Promise<Response>;
+};
+
 type CreditAllocationResult =
   | {
       state: "not-applicable";
@@ -110,6 +122,15 @@ export type SyncedBillingState = {
     | (typeof PAID_PLANS)[number];
   activeSubscription: AppSubscription | null;
   creditAllocation: CreditAllocationResult;
+};
+
+type CurrentAppSubscriptionsResponse = {
+  data?: {
+    currentAppInstallation?: {
+      activeSubscriptions?: AppSubscription[];
+    } | null;
+  };
+  errors?: unknown;
 };
 
 function toDate(value: string | Date | null | undefined): Date | null {
@@ -196,6 +217,34 @@ function getRequestErrorMessage(
   return `IMAI billing sync failed with status ${status}.`;
 }
 
+function resolveBillingSyncEndpoint() {
+  const configuredEndpoint = process.env.IMAI_BILLING_SYNC_URL?.trim();
+
+  if (!configuredEndpoint) {
+    return DEFAULT_IMAI_BILLING_SYNC_URL;
+  }
+
+  try {
+    const endpointUrl = new URL(configuredEndpoint);
+
+    if (endpointUrl.pathname === DEPRECATED_IMAI_BILLING_SYNC_PATH) {
+      endpointUrl.pathname = CURRENT_IMAI_BILLING_SYNC_PATH;
+      console.warn(
+        "[Billing] Deprecated IMAI billing sync endpoint configured; rewriting to current allocate-credits route",
+        {
+          configuredEndpoint,
+          resolvedEndpoint: endpointUrl.toString(),
+        },
+      );
+      return endpointUrl.toString();
+    }
+
+    return endpointUrl.toString();
+  } catch {
+    return configuredEndpoint;
+  }
+}
+
 async function allocateCreditsToImai(params: {
   shop: string;
   imaiApiKey: string;
@@ -205,15 +254,15 @@ async function allocateCreditsToImai(params: {
   windowStart: Date;
   windowEnd: Date;
 }) {
-  const endpoint = process.env.IMAI_BILLING_SYNC_URL;
-  if (!endpoint) {
-    return {
-      ok: false,
-      message:
-        "IMAI_BILLING_SYNC_URL is not configured yet, so paid Shopify plans cannot grant monthly IMAI credits.",
-      responseJson: null,
-    };
-  }
+  const endpoint = resolveBillingSyncEndpoint();
+
+  console.log("[Billing] Syncing IMAI credits", {
+    shop: params.shop,
+    endpoint,
+    planSlug: params.plan.slug,
+    subscriptionId: params.subscription.id,
+    grantKey: params.grantKey,
+  });
 
   const response = await fetch(endpoint, {
     method: "POST",
@@ -418,25 +467,11 @@ async function ensureCreditsAllocated(params: {
   };
 }
 
-export async function syncShopBillingState(params: {
+async function syncShopBillingStateFromSubscriptions(params: {
   shop: string;
-  billing: BillingContextLike;
+  appSubscriptions: AppSubscription[];
 }): Promise<SyncedBillingState> {
-  const billingContext = params.billing as {
-    check: (options?: {
-      plans?: string[];
-      isTest?: boolean;
-    }) => Promise<BillingCheckResponseObject>;
-  };
-
-  const billingCheck = await billingContext.check({
-    plans: [...PAID_PLAN_NAMES],
-    isTest: BILLING_TEST_MODE,
-  });
-
-  const activeSubscription = getNewestActiveSubscription(
-    billingCheck.appSubscriptions,
-  );
+  const activeSubscription = getNewestActiveSubscription(params.appSubscriptions);
 
   if (!activeSubscription) {
     await prisma.shopBillingState.upsert({
@@ -528,15 +563,65 @@ export async function syncShopBillingState(params: {
   };
 }
 
+export async function syncShopBillingState(params: {
+  shop: string;
+  billing: BillingContextLike;
+}): Promise<SyncedBillingState> {
+  const billingContext = params.billing as {
+    check: (options?: {
+      plans?: string[];
+      isTest?: boolean;
+    }) => Promise<BillingCheckResponseObject>;
+  };
+
+  const billingCheck = await billingContext.check({
+    plans: [...PAID_PLAN_NAMES],
+    isTest: BILLING_TEST_MODE,
+  });
+
+  return syncShopBillingStateFromSubscriptions({
+    shop: params.shop,
+    appSubscriptions: billingCheck.appSubscriptions,
+  });
+}
+
+export async function syncShopBillingStateFromAdmin(params: {
+  shop: string;
+  admin: AdminContextLike;
+}): Promise<SyncedBillingState> {
+  const response = await params.admin.graphql(`#graphql
+    query CurrentAppSubscriptions {
+      currentAppInstallation {
+        activeSubscriptions {
+          id
+          name
+          test
+          status
+          createdAt
+          currentPeriodEnd
+        }
+      }
+    }
+  `);
+  const payload =
+    (await response.json()) as CurrentAppSubscriptionsResponse;
+
+  if (!response.ok || payload.errors) {
+    throw new Error(
+      `[Billing] Failed to load active Shopify subscriptions from Admin API for ${params.shop}`,
+    );
+  }
+
+  return syncShopBillingStateFromSubscriptions({
+    shop: params.shop,
+    appSubscriptions:
+      payload.data?.currentAppInstallation?.activeSubscriptions ?? [],
+  });
+}
+
 export async function getLatestCreditAllocation(shop: string) {
   return prisma.billingCreditAllocation.findFirst({
     where: { shop },
     orderBy: { createdAt: "desc" },
   });
-}
-
-export function getBillingReturnUrl(requestUrl: URL) {
-  const returnUrl = new URL("/app/billing", requestUrl.origin);
-  returnUrl.searchParams.set("billing_return", "1");
-  return returnUrl.toString();
 }
