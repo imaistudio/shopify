@@ -109,5 +109,5 @@ Why:
 - [ ] Set `SHOPIFY_BILLING_TEST_MODE=false` in production
 - [ ] Run `shopify app deploy` after updating production URLs
 - [ ] Verify compliance webhooks are subscribed before App Store submission
-- [ ] Verify `app/subscriptions/update` webhook is subscribed after deploy
+- [ ] Verify `app_subscriptions/update` webhook is subscribed after deploy
 - [ ] Reinstall or reauthorize the app after changing scopes so Shopify issues a token with `read_products` and `write_products`

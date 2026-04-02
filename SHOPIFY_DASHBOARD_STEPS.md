@@ -50,10 +50,10 @@ This app should have these app-specific subscriptions active:
 
 - `app/uninstalled`
 - `app/scopes_update`
-- `app/subscriptions/update`
+- `app_subscriptions/update`
 - compliance topics
 
-The annual and monthly recurring plans both depend on `app/subscriptions/update` being delivered.
+The annual and monthly recurring plans both depend on `app_subscriptions/update` being delivered.
 
 ## 5. Billing behavior to validate in Shopify
 

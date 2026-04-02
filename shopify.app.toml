@@ -21,7 +21,7 @@ api_version = "2026-01"
   uri = "/webhooks/app/scopes_update"
 
   [[webhooks.subscriptions]]
-  topics = [ "app/subscriptions/update" ]
+  topics = [ "app_subscriptions/update" ]
   uri = "/webhooks/app/subscriptions/update"
 
   [[webhooks.subscriptions]]

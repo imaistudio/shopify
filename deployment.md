@@ -175,7 +175,7 @@ This repo already declares:
 
 - `app/uninstalled`
 - `app/scopes_update`
-- `app/subscriptions/update`
+- `app_subscriptions/update`
 - compliance topics routed to `/webhooks/compliance`
 
 Current webhook config lives in [`shopify.app.toml`](./shopify.app.toml), and webhook handlers live in:
