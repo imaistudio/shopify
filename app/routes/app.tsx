@@ -32,12 +32,12 @@ export default function App() {
     <AppProvider embedded apiKey={apiKey}>
       <s-app-nav>
         <a href="/app" rel="home">Home</a>
+        <a href="/app/explore-imai">Explore IMAI</a>
         <a href="/app/marketing">Marketing Agent</a>
         <a href="/app/productgen">Catalogue Agent</a>
-        <a href="/app/library">My Library</a>
+        <a href="/app/library">Library</a>
         <a href="/app/billing">Billing</a>
         <a href="/app/settings">FAQ & Settings</a>
-        <a href="/app/explore-imai">Explore IMAI</a>
       </s-app-nav>
       <Outlet />
     </AppProvider>
