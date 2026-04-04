@@ -98,7 +98,7 @@ export function LaunchHero() {
             </div>
 
             <ul className={styles.featureList}>
-              {featureItems.map(({ title, subtitle, renderIcon }) => (
+              {featureItems.map(({ title, subtitle, renderIcon }, index) => (
                 <li className={styles.featureItem} key={title}>
                   <span className={styles.iconWrap} aria-hidden="true">
                     {renderIcon()}
@@ -106,7 +106,13 @@ export function LaunchHero() {
                   <span className={styles.featureCopy}>
                     <span className={styles.featureText}>{title}</span>
                     {subtitle ? (
-                      <span className={styles.featureSubtext}>{subtitle}</span>
+                      <span
+                        className={`${styles.featureSubtext} ${
+                          index === 0 ? styles.featureSubtextAccent : ""
+                        }`}
+                      >
+                        {subtitle}
+                      </span>
                     ) : null}
                   </span>
                 </li>
