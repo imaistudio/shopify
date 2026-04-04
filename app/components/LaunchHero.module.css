@@ -162,14 +162,15 @@
 
 .featureSubtext {
   color: rgba(15, 15, 15, 0.45);
-  font-size: clamp(0.88rem, 1.15vw, 1.18rem);
+  font-size: clamp(0.74rem, 0.95vw, 0.96rem);
   font-weight: 500;
   line-height: 1.05;
+  padding-top: 0.18rem;
 }
 
 .featureSubtextAccent {
   color: #7b61ff;
-  font-size: clamp(0.88rem, 1.15vw, 1.18rem);
+  font-size: clamp(0.74rem, 0.95vw, 0.96rem);
   font-weight: 500;
   line-height: 1.05;
 }
@@ -323,7 +324,7 @@
   }
 
   .featureSubtext {
-    font-size: 0.84rem;
+    font-size: 0.76rem;
   }
 
   .inputRow {
