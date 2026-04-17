@@ -13,6 +13,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         await Promise.all([
           db.session.deleteMany({ where: { shop } }),
           db.apiKey.deleteMany({ where: { shop } }),
+          db.shopBillingState.deleteMany({ where: { shop } }),
+          db.billingCreditAllocation.deleteMany({ where: { shop } }),
           db.imaiJob.deleteMany({ where: { shop } }),
         ]);
         break;
@@ -24,7 +26,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         console.warn(`Unhandled compliance webhook topic: ${topic}`);
     }
 
-    console.log("Compliance payload:", JSON.stringify(payload));
+    console.log("Compliance webhook processed", {
+      shop,
+      topic,
+      hasPayload: !!payload,
+    });
     return new Response("OK", { status: 200 });
   } catch (error) {
     if (error instanceof Response) {

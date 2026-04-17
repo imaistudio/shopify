@@ -4,6 +4,8 @@ Source-code verified on March 26, 2026.
 
 This guide is specific to this repository. It documents what the app actually needs to run in production based on the current code, not on generic Shopify template defaults.
 
+For a concrete AWS implementation of this deployment shape, see [`AWS_EC2_MIGRATION.md`](./AWS_EC2_MIGRATION.md).
+
 ## What this repo actually deploys
 
 This project is an embedded Shopify app with:

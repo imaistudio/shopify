@@ -6,11 +6,11 @@ The Shopify app can now create monthly or annual subscriptions, but IMAI still n
 
 Create an authenticated IMAI route for:
 
-- `POST /api/v1/shopify/billing/allocate-credits`
+- `POST /api/v1/shopify/allocate-credits`
 
 Set the app env var:
 
-- `IMAI_BILLING_SYNC_URL=https://www.imai.studio/api/v1/shopify/billing/allocate-credits`
+- `IMAI_BILLING_SYNC_URL=https://www.imai.studio/api/v1/shopify/allocate-credits`
 
 ## 2. Authentication model
 

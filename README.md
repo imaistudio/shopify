@@ -48,6 +48,7 @@ The current repo is designed to run best on a Docker host with:
 Railway is a valid fit for this shape if you mount a volume at `/var/data` and run a single instance.
 
 See **[deployment.md](./deployment.md)** for the full deployment and Shopify review checklist.
+For the AWS lift-and-shift path, use **[AWS_EC2_MIGRATION.md](./AWS_EC2_MIGRATION.md)** together with **[docker-compose.aws.yml](./docker-compose.aws.yml)** and **[Caddyfile.aws](./Caddyfile.aws)**.
 
 ## Upgrading from Remix
 

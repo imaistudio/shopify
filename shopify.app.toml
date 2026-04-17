@@ -2,7 +2,7 @@
 
 client_id = "459fae02689e6372969153f15758d58b"
 name = "IMAI.Studio"
-application_url = "https://imai.up.railway.app"
+application_url = "https://ecommerce.imai.studio"
 embedded = true
 
 [build]
@@ -33,4 +33,4 @@ api_version = "2026-01"
 scopes = "read_products,write_products,write_files"
 
 [auth]
-redirect_urls = [ "https://imai.up.railway.app/auth/callback" ]
+redirect_urls = [ "https://ecommerce.imai.studio/auth/callback" ]

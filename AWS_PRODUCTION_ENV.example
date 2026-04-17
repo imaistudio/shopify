@@ -1,0 +1,27 @@
+NODE_ENV=production
+PORT=3000
+
+# Persistent SQLite database on the mounted EBS volume.
+DATABASE_URL=file:/var/data/prod.sqlite
+
+# Public Shopify app URL on AWS.
+SHOPIFY_APP_URL=https://YOUR_SUBDOMAIN
+
+SHOPIFY_API_KEY=YOUR_SHOPIFY_API_KEY
+SHOPIFY_API_SECRET=YOUR_SHOPIFY_API_SECRET
+SCOPES=read_products,write_products,write_files
+
+# Must be at least 32 bytes.
+ENCRYPTION_KEY=REPLACE_WITH_A_RANDOM_32_PLUS_BYTE_SECRET
+
+# Use real billing in production.
+SHOPIFY_BILLING_TEST_MODE=false
+
+# Optional but recommended if your IMAI webhook is signed.
+IMAI_WEBHOOK_SECRET=YOUR_IMAI_WEBHOOK_SECRET
+
+# Optional if you use billing credit sync in production.
+IMAI_BILLING_SYNC_URL=https://www.imai.studio/api/v1/shopify/allocate-credits
+
+# Optional, only if you use Shopify custom shop domains.
+# SHOP_CUSTOM_DOMAIN=example.com

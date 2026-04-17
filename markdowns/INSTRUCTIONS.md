@@ -17,25 +17,33 @@ DATABASE_URL=file:./dev.sqlite
 ENCRYPTION_KEY=use-a-random-32-plus-character-secret
 IMAI_WEBHOOK_SECRET=your_imai_webhook_secret
 SHOPIFY_BILLING_TEST_MODE=true
-IMAI_BILLING_SYNC_URL=https://www.imai.studio/api/v1/shopify/billing/allocate-credits
+IMAI_BILLING_SYNC_URL=https://www.imai.studio/api/v1/shopify/allocate-credits
 ```
 
 ### Production
 
-For Railway or any other Docker host, use:
+For Railway, AWS EC2, or any other Docker host, use:
 
 ```bash
 NODE_ENV=production
 SHOPIFY_API_KEY=your_shopify_api_key
 SHOPIFY_API_SECRET=your_shopify_api_secret
-SHOPIFY_APP_URL=https://imai.up.railway.app
+SHOPIFY_APP_URL=https://your-production-subdomain
 SCOPES=read_products,write_products,write_files
 DATABASE_URL=file:/var/data/prod.sqlite
 ENCRYPTION_KEY=use-a-random-32-plus-character-secret
 IMAI_WEBHOOK_SECRET=your_imai_webhook_secret
 SHOPIFY_BILLING_TEST_MODE=false
-IMAI_BILLING_SYNC_URL=https://www.imai.studio/api/v1/shopify/billing/allocate-credits
+IMAI_BILLING_SYNC_URL=https://www.imai.studio/api/v1/shopify/allocate-credits
 ```
+
+For AWS EC2 specifically:
+
+- use the template in [AWS_PRODUCTION_ENV.example](./AWS_PRODUCTION_ENV.example)
+- mount your EBS volume at `/var/data`
+- run the app with [docker-compose.aws.yml](./docker-compose.aws.yml)
+- terminate HTTPS with [Caddyfile.aws](./Caddyfile.aws)
+- follow the full runbook in [AWS_EC2_MIGRATION.md](./AWS_EC2_MIGRATION.md)
 
 ## Variables this repo does not currently use
 

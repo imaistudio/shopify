@@ -8,7 +8,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     const { payload, topic, shop } = await authenticate.webhook(request);
     console.log(`✅ Received ${topic} webhook for ${shop}`);
-    console.log("Payload:", JSON.stringify(payload, null, 2));
 
     const subscriptionPayload =
       payload &&

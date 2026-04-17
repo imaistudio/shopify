@@ -40,7 +40,7 @@ const FAQ_ITEMS = [
     label:
       "Removing the API key disconnects the app and clears saved IMAI job data for this shop.",
     question: "Do I get free credits?",
-    answer: "Yes, you get $10 free to test the platform and plugin.",
+    answer: "Yes, you get 10 free credits to test the platform and plugin.",
   },
   {
     question: "Why should I connect my store?",

@@ -6,9 +6,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     try {
         const { payload, session, topic, shop } = await authenticate.webhook(request);
         console.log(`✅ Received ${topic} webhook for ${shop}`);
-        console.log("Payload:", JSON.stringify(payload, null, 2));
 
         const current = payload.current as string[];
+        console.log("Scopes update received", {
+            shop,
+            scopeCount: current.length,
+        });
         if (session) {
             await db.session.update({   
                 where: {
