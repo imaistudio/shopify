@@ -27,7 +27,6 @@ import {
   FREE_PLAN,
   MONTHLY_PLAN_CARDS,
   PAID_PLAN_NAMES,
-  getPaidPlanBySlug,
   getPaidPlanByTierAndInterval,
 } from "../lib/billing/plans";
 import { authenticate } from "../shopify.server";
@@ -114,20 +113,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const intent = formData.get("intent");
 
-  if (intent === "subscribe") {
-    const slug = formData.get("plan");
-    const plan = getPaidPlanBySlug(typeof slug === "string" ? slug : null);
-
-    if (!plan) {
-      return { error: "Select a valid paid plan before continuing." };
-    }
-
-    return billing.request({
-      plan: plan.billingName,
-      isTest: BILLING_TEST_MODE,
-    });
-  }
-
   if (intent === "cancel") {
     const billingCheck = await billing.check({
       plans: [...PAID_PLAN_NAMES],
@@ -178,13 +163,10 @@ export default function BillingPage() {
   const navigation = useNavigation();
 
   const submittingIntent = navigation.formData?.get("intent");
-  const submittingPlan = navigation.formData?.get("plan");
 
   const renderPlanCard = (plan: BillingPlanCard) => {
     const isShopifyCurrentPlan = shopifyCurrentPlanSlug === plan.slug;
     const isDisplayCurrentPlan = displayCurrentPlanSlug === plan.slug;
-    const isSubmittingThisPlan =
-      submittingIntent === "subscribe" && submittingPlan === plan.slug;
     const features = plan.features
       .map((feature) => feature.trim())
       .filter((feature) => feature.length > 0);
@@ -253,19 +235,14 @@ export default function BillingPage() {
                 </Button>
               </Form>
             ) : (
-              <Form method="post">
-                <input type="hidden" name="intent" value="subscribe" />
-                <input type="hidden" name="plan" value={plan.slug} />
                 <Button
-                  submit
+                  url={`/app/billing/request?plan=${encodeURIComponent(plan.slug)}`}
                   fullWidth
                   variant={isShopifyCurrentPlan ? "primary" : "secondary"}
                   disabled={isShopifyCurrentPlan}
-                  loading={isSubmittingThisPlan}
                 >
                   {isShopifyCurrentPlan ? "Current plan" : plan.ctaLabel}
                 </Button>
-              </Form>
             )}
           </Box>
         </BlockStack>
