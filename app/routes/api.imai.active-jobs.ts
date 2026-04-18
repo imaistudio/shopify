@@ -14,7 +14,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     where: {
       shop: session.shop,
       status: {
-        in: ["queued", "running"],
+        in: ["queued", "running", "processing"],
       },
     },
     orderBy: {

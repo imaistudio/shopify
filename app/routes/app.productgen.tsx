@@ -224,20 +224,14 @@ export default function ProductGenPage() {
   const [showCancelButton, setShowCancelButton] = useState(false);
   const [hasPageHistory, setHasPageHistory] = useState(initialHasHistory);
 
-  const activeJobIdsRef = useRef<Set<string>>(new Set());
   const pollCountRef = useRef(0);
-
-  useEffect(() => {
-    activeJobIdsRef.current = new Set(
-      generations
-        .filter((generation) => generation.isGenerating && generation.jobId)
-        .map((generation) => generation.jobId!),
-    );
-  }, [generations]);
 
   const hasActiveGeneration = generations.some(
     (generation) => generation.isGenerating,
   );
+  const activeGenerationJobIds = generations
+    .filter((generation) => generation.isGenerating && generation.jobId)
+    .map((generation) => generation.jobId!);
 
   const updateGeneration = useCallback(
     (
@@ -309,13 +303,11 @@ export default function ProductGenPage() {
       return;
     }
 
-    const intervalId = setInterval(async () => {
-      const activeJobIds = Array.from(activeJobIdsRef.current);
-      if (!activeJobIds.length) {
-        clearInterval(intervalId);
-        return;
-      }
+    if (!activeGenerationJobIds.length) {
+      return;
+    }
 
+    const intervalId = setInterval(async () => {
       if (pollCountRef.current >= MAX_POLL_ATTEMPTS) {
         setGenerations((previous) =>
           previous.map((generation) =>
@@ -337,7 +329,7 @@ export default function ProductGenPage() {
 
       pollCountRef.current += 1;
 
-      for (const jobId of activeJobIds) {
+      for (const jobId of activeGenerationJobIds) {
         try {
           const response = await fetch(`/api/imai/status?jobId=${jobId}`);
           if (!response.ok) continue;
@@ -355,7 +347,6 @@ export default function ProductGenPage() {
                 error: null,
               },
             );
-            activeJobIdsRef.current.delete(jobId);
             setShowCancelButton(false);
           } else if (status === "failed" || status === "cancelled") {
             updateGeneration(
@@ -370,7 +361,6 @@ export default function ProductGenPage() {
                   "Generation failed. Please try again.",
               },
             );
-            activeJobIdsRef.current.delete(jobId);
             setShowCancelButton(false);
           } else if (status === "running" || status === "processing") {
             updateGeneration({ jobId }, { status: "processing" });
@@ -385,7 +375,7 @@ export default function ProductGenPage() {
     }, POLL_INTERVAL_MS);
 
     return () => clearInterval(intervalId);
-  }, [hasActiveGeneration, updateGeneration]);
+  }, [activeGenerationJobIds, hasActiveGeneration, updateGeneration]);
 
   useEffect(() => {
     if (!hasActiveGeneration) {
@@ -582,7 +572,6 @@ export default function ProductGenPage() {
         error: "Generation was cancelled.",
       },
     );
-    activeJobIdsRef.current.delete(activeGeneration.jobId);
     setShowCancelButton(false);
   }, [generations, updateGeneration]);
 

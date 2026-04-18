@@ -136,29 +136,31 @@ export function GeneratePanel({
   const [isUploading, setIsUploading] = useState(false);
   const [showCancelButton, setShowCancelButton] = useState(false);
 
-  const activeJobIdsRef = useRef<Set<string>>(new Set());
   const pollCountRef = useRef(0);
-
-  useEffect(() => {
-    activeJobIdsRef.current = new Set(
-      generations
-        .filter((generation) => generation.isGenerating && generation.jobId)
-        .map((generation) => generation.jobId!),
-    );
-  }, [generations]);
 
   const hasActiveGeneration = generations.some(
     (generation) => generation.isGenerating,
   );
+  const activeGenerationJobIds = generations
+    .filter((generation) => generation.isGenerating && generation.jobId)
+    .map((generation) => generation.jobId!);
 
-  const updateGenerationStatus = useCallback(
-    (jobId: string, updates: Partial<Generation>) => {
+  const updateGeneration = useCallback(
+    (
+      match: { id?: string; jobId?: string },
+      updates: Partial<Generation>,
+    ) => {
       setGenerations((previous) =>
-        previous.map((generation) =>
-          generation.jobId === jobId
+        previous.map((generation) => {
+          const matchesId = match.id ? generation.id === match.id : false;
+          const matchesJobId = match.jobId
+            ? generation.jobId === match.jobId
+            : false;
+
+          return matchesId || matchesJobId
             ? { ...generation, ...updates }
-            : generation,
-        ),
+            : generation;
+        }),
       );
     },
     [],
@@ -214,13 +216,11 @@ export function GeneratePanel({
       return;
     }
 
-    const intervalId = setInterval(async () => {
-      const activeJobIds = Array.from(activeJobIdsRef.current);
-      if (!activeJobIds.length) {
-        clearInterval(intervalId);
-        return;
-      }
+    if (!activeGenerationJobIds.length) {
+      return;
+    }
 
+    const intervalId = setInterval(async () => {
       if (pollCountRef.current >= MAX_POLL_ATTEMPTS) {
         setGenerations((previous) =>
           previous.map((generation) =>
@@ -242,7 +242,7 @@ export function GeneratePanel({
 
       pollCountRef.current += 1;
 
-      for (const jobId of activeJobIds) {
+      for (const jobId of activeGenerationJobIds) {
         try {
           const response = await fetch(`/api/imai/status?jobId=${jobId}`);
           if (!response.ok) continue;
@@ -251,17 +251,21 @@ export function GeneratePanel({
           const status = data.job?.status ?? data.status;
 
           if (status === "completed") {
-            updateGenerationStatus(jobId, {
+            updateGeneration(
+              { jobId },
+              {
               isGenerating: false,
               status: "completed",
               results: parseResultUrls(data),
               error: null,
-            });
-            activeJobIdsRef.current.delete(jobId);
+              },
+            );
             setShowCancelButton(false);
             onGenerationComplete();
           } else if (status === "failed" || status === "cancelled") {
-            updateGenerationStatus(jobId, {
+            updateGeneration(
+              { jobId },
+              {
               isGenerating: false,
               status: status,
               results: null,
@@ -269,11 +273,11 @@ export function GeneratePanel({
                 data.job?.error ??
                 data.error ??
                 "Generation failed. Please try again.",
-            });
-            activeJobIdsRef.current.delete(jobId);
+              },
+            );
             setShowCancelButton(false);
           } else if (status === "running" || status === "processing") {
-            updateGenerationStatus(jobId, { status: "processing" });
+            updateGeneration({ jobId }, { status: "processing" });
           }
         } catch (pollError) {
           console.error(`Failed to poll status for ${jobId}:`, pollError);
@@ -282,7 +286,12 @@ export function GeneratePanel({
     }, POLL_INTERVAL_MS);
 
     return () => clearInterval(intervalId);
-  }, [hasActiveGeneration, onGenerationComplete, updateGenerationStatus]);
+  }, [
+    activeGenerationJobIds,
+    hasActiveGeneration,
+    onGenerationComplete,
+    updateGeneration,
+  ]);
 
   useEffect(() => {
     if (!hasActiveGeneration) {
@@ -383,11 +392,14 @@ export function GeneratePanel({
     try {
       const imageUrl = await uploadImage();
       if (!imageUrl) {
-        updateGenerationStatus(generationId, {
+        updateGeneration(
+          { id: generationId },
+          {
           isGenerating: false,
           status: "failed",
           error: "Upload failed",
-        });
+          },
+        );
         return;
       }
 
@@ -413,25 +425,34 @@ export function GeneratePanel({
       };
 
       if (data.jobId) {
-        updateGenerationStatus(generationId, {
-          jobId: data.jobId,
-          status: "queued",
-        });
+        updateGeneration(
+          { id: generationId },
+          {
+            jobId: data.jobId,
+            status: "queued",
+          },
+        );
       } else {
-        updateGenerationStatus(generationId, {
-          isGenerating: false,
-          status: "completed",
-          results: Array.isArray(data.result?.urls) ? data.result.urls : [],
-        });
+        updateGeneration(
+          { id: generationId },
+          {
+            isGenerating: false,
+            status: "completed",
+            results: Array.isArray(data.result?.urls) ? data.result.urls : [],
+          },
+        );
         onGenerationComplete();
       }
     } catch (generationError) {
       console.error("Generation failed:", generationError);
-      updateGenerationStatus(generationId, {
-        isGenerating: false,
-        status: "failed",
-        error: "Failed to generate, please try again later.",
-      });
+      updateGeneration(
+        { id: generationId },
+        {
+          isGenerating: false,
+          status: "failed",
+          error: "Failed to generate, please try again later.",
+        },
+      );
       setError("Failed to generate, please try again later.");
     } finally {
       setPrompt("");
@@ -447,7 +468,7 @@ export function GeneratePanel({
     onGenerationComplete,
     previewUrl,
     prompt,
-    updateGenerationStatus,
+    updateGeneration,
     uploadImage,
     uploadedFile,
   ]);
@@ -468,15 +489,17 @@ export function GeneratePanel({
       console.error("Failed to cancel generation:", cancelError);
     }
 
-    updateGenerationStatus(activeGeneration.jobId, {
-      isGenerating: false,
-      status: "cancelled",
-      error: "Generation was cancelled",
-      results: null,
-    });
-    activeJobIdsRef.current.delete(activeGeneration.jobId);
+    updateGeneration(
+      { jobId: activeGeneration.jobId },
+      {
+        isGenerating: false,
+        status: "cancelled",
+        error: "Generation was cancelled",
+        results: null,
+      },
+    );
     setShowCancelButton(false);
-  }, [generations, updateGenerationStatus]);
+  }, [generations, updateGeneration]);
 
   return (
     <BlockStack gap="400">
