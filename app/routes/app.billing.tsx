@@ -3,6 +3,7 @@ import {
   Form,
   useActionData,
   useLoaderData,
+  useLocation,
   useNavigation,
 } from "react-router";
 import {
@@ -160,9 +161,15 @@ export default function BillingPage() {
     syncError,
   } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
+  const location = useLocation();
   const navigation = useNavigation();
 
   const submittingIntent = navigation.formData?.get("intent");
+  const buildBillingRequestUrl = (planSlug: string) => {
+    const searchParams = new URLSearchParams(location.search);
+    searchParams.set("plan", planSlug);
+    return `/app/billing/request?${searchParams.toString()}`;
+  };
 
   const renderPlanCard = (plan: BillingPlanCard) => {
     const isShopifyCurrentPlan = shopifyCurrentPlanSlug === plan.slug;
@@ -236,7 +243,7 @@ export default function BillingPage() {
               </Form>
             ) : (
                 <Button
-                  url={`/app/billing/request?plan=${encodeURIComponent(plan.slug)}`}
+                  url={buildBillingRequestUrl(plan.slug)}
                   fullWidth
                   variant={isShopifyCurrentPlan ? "primary" : "secondary"}
                   disabled={isShopifyCurrentPlan}
