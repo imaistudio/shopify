@@ -64,10 +64,24 @@ async function resolveShopifyStoreSession(
     where: { shop },
   });
 
-  const preferredSession =
+  const storedPreferredSession =
     storedSessions.find((session) => !session.isOnline && session.accessToken) ??
     storedSessions.find((session) => session.accessToken) ??
-    (fallbackSession?.accessToken ? fallbackSession : null);
+    null;
+
+  const fallbackPreferredSession = fallbackSession?.accessToken
+    ? fallbackSession
+    : null;
+
+  const preferredSession =
+    !storedPreferredSession
+      ? fallbackPreferredSession
+      : !fallbackPreferredSession
+        ? storedPreferredSession
+        : getMissingProductScopes(parseScopes(fallbackPreferredSession.scope)).length <
+            getMissingProductScopes(parseScopes(storedPreferredSession.scope)).length
+          ? fallbackPreferredSession
+          : storedPreferredSession;
 
   if (!preferredSession?.accessToken) {
     return null;

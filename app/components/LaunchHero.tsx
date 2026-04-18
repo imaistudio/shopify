@@ -87,10 +87,10 @@ export function LaunchHero() {
             </div>
 
             <div className={styles.copyBlock}>
-              <h1 className={styles.heading}>
-                Plug into <br />
-                IMAI.<span className={styles.headingAccent}>Studio</span>
-              </h1>
+              <div className={styles.headingBlock}>
+                <h1 className={styles.headingLine}>Plug into</h1>
+                <h1 className={styles.headingLine}>IMAI.Studio</h1>
+              </div>
               <p className={styles.subtitle}>
                 Connect your store. Access everything to design, create, &
                 launch.

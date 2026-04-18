@@ -13,9 +13,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
             scopeCount: current.length,
         });
         if (session) {
-            await db.session.update({   
+            await db.session.updateMany({
                 where: {
-                    id: session.id
+                    shop,
                 },
                 data: {
                     scope: current.toString(),

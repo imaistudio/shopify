@@ -98,19 +98,18 @@
   gap: 1.5rem;
 }
 
-.heading {
+.headingBlock {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.headingLine {
   margin: 0;
   max-width: 8ch;
   font-size: clamp(3.6rem, 6.2vw, 6rem);
   line-height: 0.98;
   letter-spacing: -0.08em;
-  font-weight: 700;
-}
-
-.headingAccent {
-  font-size: 0.62em;
-  letter-spacing: -0.03em;
-  margin-left: 0.08em;
+  font-weight: 800;
 }
 
 .subtitle {
