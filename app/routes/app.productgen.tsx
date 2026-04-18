@@ -492,7 +492,14 @@ export default function ProductGenPage() {
       });
 
       if (!response.ok) {
-        throw new Error("Generation request failed");
+        const errorData = (await response
+          .json()
+          .catch(() => null)) as { message?: string; error?: string } | null;
+        throw new Error(
+          errorData?.message ??
+            errorData?.error ??
+            "Generation request failed",
+        );
       }
 
       const data = (await response.json()) as {
@@ -521,15 +528,20 @@ export default function ProductGenPage() {
       }
     } catch (generationError) {
       console.error("Product generation failed:", generationError);
+      const errorMessage =
+        generationError instanceof Error &&
+        generationError.message.trim().length > 0
+          ? generationError.message
+          : "Failed to generate, please try again later.";
       updateGeneration(
         { id: generationId },
         {
           isGenerating: false,
           status: "failed",
-          error: "Failed to generate, please try again later.",
+          error: errorMessage,
         },
       );
-      setError("Failed to generate, please try again later.");
+      setError(errorMessage);
     } finally {
       setPrompt("");
       setUploadedFile(null);

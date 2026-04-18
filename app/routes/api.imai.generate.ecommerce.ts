@@ -5,11 +5,11 @@ import { decrypt } from "../lib/encryption.server";
 
 /**
  * POST /api/imai/generate/ecommerce
- * Calls IMAI e-commerce API with async polling
+ * Calls the IMAI marketing API in catalogue mode with async polling
  * Body: { prompt?, url, shop }
  */
 export async function action({ request }: ActionFunctionArgs) {
-  console.log("E-commerce Generate API called");
+  console.log("Catalogue Generate API called");
   
   const { session } = await authenticate.admin(request);
   console.log("Session authenticated for shop:", session.shop);
@@ -17,7 +17,12 @@ export async function action({ request }: ActionFunctionArgs) {
   const body = await request.json();
   const { prompt, url, shop } = body;
   
-  console.log("Request body:", { prompt: prompt?.substring(0, 50) + "...", url, shop });
+  console.log("Request body:", {
+    prompt:
+      typeof prompt === "string" ? `${prompt.substring(0, 50)}...` : undefined,
+    url,
+    shop,
+  });
 
   if (!url || typeof url !== 'string') {
     return Response.json(
@@ -44,21 +49,17 @@ export async function action({ request }: ActionFunctionArgs) {
   // Decrypt the API key before using it
   const apiKey = decrypt(apiKeyRecord.encryptedKey);
   
-  const endpoint = 'https://www.imai.studio/api/v1/generate/ecommerce';
+  const endpoint = "https://www.imai.studio/api/v1/generate/marketing";
   
   console.log("Using endpoint:", endpoint);
   
   const requestUrl = new URL(request.url);
   const webhookUrl = `${process.env.SHOPIFY_APP_URL || requestUrl.protocol + '//' + requestUrl.host}/api/imai/webhook`;
 
-  // Prepare request body for e-commerce API
+  // Catalogue generation is part of the marketing API and must set action=catalogue.
   const requestBody: Record<string, unknown> = {
     url: url.trim(),
-    platforms: ["shopify"],
-    includeImages: true,
-    includeDetails: true,
-    includeTitles: true,
-    includeSpecs: true,
+    action: "catalogue",
     async: true,
     webhookUrl,
   };
@@ -83,11 +84,11 @@ export async function action({ request }: ActionFunctionArgs) {
       body: JSON.stringify(requestBody),
     });
     
-    console.log("IMAI e-commerce API response status:", resp.status);
+    console.log("IMAI catalogue API response status:", resp.status);
     
     if (!resp.ok) {
       const errorData = await resp.json().catch(() => ({}));
-      console.error("IMAI API error:", errorData);
+      console.error("IMAI catalogue API error:", errorData);
       return Response.json(
         { error: errorData.error || "Generation request failed", message: errorData.message || "Please try again" },
         { status: resp.status }
@@ -95,7 +96,7 @@ export async function action({ request }: ActionFunctionArgs) {
     }
     
     const data = await resp.json();
-    console.log("IMAI API response:", data);
+    console.log("IMAI catalogue API response:", data);
     
     // Store job in database if we got a jobId
     if (data.jobId) {
@@ -114,7 +115,7 @@ export async function action({ request }: ActionFunctionArgs) {
     
     return Response.json(data);
   } catch (error) {
-    console.error('IMAI API Error:', error);
+    console.error("IMAI catalogue API error:", error);
     return Response.json(
       { error: "Network error", message: "Failed to connect to generation service" },
       { status: 500 }
