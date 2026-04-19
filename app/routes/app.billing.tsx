@@ -24,16 +24,16 @@ import {
   syncShopBillingState,
 } from "../lib/billing.server";
 import {
-  ANNUAL_PLAN_CARDS,
   FREE_PLAN,
   MONTHLY_PLAN_CARDS,
   PAID_PLAN_NAMES,
+  getPaidPlanBySlug,
   getPaidPlanByTierAndInterval,
 } from "../lib/billing/plans";
 import { authenticate } from "../shopify.server";
 import { decrypt } from "../lib/encryption.server";
 
-type BillingPlanCard = typeof FREE_PLAN | (typeof MONTHLY_PLAN_CARDS)[number] | (typeof ANNUAL_PLAN_CARDS)[number];
+type BillingPlanCard = typeof FREE_PLAN | (typeof MONTHLY_PLAN_CARDS)[number];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, billing } = await authenticate.admin(request);
@@ -99,7 +99,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   return {
     shop: session.shop,
     monthlyPlans: MONTHLY_PLAN_CARDS,
-    annualPlans: ANNUAL_PLAN_CARDS,
     isImaiConnected: !!storedKey,
     billingTestMode: BILLING_TEST_MODE,
     shopifyCurrentPlanSlug: syncedBilling.activePlan.slug,
@@ -152,7 +151,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 export default function BillingPage() {
   const {
     monthlyPlans,
-    annualPlans,
     isImaiConnected,
     billingTestMode,
     shopifyCurrentPlanSlug,
@@ -165,15 +163,32 @@ export default function BillingPage() {
   const navigation = useNavigation();
 
   const submittingIntent = navigation.formData?.get("intent");
+  const monthlyPlanCards = MONTHLY_PLAN_CARDS as Array<{
+    slug: string;
+    tierSlug: string;
+  }>;
   const buildBillingRequestUrl = (planSlug: string) => {
     const searchParams = new URLSearchParams(location.search);
     searchParams.set("plan", planSlug);
     return `/app/billing/request?${searchParams.toString()}`;
   };
+  const normalizePlanSlugForDisplay = (slug: string | null | undefined) => {
+    const plan = getPaidPlanBySlug(slug);
+    if (!plan) return slug ?? null;
+
+    return (
+      monthlyPlanCards.find(
+        (monthlyPlan) => monthlyPlan.tierSlug === plan.tierSlug,
+      )
+        ?.slug ?? slug
+    );
+  };
 
   const renderPlanCard = (plan: BillingPlanCard) => {
-    const isShopifyCurrentPlan = shopifyCurrentPlanSlug === plan.slug;
-    const isDisplayCurrentPlan = displayCurrentPlanSlug === plan.slug;
+    const isShopifyCurrentPlan =
+      normalizePlanSlugForDisplay(shopifyCurrentPlanSlug) === plan.slug;
+    const isDisplayCurrentPlan =
+      normalizePlanSlugForDisplay(displayCurrentPlanSlug) === plan.slug;
     const features = plan.features
       .map((feature) => feature.trim())
       .filter((feature) => feature.length > 0);
@@ -310,10 +325,10 @@ export default function BillingPage() {
               <BlockStack gap="300">
                 <BlockStack gap="100">
                   <Text as="h2" variant="headingXl">
-                    Monthly billing
+                    Plans
                   </Text>
                   <Text as="p" variant="bodyMd" tone="subdued">
-                    Pay month to month and keep the same monthly credit grants.
+                    Choose the monthly plan that matches your current credit needs.
                   </Text>
                 </BlockStack>
 
@@ -332,33 +347,6 @@ export default function BillingPage() {
                   ].map((plan) => renderPlanCard(plan))}
                 </div>
               </BlockStack>
-
-              <Box paddingBlockEnd="800">
-                <BlockStack gap="300">
-                  <BlockStack gap="100">
-                    <Text as="h2" variant="headingXl">
-                      Annual billing
-                    </Text>
-                    <Text as="p" variant="bodyMd" tone="subdued">
-                      Billed upfront for the year. Monthly credit grants stay the
-                      same.
-                    </Text>
-                  </BlockStack>
-
-                  <div
-                    className="billing-grid"
-                    style={{
-                      display: "grid",
-                      gap: "24px",
-                      gridTemplateColumns:
-                        "repeat(auto-fit, minmax(280px, 1fr))",
-                      alignItems: "stretch",
-                    }}
-                  >
-                    {annualPlans.map((plan) => renderPlanCard(plan))}
-                  </div>
-                </BlockStack>
-              </Box>
             </BlockStack>
           </div>
         </Box>

@@ -200,11 +200,14 @@ export function getPaidPlanByTierAndInterval(
     return null;
   }
 
+  const targetInterval =
+    normalizedBillingInterval === "annual" ? "monthly" : normalizedBillingInterval;
+
   return (
     PAID_PLANS.find(
       (plan) =>
         plan.tierSlug === normalizedTierSlug &&
-        plan.billingInterval === normalizedBillingInterval,
+        plan.billingInterval === targetInterval,
     ) ?? null
   );
 }
