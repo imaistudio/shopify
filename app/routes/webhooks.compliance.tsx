@@ -1,6 +1,13 @@
-import type { ActionFunctionArgs } from "react-router";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
+
+export const loader = async (_args: LoaderFunctionArgs) => {
+  return new Response(undefined, {
+    status: 405,
+    statusText: "Method Not Allowed",
+  });
+};
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   try {
