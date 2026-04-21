@@ -219,7 +219,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
       if (oauthSync.missingScopes.length) {
         warnings.push(
-          `The current Shopify token is missing ${oauthSync.missingScopes.join(", ")}. Update app scopes and reinstall the app before IMAI can sync and edit products.`,
+          `The current Shopify token is missing ${oauthSync.missingScopes.join(", ")}. Update app scopes, then reauthorize or reinstall the app before IMAI can sync and edit products.`,
         );
       }
 

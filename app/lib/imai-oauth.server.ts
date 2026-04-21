@@ -56,6 +56,22 @@ function getMissingProductScopes(
   );
 }
 
+function getSessionPriorityScore(
+  session: SessionLike,
+  fallbackSessionId?: string,
+) {
+  const missingScopesCount = getMissingProductScopes(
+    parseScopes(session.scope),
+  ).length;
+
+  return {
+    missingScopesCount,
+    isFallbackSession: session.id === fallbackSessionId,
+    isOfflineSession: !session.isOnline,
+    expiresAt: session.expires?.getTime() ?? Number.POSITIVE_INFINITY,
+  };
+}
+
 async function resolveShopifyStoreSession(
   shop: string,
   fallbackSession?: SessionLike,
@@ -64,24 +80,34 @@ async function resolveShopifyStoreSession(
     where: { shop },
   });
 
-  const storedPreferredSession =
-    storedSessions.find((session) => !session.isOnline && session.accessToken) ??
-    storedSessions.find((session) => session.accessToken) ??
-    null;
+  const sessionCandidates = [
+    ...storedSessions,
+    ...(fallbackSession ? [fallbackSession] : []),
+  ].filter((session): session is SessionLike => !!session.accessToken);
 
-  const fallbackPreferredSession = fallbackSession?.accessToken
-    ? fallbackSession
-    : null;
+  const fallbackSessionId = fallbackSession?.id;
 
   const preferredSession =
-    !storedPreferredSession
-      ? fallbackPreferredSession
-      : !fallbackPreferredSession
-        ? storedPreferredSession
-        : getMissingProductScopes(parseScopes(fallbackPreferredSession.scope)).length <
-            getMissingProductScopes(parseScopes(storedPreferredSession.scope)).length
-          ? fallbackPreferredSession
-          : storedPreferredSession;
+    sessionCandidates.length === 0
+      ? null
+      : [...sessionCandidates].sort((left, right) => {
+          const leftScore = getSessionPriorityScore(left, fallbackSessionId);
+          const rightScore = getSessionPriorityScore(right, fallbackSessionId);
+
+          if (leftScore.missingScopesCount !== rightScore.missingScopesCount) {
+            return leftScore.missingScopesCount - rightScore.missingScopesCount;
+          }
+
+          if (leftScore.isFallbackSession !== rightScore.isFallbackSession) {
+            return leftScore.isFallbackSession ? -1 : 1;
+          }
+
+          if (leftScore.isOfflineSession !== rightScore.isOfflineSession) {
+            return leftScore.isOfflineSession ? -1 : 1;
+          }
+
+          return rightScore.expiresAt - leftScore.expiresAt;
+        })[0];
 
   if (!preferredSession?.accessToken) {
     return null;
