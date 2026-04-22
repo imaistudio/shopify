@@ -254,23 +254,12 @@
   opacity: 0.84;
 }
 
-.formHint,
 .formError {
   margin: 0;
   max-width: 30rem;
   padding-inline: 0.25rem;
   font-size: 0.88rem;
   line-height: 1.45;
-}
-
-.formHint {
-  color: rgba(15, 15, 15, 0.5);
-}
-
-.formHint code {
-  font-family: inherit;
-  font-weight: 700;
-  color: #0f0f0f;
 }
 
 .formError {
