@@ -1,4 +1,5 @@
 import { Icon } from "@iconify/react";
+import { Form } from "react-router";
 
 import styles from "./LaunchHero.module.css";
 
@@ -59,7 +60,17 @@ function ShopifyMark() {
   );
 }
 
-export function LaunchHero() {
+type LaunchHeroProps = {
+  installError?: string | null;
+  initialShopValue?: string;
+  isSubmitting?: boolean;
+};
+
+export function LaunchHero({
+  installError = null,
+  initialShopValue = "",
+  isSubmitting = false,
+}: LaunchHeroProps) {
   return (
     <div className={styles.page}>
       <main className={styles.shell}>
@@ -96,6 +107,49 @@ export function LaunchHero() {
                 launch.
               </p>
             </div>
+
+            <Form method="post" className={styles.form}>
+              <label className={styles.srOnly} htmlFor="shop">
+                Shopify store name
+              </label>
+              <div className={styles.inputRow}>
+                <input
+                  id="shop"
+                  name="shop"
+                  type="text"
+                  className={styles.input}
+                  placeholder="Enter your Shopify store"
+                  defaultValue={initialShopValue}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  inputMode="text"
+                  aria-invalid={installError ? "true" : undefined}
+                  aria-describedby={installError ? "install-error" : "install-hint"}
+                />
+                <button
+                  type="submit"
+                  className={styles.button}
+                  aria-label="Install app on your store"
+                  disabled={isSubmitting}
+                >
+                  <Icon
+                    icon={isSubmitting ? "line-md:loading-loop" : "ph:arrow-right-bold"}
+                    className={styles.buttonSparkIcon}
+                  />
+                </button>
+              </div>
+              <p className={styles.formHint} id="install-hint">
+                Use your store name or full <code>myshopify.com</code> domain to
+                start installation.
+              </p>
+              {installError ? (
+                <p className={styles.formError} id="install-error" role="alert">
+                  {installError}
+                </p>
+              ) : null}
+            </Form>
 
             <ul className={styles.featureList}>
               {featureItems.map(({ title, subtitle, renderIcon }, index) => (

@@ -177,6 +177,8 @@
 
 .form {
   margin-top: 0.5rem;
+  display: grid;
+  gap: 0.65rem;
 }
 
 .inputRow {
@@ -206,6 +208,11 @@
   outline: none;
   border-color: rgba(36, 83, 173, 0.48);
   box-shadow: 0 0 0 4px rgba(82, 113, 255, 0.08);
+}
+
+.input[aria-invalid="true"] {
+  border-color: rgba(186, 51, 51, 0.42);
+  box-shadow: 0 0 0 4px rgba(186, 51, 51, 0.08);
 }
 
 .button {
@@ -240,6 +247,35 @@
 .button:focus-visible {
   outline: 3px solid rgba(82, 113, 255, 0.22);
   outline-offset: 3px;
+}
+
+.button:disabled {
+  cursor: wait;
+  opacity: 0.84;
+}
+
+.formHint,
+.formError {
+  margin: 0;
+  max-width: 30rem;
+  padding-inline: 0.25rem;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.formHint {
+  color: rgba(15, 15, 15, 0.5);
+}
+
+.formHint code {
+  font-family: inherit;
+  font-weight: 700;
+  color: #0f0f0f;
+}
+
+.formError {
+  color: #9d1f1f;
+  font-weight: 600;
 }
 
 .srOnly {
