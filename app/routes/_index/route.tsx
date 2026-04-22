@@ -83,6 +83,7 @@ export default function App() {
       installError={actionData?.error ?? null}
       initialShopValue={actionData?.shop ?? ""}
       isSubmitting={navigation.state === "submitting"}
+      showInstallForm
     />
   );
 }
