@@ -5,7 +5,9 @@ import { authenticate } from "../shopify.server";
 import prisma from "../db.server";
 import { syncShopBillingState } from "../lib/billing.server";
 import { encrypt, decrypt, maskApiKey } from "../lib/encryption.server";
-import { syncShopifyStoreTokenToImai } from "../lib/imai-oauth.server";
+import {
+  syncShopifyStoreTokenToImai,
+} from "../lib/imai-oauth.server";
 import {
   Page,
   Box,
@@ -22,6 +24,48 @@ import {
 import { SettingsBlock } from "../components/SettingsBlock";
 
 const SUPPORT_EMAIL = "tech@imai.studio";
+
+type ShopifyScopesContext = Awaited<
+  ReturnType<typeof authenticate.admin>
+>["scopes"];
+
+async function resolveGrantedShopifyScopes({
+  scopes,
+  shop,
+  fallbackScope,
+}: {
+  scopes: ShopifyScopesContext;
+  shop: string;
+  fallbackScope?: string | null;
+}) {
+  try {
+    const scopesDetail = await scopes.query();
+    const grantedScopes = scopesDetail.granted;
+
+    await prisma.session.updateMany({
+      where: { shop },
+      data: { scope: grantedScopes.join(",") },
+    });
+
+    return grantedScopes;
+  } catch (error) {
+    console.error("[Settings] Failed to query Shopify access scopes", {
+      shop,
+      error,
+    });
+
+    return (fallbackScope ?? "")
+      .split(",")
+      .map((scope) => scope.trim())
+      .filter(Boolean);
+  }
+}
+
+function productScopeWarning(missingScopes: readonly string[]) {
+  if (!missingScopes.length) return null;
+
+  return `The current Shopify token is missing ${missingScopes.join(", ")}. Update Shopify permissions so IMAI can sync and edit products.`;
+}
 
 const FAQ_ITEMS = [
   {
@@ -101,7 +145,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session, billing } = await authenticate.admin(request);
+  const { session, billing, scopes } = await authenticate.admin(request);
   const formData = await request.formData();
   const intent = formData.get("intent") as string;
 
@@ -197,14 +241,21 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         maskedKey,
       });
 
+      const grantedShopifyScopes = await resolveGrantedShopifyScopes({
+        scopes,
+        shop: session.shop,
+        fallbackScope: session.scope,
+      });
+
       const oauthSync = await syncShopifyStoreTokenToImai({
         shop: session.shop,
         imaiApiKey: apiKey,
         source: "settings-save",
+        grantedScopes: grantedShopifyScopes,
         fallbackSession: {
           id: session.id,
           accessToken: session.accessToken,
-          scope: session.scope,
+          scope: grantedShopifyScopes.join(",") || session.scope,
           expires: session.expires,
           isOnline: session.isOnline,
         },
@@ -218,9 +269,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         );
       }
       if (oauthSync.missingScopes.length) {
-        warnings.push(
-          `The current Shopify token is missing ${oauthSync.missingScopes.join(", ")}. Update app scopes, then reauthorize or reinstall the app before IMAI can sync and edit products.`,
-        );
+        const warning = productScopeWarning(oauthSync.missingScopes);
+        if (warning) warnings.push(warning);
       }
 
       if (warnings.length) {

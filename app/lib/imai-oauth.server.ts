@@ -23,6 +23,7 @@ type SyncShopifyStoreTokenParams = {
   imaiApiKey: string;
   source: string;
   fallbackSession?: SessionLike;
+  grantedScopes?: readonly string[] | null;
 };
 
 type SyncShopifyStoreTokenResult = {
@@ -42,17 +43,34 @@ function parseScopes(scope?: string | null): string[] {
     .filter(Boolean);
 }
 
+function normalizeScopes(scopes: readonly string[]): string[] {
+  return [
+    ...new Set(scopes.map((scope) => scope.trim()).filter(Boolean)),
+  ];
+}
+
 function maskSecret(secret?: string | null): string {
   if (!secret) return "(missing)";
   if (secret.length <= 8) return `${secret.slice(0, 2)}••••`;
   return `${secret.slice(0, 6)}••••${secret.slice(-4)}`;
 }
 
-function getMissingProductScopes(
-  grantedScopes: string[],
+export function getMissingShopifyProductScopes(
+  grantedScopes: readonly string[],
 ): RequiredShopifyProductScope[] {
+  const normalizedScopes = normalizeScopes(grantedScopes);
+
   return REQUIRED_SHOPIFY_PRODUCT_SCOPES.filter(
-    (requiredScope) => !grantedScopes.includes(requiredScope),
+    (requiredScope) => {
+      if (requiredScope === "read_products") {
+        return (
+          !normalizedScopes.includes("read_products") &&
+          !normalizedScopes.includes("write_products")
+        );
+      }
+
+      return !normalizedScopes.includes(requiredScope);
+    },
   );
 }
 
@@ -60,7 +78,7 @@ function getSessionPriorityScore(
   session: SessionLike,
   fallbackSessionId?: string,
 ) {
-  const missingScopesCount = getMissingProductScopes(
+  const missingScopesCount = getMissingShopifyProductScopes(
     parseScopes(session.scope),
   ).length;
 
@@ -127,6 +145,7 @@ export async function syncShopifyStoreTokenToImai({
   imaiApiKey,
   source,
   fallbackSession,
+  grantedScopes,
 }: SyncShopifyStoreTokenParams): Promise<SyncShopifyStoreTokenResult> {
   console.log(`[IMAI OAuth] [${source}] Starting Shopify token sync`, {
     shop,
@@ -147,16 +166,19 @@ export async function syncShopifyStoreTokenToImai({
       };
     }
 
-    const grantedScopes = parseScopes(session.scope);
-    const missingScopes = getMissingProductScopes(grantedScopes);
+    const resolvedGrantedScopes = grantedScopes
+      ? normalizeScopes(grantedScopes)
+      : parseScopes(session.scope);
+    const missingScopes = getMissingShopifyProductScopes(resolvedGrantedScopes);
 
     console.log(`[IMAI OAuth] [${source}] Resolved Shopify session`, {
       shop,
       sessionId: session.id,
       sessionType: session.isOnline ? "online" : "offline",
       token: maskSecret(session.accessToken),
-      scopes: grantedScopes,
+      scopes: resolvedGrantedScopes,
       missingScopes,
+      scopeSource: grantedScopes ? "shopify-live-query" : "stored-session",
       tokenExpiresAt: session.expires?.toISOString() ?? null,
     });
 
@@ -172,7 +194,7 @@ export async function syncShopifyStoreTokenToImai({
         // IMAI stores and reuses the live provider token, so this must remain raw.
         token: session.accessToken,
         tokenExpiresAt: session.expires?.getTime(),
-        scope: grantedScopes.length ? grantedScopes : undefined,
+        scope: resolvedGrantedScopes.length ? resolvedGrantedScopes : undefined,
         metadata: {
           shop,
           sessionId: session.id,
