@@ -1,5 +1,6 @@
+import { useEffect } from "react";
 import type { HeadersFunction, LoaderFunctionArgs } from "react-router";
-import { Outlet, useLoaderData, useRouteError } from "react-router";
+import { Outlet, useNavigate, useRouteError } from "react-router";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { AppProvider } from "@shopify/shopify-app-react-router/react";
 
@@ -21,15 +22,34 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     });
   }
 
-  // eslint-disable-next-line no-undef
-  return { apiKey: process.env.SHOPIFY_API_KEY || "" };
+  return null;
 };
 
 export default function App() {
-  const { apiKey } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleNavigate = (event: Event) => {
+      const target =
+        event.target instanceof Element
+          ? event.target.closest("a[href]")
+          : null;
+      const href = target?.getAttribute("href");
+
+      if (href) {
+        navigate(href);
+      }
+    };
+
+    document.addEventListener("shopify:navigate", handleNavigate);
+
+    return () => {
+      document.removeEventListener("shopify:navigate", handleNavigate);
+    };
+  }, [navigate]);
 
   return (
-    <AppProvider embedded apiKey={apiKey}>
+    <AppProvider embedded={false}>
       <s-app-nav>
         <a href="/app" rel="home">Home</a>
         <a href="/app/marketing">Marketing Agent</a>
