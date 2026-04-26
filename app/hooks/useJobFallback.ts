@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
+import { authenticatedAppFetch } from "../lib/authenticated-app-fetch";
 
 interface JobResult {
   versionId?: string;
@@ -69,7 +70,7 @@ export function useJobFallback(
         }
 
         try {
-          const resp = await fetch(`/api/imai/status?jobId=${jobId}`);
+          const resp = await authenticatedAppFetch(`/api/imai/status?jobId=${jobId}`);
           
           if (!resp.ok) {
             throw new Error(`Status check failed: ${resp.status}`);

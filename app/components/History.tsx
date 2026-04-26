@@ -9,6 +9,7 @@ import {
   Toast,
   Frame,
 } from "@shopify/polaris";
+import { authenticatedAppFetch } from "../lib/authenticated-app-fetch";
 
 interface HistoryItem {
   id: string;
@@ -69,7 +70,7 @@ export function History({
   const loadHistory = useCallback(async () => {
     try {
       setLoading(true);
-      const resp = await fetch(`/api/imai/history?endpoint=${encodeURIComponent(endpoint)}`);
+      const resp = await authenticatedAppFetch(`/api/imai/history?endpoint=${encodeURIComponent(endpoint)}`);
       if (resp.ok) {
         const data = (await resp.json()) as HistoryApiItem[];
         setBrokenImageUrls(new Set());
@@ -94,7 +95,7 @@ export function History({
     setIsImporting(true);
     setImportError(null);
     try {
-      const response = await fetch('/api/import-image', {
+      const response = await authenticatedAppFetch('/api/import-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

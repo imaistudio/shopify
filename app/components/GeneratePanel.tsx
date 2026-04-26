@@ -15,6 +15,7 @@ import {
   Thumbnail,
 } from "@shopify/polaris";
 import { PlusIcon, XCircleIcon } from "@shopify/polaris-icons";
+import { authenticatedAppFetch } from "../lib/authenticated-app-fetch";
 
 const placeholderStarIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="2.75em" height="2.75em" viewBox="0 0 24 24">
@@ -169,7 +170,7 @@ export function GeneratePanel({
   useEffect(() => {
     const loadActiveJobs = async () => {
       try {
-        const response = await fetch("/api/imai/active-jobs");
+        const response = await authenticatedAppFetch("/api/imai/active-jobs");
         if (!response.ok) return;
 
         const data = (await response.json()) as ActiveJobsResponse;
@@ -244,7 +245,7 @@ export function GeneratePanel({
 
       for (const jobId of activeGenerationJobIds) {
         try {
-          const response = await fetch(`/api/imai/status?jobId=${jobId}`);
+          const response = await authenticatedAppFetch(`/api/imai/status?jobId=${jobId}`);
           if (!response.ok) continue;
 
           const data = (await response.json()) as StatusResponse;
@@ -336,7 +337,7 @@ export function GeneratePanel({
       const formData = new FormData();
       formData.append("image", uploadedFile);
 
-      const response = await fetch("/api/imai/upload", {
+      const response = await authenticatedAppFetch("/api/imai/upload", {
         method: "POST",
         body: formData,
       });
@@ -403,7 +404,7 @@ export function GeneratePanel({
         return;
       }
 
-      const response = await fetch("/api/imai/generate", {
+      const response = await authenticatedAppFetch("/api/imai/generate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -480,7 +481,7 @@ export function GeneratePanel({
     if (!activeGeneration?.jobId) return;
 
     try {
-      await fetch("/api/imai/cancel", {
+      await authenticatedAppFetch("/api/imai/cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jobId: activeGeneration.jobId }),

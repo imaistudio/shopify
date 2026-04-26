@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
+import { authenticatedAppFetch } from "../lib/authenticated-app-fetch";
 
 interface JobResult {
   versionId?: string;
@@ -66,7 +67,7 @@ export function useJobPoller(
 
       try {
         console.log(`Polling status for job ${jobId}, attempt ${pollAttemptsRef.current[jobId] || 0}`);
-        const resp = await fetch(`/api/imai/status?jobId=${jobId}`);
+        const resp = await authenticatedAppFetch(`/api/imai/status?jobId=${jobId}`);
 
         if (!resp.ok) {
           throw new Error(`Status check failed: ${resp.status}`);

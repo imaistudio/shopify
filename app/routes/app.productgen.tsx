@@ -22,6 +22,7 @@ import {
 import { PlusIcon, XCircleIcon } from "@shopify/polaris-icons";
 import { ApiKeyEmptyState } from "../components/ApiKeyEmptyState";
 import { History } from "../components/History";
+import { authenticatedAppFetch } from "../lib/authenticated-app-fetch";
 
 const placeholderStarIcon = () => (
   <svg xmlns="http://www.w3.org/2000/svg" width="2.75em" height="2.75em" viewBox="0 0 24 24">
@@ -256,7 +257,7 @@ export default function ProductGenPage() {
   useEffect(() => {
     const loadActiveJobs = async () => {
       try {
-        const response = await fetch("/api/imai/active-jobs");
+        const response = await authenticatedAppFetch("/api/imai/active-jobs");
         if (!response.ok) return;
 
         const data = (await response.json()) as ActiveJobsResponse;
@@ -331,7 +332,7 @@ export default function ProductGenPage() {
 
       for (const jobId of activeGenerationJobIds) {
         try {
-          const response = await fetch(`/api/imai/status?jobId=${jobId}`);
+          const response = await authenticatedAppFetch(`/api/imai/status?jobId=${jobId}`);
           if (!response.ok) continue;
 
           const data = (await response.json()) as StatusResponse;
@@ -420,7 +421,7 @@ export default function ProductGenPage() {
       const formData = new FormData();
       formData.append("image", uploadedFile);
 
-      const response = await fetch("/api/imai/upload", {
+      const response = await authenticatedAppFetch("/api/imai/upload", {
         method: "POST",
         body: formData,
       });
@@ -482,7 +483,7 @@ export default function ProductGenPage() {
         return;
       }
 
-      const response = await fetch("/api/imai/generate/ecommerce", {
+      const response = await authenticatedAppFetch("/api/imai/generate/ecommerce", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -566,7 +567,7 @@ export default function ProductGenPage() {
     if (!activeGeneration?.jobId) return;
 
     try {
-      await fetch("/api/imai/cancel", {
+      await authenticatedAppFetch("/api/imai/cancel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jobId: activeGeneration.jobId }),

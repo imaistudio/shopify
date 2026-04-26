@@ -13,6 +13,7 @@ import {
   Toast,
   Frame,
 } from "@shopify/polaris";
+import { authenticatedAppFetch } from "../lib/authenticated-app-fetch";
 
 interface Asset {
   id: string;
@@ -65,7 +66,7 @@ export function LibraryGrid({ refreshTrigger }: LibraryGridProps) {
         ...(currentCursor && { cursor: currentCursor })
       });
       
-      const resp = await fetch(`${endpoint}?${params}`);
+      const resp = await authenticatedAppFetch(`${endpoint}?${params}`);
       
       if (!resp.ok) {
         throw new Error("Failed to fetch library");
@@ -109,7 +110,7 @@ export function LibraryGrid({ refreshTrigger }: LibraryGridProps) {
     setIsImporting(true);
     setImportError(null);
     try {
-      const response = await fetch('/api/import-image', {
+      const response = await authenticatedAppFetch('/api/import-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
