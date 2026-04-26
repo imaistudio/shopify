@@ -58,7 +58,7 @@ Why:
 
 - merchants enter their own IMAI API key inside the app, and the app stores it encrypted per shop
 - IMAI endpoints are hardcoded to `https://www.imai.studio`
-- uploads currently use `tempfile.org`, not your own R2 bucket or CDN
+- reference-image uploads are stored in Shopify Files using Shopify staged uploads
 
 ## Billing-specific notes
 

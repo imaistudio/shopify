@@ -1,8 +1,8 @@
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import type { ActionFunctionArgs } from "react-router";
 import { authenticate } from "../shopify.server";
 import db from "../db.server";
 
-export const loader = async (_args: LoaderFunctionArgs) => {
+export const loader = async () => {
   return new Response(undefined, {
     status: 405,
     statusText: "Method Not Allowed",
@@ -15,16 +15,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     console.log(`✅ Received ${topic} webhook for ${shop}`);
 
-    // Webhook requests can trigger multiple times and after an app has already been uninstalled.
-    // If this webhook already ran, the session may have been deleted previously.
-    if (session) {
-      await db.session.deleteMany({ where: { shop } });
-      await db.shopBillingState.deleteMany({ where: { shop } });
-      await db.billingCreditAllocation.deleteMany({ where: { shop } });
-      console.log(`🗑️ Deleted session for shop: ${shop}`);
-    } else {
-      console.log(`⚠️ No session found for shop: ${shop} (already uninstalled?)`);
-    }
+    // Webhook requests can trigger multiple times and after sessions are gone,
+    // so cleanup must be idempotent and independent of the session payload.
+    await Promise.all([
+      db.session.deleteMany({ where: { shop } }),
+      db.apiKey.deleteMany({ where: { shop } }),
+      db.shopBillingState.deleteMany({ where: { shop } }),
+      db.billingCreditAllocation.deleteMany({ where: { shop } }),
+      db.imaiJob.deleteMany({ where: { shop } }),
+    ]);
+    console.log(`🗑️ Deleted shop-scoped app data for shop: ${shop}`, {
+      hadSession: !!session,
+    });
 
     return new Response("OK", { status: 200 });
   } catch (error) {

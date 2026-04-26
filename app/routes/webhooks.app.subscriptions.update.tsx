@@ -1,10 +1,10 @@
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import type { ActionFunctionArgs } from "react-router";
 import { authenticate, unauthenticated } from "../shopify.server";
 import db from "../db.server";
 import { syncShopBillingStateFromAdmin } from "../lib/billing.server";
 import { getPaidPlanByBillingName } from "../lib/billing/plans";
 
-export const loader = async (_args: LoaderFunctionArgs) => {
+export const loader = async () => {
   return new Response(undefined, {
     status: 405,
     statusText: "Method Not Allowed",

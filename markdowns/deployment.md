@@ -86,19 +86,19 @@ Why:
 
 - merchant IMAI API keys are stored per shop in the database, not read from a global env var
 - IMAI endpoints are currently hardcoded to `https://www.imai.studio`
-- upload flows currently use `tempfile.org`, not R2 or a configurable CDN
+- reference-image uploads are stored in Shopify Files using Shopify staged uploads
 
 ## External services the app must reach
 
 Your production app needs outbound network access to:
 
 - `https://www.imai.studio`
-- `https://tempfile.org`
+- Shopify Admin GraphQL and Shopify staged upload targets
 
 Current code paths:
 
 - IMAI generation, credits, OAuth, and library requests call `https://www.imai.studio`
-- image upload flows call `https://tempfile.org/api/upload/local` and `https://tempfile.org/api/upload/url`
+- image upload flows call Shopify staged uploads and create merchant-approved files in Shopify Files
 
 If those hosts are blocked, the app will appear broken even if Shopify auth works perfectly.
 
@@ -242,10 +242,10 @@ At minimum, set:
 ```bash
 NODE_ENV=production
 DATABASE_URL=file:/var/data/prod.sqlite
-SHOPIFY_APP_URL=https://imai.up.railway.app
+SHOPIFY_APP_URL=https://ecommerce.imai.studio
 SHOPIFY_API_KEY=...
 SHOPIFY_API_SECRET=...
-SCOPES=write_files
+SCOPES=read_products,write_products,write_files
 ENCRYPTION_KEY=use-a-random-secret-at-least-32-bytes-long
 ```
 
@@ -359,8 +359,7 @@ If the reviewer cannot connect an IMAI key, most of the app's real functionality
 - `npm run build` fails if `DATABASE_URL` is missing.
 - The app is currently designed for one instance because of SQLite plus in-memory SSE.
 - IMAI endpoints are hardcoded to `https://www.imai.studio`; changing that requires code changes, not env changes.
-- Upload flows depend on `tempfile.org`.
-- `npm run typecheck` currently fails locally because TypeScript cannot resolve `@shopify/polaris-types`. That is a repo issue, not a deployment requirement, but you should know it exists.
+- Reference-image upload flows depend on Shopify staged uploads and the `write_files` scope.
 
 ## Useful references
 

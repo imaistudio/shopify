@@ -23,5 +23,8 @@ IMAI_WEBHOOK_SECRET=YOUR_IMAI_WEBHOOK_SECRET
 # Optional if you use billing credit sync in production.
 IMAI_BILLING_SYNC_URL=https://www.imai.studio/api/v1/shopify/allocate-credits
 
+# Reference-image uploads are stored in Shopify Files through staged uploads.
+# The IMAI API key used for generation must include generate:write.
+
 # Optional, only if you use Shopify custom shop domains.
 # SHOP_CUSTOM_DOMAIN=example.com

@@ -1,5 +1,4 @@
 import { Icon } from "@iconify/react";
-import { Form } from "react-router";
 
 import styles from "./LaunchHero.module.css";
 
@@ -11,19 +10,19 @@ const COMPANY_LOGO_SRC = "/launch/logo.webp";
 const featureItems = [
   {
     title: "Design Agent",
-    subtitle: "Create Collections In One Go",
+    subtitle: "Generate product visual concepts",
     renderIcon: () => (
       <Icon icon="boxicons:pen-filled" width={25} height={25} />
     ),
   },
   {
     title: "Marketing Agent",
-    subtitle: "Everything You Need to Launch",
+    subtitle: "Create campaign-ready assets",
     renderIcon: () => <Icon icon="mdi:cube-outline" width={25} height={25} />,
   },
   {
     title: "Avatars",
-    subtitle: "Consistent Face Across Campaigns.",
+    subtitle: "Create reusable campaign models",
     renderIcon: () => <Icon icon="ic:round-face-3" width={25} height={25} />,
   },
   {
@@ -60,19 +59,7 @@ function ShopifyMark() {
   );
 }
 
-type LaunchHeroProps = {
-  installError?: string | null;
-  initialShopValue?: string;
-  isSubmitting?: boolean;
-  showInstallForm?: boolean;
-};
-
-export function LaunchHero({
-  installError = null,
-  initialShopValue = "",
-  isSubmitting = false,
-  showInstallForm = false,
-}: LaunchHeroProps) {
+export function LaunchHero() {
   return (
     <div className={styles.page}>
       <main className={styles.shell}>
@@ -105,8 +92,8 @@ export function LaunchHero({
                 <h1 className={styles.headingLine}>IMAI.Studio</h1>
               </div>
               <p className={styles.subtitle}>
-                Connect your store. Access everything to design, create, &
-                launch.
+                Connect your store to create product visuals, catalogue content,
+                and marketing assets.
               </p>
             </div>
 
@@ -131,49 +118,6 @@ export function LaunchHero({
                 </li>
               ))}
             </ul>
-
-            {showInstallForm ? (
-              <Form method="post" className={styles.form}>
-                <label className={styles.srOnly} htmlFor="shop">
-                  Shopify store name
-                </label>
-                <div className={styles.inputRow}>
-                  <input
-                    id="shop"
-                    name="shop"
-                    type="text"
-                    className={styles.input}
-                    placeholder="Enter your-store or your-store.myshopify.com"
-                    defaultValue={initialShopValue}
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="none"
-                    spellCheck={false}
-                    inputMode="text"
-                    aria-invalid={installError ? "true" : undefined}
-                    aria-describedby={installError ? "install-error" : undefined}
-                  />
-                  <button
-                    type="submit"
-                    className={styles.button}
-                    aria-label="Install app on your store"
-                    disabled={isSubmitting}
-                  >
-                    <Icon
-                      icon={
-                        isSubmitting ? "line-md:loading-loop" : "ph:arrow-right-bold"
-                      }
-                      className={styles.buttonSparkIcon}
-                    />
-                  </button>
-                </div>
-                {installError ? (
-                  <p className={styles.formError} id="install-error" role="alert">
-                    {installError}
-                  </p>
-                ) : null}
-              </Form>
-            ) : null}
           </aside>
         </section>
       </main>

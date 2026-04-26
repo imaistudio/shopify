@@ -274,9 +274,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (intent === "removeKey") {
     // Clean all IMAI data for this shop so adding a new key starts fresh
     await prisma.imaiJob.deleteMany({ where: { shop: session.shop } });
-    await prisma.apiKey.delete({
-      where: { shop: session.shop },
-    });
+    await prisma.apiKey.deleteMany({ where: { shop: session.shop } });
     return { success: true, removed: true, message: "IMAI API key removed" };
   }
 
